@@ -9,12 +9,13 @@ import {
   PreviewApp,
   PreviewLive,
   PreviewPricing,
+  Results,
 } from "./components/home";
-import { Button, SectionHeader, GlowPanel } from "./components/ui";
+import { Button, GlowPanel } from "./components/ui";
 
 /**
- * F1.7 — Vetrina + sezioni anteprima prodotto (app, sessioni live, pagamenti).
- * Risultati (F1.10) e form contatto reale (F1.12) restano segnaposto.
+ * F1.8 — Vetrina + anteprime prodotto + Risultati/prova sociale.
+ * Form contatto reale (F1.12) resta segnaposto.
  */
 export default function App() {
   return (
@@ -57,10 +58,9 @@ export default function App() {
         <PreviewPricing />
       </Section>
 
-      {/* RISULTATI (placeholder — F1.10) */}
+      {/* RISULTATI / PROVA SOCIALE */}
       <Section id="risultati" surface>
-        <SectionHeader eyebrow="Risultati" title="Trasformazioni" />
-        <p className="mt-4 max-w-2xl text-text-muted">Gallery in arrivo (F1.10).</p>
+        <Results />
       </Section>
 
       {/* CONTATTI (placeholder — F1.12) */}
