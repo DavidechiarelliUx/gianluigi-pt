@@ -17,11 +17,15 @@ export default {
         "text-muted": "hsl(var(--text-muted) / <alpha-value>)",
         danger: "hsl(var(--danger) / <alpha-value>)",
       },
+      ringColor: {
+        DEFAULT: "hsl(var(--accent))",
+      },
       borderRadius: {
         sm: "8px",
         md: "12px",
         lg: "16px",
         xl: "24px",
+        full: "9999px",
       },
       boxShadow: {
         base: "0 4px 24px rgba(0,0,0,0.4)",
@@ -35,6 +39,12 @@ export default {
       fontSize: {
         hero: ["clamp(2.5rem, 8vw, 4.5rem)", { lineHeight: "1.05", letterSpacing: "-0.02em" }],
         display: ["clamp(1.75rem, 4vw, 2.25rem)", { lineHeight: "1.15", letterSpacing: "-0.01em" }],
+      },
+      spacing: {
+        section: "6rem", // 96px — padding verticale sezioni desktop
+      },
+      backgroundImage: {
+        "neon-gradient": "linear-gradient(135deg, hsl(var(--accent)), hsl(var(--accent-2)))",
       },
       keyframes: {
         "neon-breathe": {
