@@ -1,10 +1,19 @@
 import { Calendar } from "lucide-react";
 import { MainLayout, Section } from "./components/layout";
-import { Hero, Stats, About, Services, Method } from "./components/home";
+import {
+  Hero,
+  Stats,
+  About,
+  Services,
+  Method,
+  PreviewApp,
+  PreviewLive,
+  PreviewPricing,
+} from "./components/home";
 import { Button, SectionHeader, GlowPanel } from "./components/ui";
 
 /**
- * F1.6 — Sito vetrina con sezioni reali (Chi sono, Servizi, Metodo) + stat count-up.
+ * F1.7 — Vetrina + sezioni anteprima prodotto (app, sessioni live, pagamenti).
  * Risultati (F1.10) e form contatto reale (F1.12) restano segnaposto.
  */
 export default function App() {
@@ -31,6 +40,21 @@ export default function App() {
       {/* METODO */}
       <Section id="metodo">
         <Method />
+      </Section>
+
+      {/* ANTEPRIMA PRODOTTO — App allenamenti (Fase 2) */}
+      <Section id="app" surface>
+        <PreviewApp />
+      </Section>
+
+      {/* ANTEPRIMA PRODOTTO — Sessioni live (Fase 3) */}
+      <Section id="live">
+        <PreviewLive />
+      </Section>
+
+      {/* ANTEPRIMA PRODOTTO — Pagamenti e pacchetti (Fase 3) */}
+      <Section id="pacchetti" surface>
+        <PreviewPricing />
       </Section>
 
       {/* RISULTATI (placeholder — F1.10) */}

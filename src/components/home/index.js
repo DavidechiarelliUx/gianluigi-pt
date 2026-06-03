@@ -4,3 +4,6 @@ export { Stats } from "./Stats";
 export { About } from "./About";
 export { Services } from "./Services";
 export { Method } from "./Method";
+export { PreviewApp } from "./PreviewApp";
+export { PreviewLive } from "./PreviewLive";
+export { PreviewPricing } from "./PreviewPricing";
