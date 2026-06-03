@@ -1,52 +1,17 @@
-import { motion } from "framer-motion";
-import { ArrowRight, Calendar } from "lucide-react";
+import { Calendar } from "lucide-react";
 import { MainLayout, Section } from "./components/layout";
-import { Button, Badge, StatCard, SectionHeader, MotionCard, GlowPanel } from "./components/ui";
+import { Hero } from "./components/home";
+import { Button, StatCard, SectionHeader, MotionCard, GlowPanel } from "./components/ui";
 
 /**
- * F1.4 — Prima struttura di pagina sopra il layout base.
- * Sezioni reali (hero curato, servizi, ecc.) arrivano nei task F1.5+.
+ * F1.5 — Hero premium dedicato + struttura pagina.
+ * Le altre sezioni reali (servizi, chi sono, metodo…) arrivano in F1.7+.
  */
 export default function App() {
   return (
     <MainLayout>
-      {/* HERO */}
-      <Section id="hero" className="pt-24">
-        <div className="grid items-center gap-10 lg:grid-cols-2">
-          <motion.div
-            initial={{ opacity: 0, x: -30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.7, ease: "easeOut" }}
-            className="space-y-6"
-          >
-            <Badge variant="neon">Personal Trainer</Badge>
-            <h1 className="text-hero font-display font-extrabold uppercase">
-              Trasforma il tuo <span className="text-accent">fisico</span>
-            </h1>
-            <p className="max-w-md text-text-muted">
-              Allenamento su misura, metodo e risultati reali. Online e in studio.
-            </p>
-            <div className="flex flex-wrap gap-4">
-              <Button size="lg" onClick={() => (window.location.hash = "#contatti")}>
-                <Calendar size={18} /> Prenota consulenza
-              </Button>
-              <Button variant="secondary" size="lg" onClick={() => (window.location.hash = "#servizi")}>
-                Scopri di più <ArrowRight size={18} />
-              </Button>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, scale: 0.96 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.8, ease: "easeOut", delay: 0.2 }}
-          >
-            <GlowPanel breathe className="flex aspect-[4/5] items-center justify-center">
-              <span className="font-display text-text-muted">[ Foto PT ]</span>
-            </GlowPanel>
-          </motion.div>
-        </div>
-      </Section>
+      {/* HERO premium */}
+      <Hero />
 
       {/* STAT */}
       <Section id="stat" surface>
