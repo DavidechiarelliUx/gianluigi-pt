@@ -1,0 +1,56 @@
+@import url("https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=Inter:wght@400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Design system — dark/neon fitness (HSL senza hsl()) */
+    --bg: 120 5% 4%;
+    --surface: 120 5% 8%;
+    --surface-2: 120 5% 13%;
+    --border: 120 5% 18%;
+    --accent: 105 100% 54%; /* verde neon #39FF14 */
+    --accent-2: 152 100% 50%; /* #00FF87 */
+    --text: 0 0% 100%;
+    --text-muted: 220 9% 62%;
+    --danger: 0 100% 62%;
+  }
+
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background-color: hsl(var(--bg));
+    color: hsl(var(--text));
+    font-family: theme("fontFamily.body");
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: theme("fontFamily.display");
+  }
+
+  /* Accessibilità: rispetta prefers-reduced-motion */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
