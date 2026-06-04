@@ -6,12 +6,9 @@ import { Container } from "../ui/Container";
 import { cn } from "../../lib/utils";
 
 const LINKS = [
-  { label: "Chi sono", href: "#chi-sono" },
-  { label: "Servizi", href: "#servizi" },
-  { label: "Metodo", href: "#metodo" },
-  { label: "Risultati", href: "#risultati" },
+  { label: "Home", href: "/" },
   { label: "Pacchetti", href: "/pacchetti" },
-  { label: "Contatti", href: "#contatti" },
+  { label: "Login", href: "/login" },
 ];
 
 /** Navbar fixed scroll-aware: trasparente in cima → blur+bordo dopo lo scroll. */
@@ -52,17 +49,14 @@ export function Navbar() {
           {LINKS.map((l) => (
             <a
               key={l.href}
-              href={l.href.startsWith("#") ? `/${l.href}` : l.href}
+              href={l.href}
               className="text-sm font-medium text-text-muted transition-colors hover:text-accent"
             >
               {l.label}
             </a>
           ))}
-          <Button size="sm" variant="ghost" onClick={() => (window.location.href = "/login")}>
-            Login
-          </Button>
           <Button size="sm" onClick={() => (window.location.href = "/#contatti")}>
-            Prenota
+            Prenota una seduta
           </Button>
         </nav>
 
@@ -91,7 +85,7 @@ export function Navbar() {
               {LINKS.map((l) => (
                 <a
                   key={l.href}
-                  href={l.href.startsWith("#") ? `/${l.href}` : l.href}
+                  href={l.href}
                   onClick={() => setOpen(false)}
                   className="rounded-sm px-2 py-3 text-text-muted transition-colors hover:bg-surface-2 hover:text-accent"
                 >
@@ -100,16 +94,6 @@ export function Navbar() {
               ))}
               <Button
                 className="mt-2 w-full"
-                variant="secondary"
-                onClick={() => {
-                  setOpen(false);
-                  window.location.href = "/login";
-                }}
-              >
-                Login
-              </Button>
-              <Button
-                className="w-full"
                 onClick={() => {
                   setOpen(false);
                   window.location.href = "/#contatti";
