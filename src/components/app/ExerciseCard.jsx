@@ -1,10 +1,11 @@
 import { CheckCircle2, Circle, PlayCircle } from "lucide-react";
 import { Input } from "../ui/Input";
+import { ExerciseIllustration } from "../exercises";
 import { cn } from "../../lib/utils";
 
 /**
  * Card esecuzione esercizio (area cliente, mobile-first).
- * exercise: { name, setsReps, rest?, videoUrl? }
+ * exercise: { name, setsReps, rest?, videoUrl?, illustration? }
  * value: { completed, loadUsed, repsDone, rpe, notes }
  * onToggle(): segna completato · onChange(field, value): aggiorna i campi tracking.
  */
@@ -55,6 +56,29 @@ export function ExerciseCard({ exercise, value = {}, onToggle, onChange, classNa
             {exercise.setsReps}
             {exercise.rest ? ` · rec ${exercise.rest}` : ""}
           </p>
+
+          {exercise.illustration && (
+            <div className="mt-3 grid grid-cols-2 gap-2" aria-label={`Illustrazione esercizio ${exercise.name}`}>
+              <div>
+                <ExerciseIllustration
+                  exercise={exercise.illustration}
+                  phase="load"
+                  title={`${exercise.name} fase di carico`}
+                  className="aspect-[4/3]"
+                />
+                <p className="mt-1 text-center text-[10px] uppercase tracking-wide text-text-muted">Carico</p>
+              </div>
+              <div>
+                <ExerciseIllustration
+                  exercise={exercise.illustration}
+                  phase="unload"
+                  title={`${exercise.name} fase di scarico`}
+                  className="aspect-[4/3]"
+                />
+                <p className="mt-1 text-center text-[10px] uppercase tracking-wide text-text-muted">Scarico</p>
+              </div>
+            </div>
+          )}
 
           {/* Tracking */}
           <div className="mt-3 grid grid-cols-2 gap-2">
