@@ -1,5 +1,5 @@
-// Schema Prisma — Gianluigi PT, Fase 2 (app allenamenti)
-// Sessioni live, gruppo e pagamenti restano fuori (Fase 3).
+// Schema Prisma — Gianluigi PT
+// Fase 2: app allenamenti · Fase 3: business online (live, pagamenti)
 
 generator client {
   provider = "prisma-client-js"
@@ -10,13 +10,17 @@ datasource db {
   // URL gestite in prisma.config.ts (Prisma 7) e via adapter Neon a runtime
 }
 
+// ─────────────────────────────────────────
+// ENUMS — Fase 2
+// ─────────────────────────────────────────
+
 enum Role {
   admin
   client
 }
 
 enum WorkoutStatus {
-  active // scheda attiva principale (max 1 per cliente)
+  active   // scheda attiva principale (max 1 per cliente)
   archived // scheda storica, consultabile
 }
 
@@ -25,15 +29,55 @@ enum SessionStatus {
   completed
 }
 
+// ─────────────────────────────────────────
+// ENUMS — Fase 3
+// ─────────────────────────────────────────
+
+enum ProductType {
+  session_solo  // sessione 1:1 singola
+  session_group // sessione di gruppo singola
+  package       // pacchetto sessioni prepagato
+}
+
+enum OrderStatus {
+  pending  // checkout aperto, non ancora pagato
+  paid     // pagamento confermato da Stripe webhook
+  failed   // pagamento fallito / scaduto
+  refunded // rimborsato
+}
+
+enum LiveSessionType {
+  solo  // 1:1 PT ↔ cliente
+  group // classe / sessione di gruppo
+}
+
+enum LiveSessionStatus {
+  scheduled // programmata, prenotabile
+  live      // in corso
+  completed // conclusa
+  cancelled // annullata
+}
+
+enum BookingStatus {
+  pending   // prenotato, in attesa di pagamento (se richiesto)
+  confirmed // confermato (pagato o gratuito)
+  cancelled // cancellato da admin o cliente
+}
+
+// ─────────────────────────────────────────
+// MODELLI — Fase 2
+// ─────────────────────────────────────────
+
 model User {
   id            String    @id @default(uuid())
   email         String    @unique
-  passwordHash  String? // null finché il cliente non imposta la password
+  passwordHash  String?   // null finché il cliente non imposta la password
   role          Role      @default(client)
   fullName      String
   inviteToken   String?   @unique // token monouso "imposta password"
   inviteExpires DateTime?
   client        Client?
+  orders        Order[]   // Fase 3
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
@@ -47,9 +91,10 @@ model Client {
   notes           String?
   workouts        Workout[]
   workoutSessions WorkoutSession[]
+  bookings        Booking[]        // Fase 3
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
-  deletedAt       DateTime? // soft delete (GDPR)
+  deletedAt       DateTime?        // soft delete (GDPR)
 }
 
 model Workout {
@@ -72,7 +117,7 @@ model WorkoutDay {
   id        String        @id @default(uuid())
   workout   Workout       @relation(fields: [workoutId], references: [id], onDelete: Cascade)
   workoutId String
-  label     String // "Giorno A · Push"
+  label     String        // "Giorno A · Push"
   order     Int           @default(0)
   items     WorkoutItem[]
 }
@@ -93,7 +138,7 @@ model WorkoutItem {
   exercise     Exercise   @relation(fields: [exerciseId], references: [id])
   exerciseId   String
   sets         Int
-  reps         String // "8", "8-10", "cedimento"
+  reps         String     // "8", "8-10", "cedimento"
   restSeconds  Int?
   notes        String?
   order        Int        @default(0)
@@ -105,10 +150,10 @@ model WorkoutSession {
   clientId           String
   workout            Workout          @relation(fields: [workoutId], references: [id])
   workoutId          String
-  workoutDayId       String? // giorno svolto
+  workoutDayId       String?          // giorno svolto
   date               DateTime         @default(now())
   status             SessionStatus    @default(in_progress)
-  feedbackDifficulty Int? // RPE complessivo 1-10
+  feedbackDifficulty Int?             // RPE complessivo 1-10
   feedbackNotes      String?
   itemLogs           WorkoutItemLog[]
   createdAt          DateTime         @default(now())
@@ -120,10 +165,81 @@ model WorkoutItemLog {
   id                  String         @id @default(uuid())
   session             WorkoutSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   sessionId           String
-  workoutItemId       String // riferimento alla riga di scheda
+  workoutItemId       String         // riferimento alla riga di scheda
   completed           Boolean        @default(false)
-  loadUsed            String? // "60kg", "elastico medio"
+  loadUsed            String?        // "60kg", "elastico medio"
   repsDone            String?
-  perceivedDifficulty Int? // RPE per esercizio 1-10
+  perceivedDifficulty Int?           // RPE per esercizio 1-10
   notes               String?
+}
+
+// ─────────────────────────────────────────
+// MODELLI — Fase 3
+// ─────────────────────────────────────────
+
+/// Prodotto/pacchetto acquistabile (sessione singola, pacchetto N sessioni).
+model Product {
+  id          String      @id @default(uuid())
+  name        String
+  description String?
+  priceCents  Int         // prezzo in centesimi (es. 5000 = €50,00)
+  type        ProductType
+  sessionsQty Int?        // per pacchetti: quante sessioni include
+  active      Boolean     @default(true)
+  orders      Order[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+/// Ordine di acquisto — creato al checkout, aggiornato dal webhook Stripe.
+model Order {
+  id              String      @id @default(uuid())
+  user            User        @relation(fields: [userId], references: [id])
+  userId          String
+  product         Product     @relation(fields: [productId], references: [id])
+  productId       String
+  status          OrderStatus @default(pending)
+  amountCents     Int         // copia del prezzo al momento dell'acquisto
+  stripeSessionId String?     @unique // Stripe Checkout Session ID
+  stripePaymentId String?     // Stripe PaymentIntent ID (valorizzato post-webhook)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([userId, status])
+  @@index([stripeSessionId])
+}
+
+/// Sessione live (1:1 o gruppo) creata dall'admin.
+model LiveSession {
+  id          String            @id @default(uuid())
+  title       String
+  type        LiveSessionType   @default(solo)
+  status      LiveSessionStatus @default(scheduled)
+  scheduledAt DateTime          // data e ora della sessione
+  durationMin Int               @default(60)
+  maxSlots    Int               @default(1)  // 1 per 1:1, N per gruppo
+  productId   String?           // Product collegato (null = sessione gratuita/interna)
+  videoLink   String?           // link Zoom/Meet manuale
+  notes       String?           // note interne del PT
+  bookings    Booking[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([scheduledAt, status])
+}
+
+/// Prenotazione di un cliente per una sessione live.
+model Booking {
+  id            String        @id @default(uuid())
+  liveSession   LiveSession   @relation(fields: [liveSessionId], references: [id], onDelete: Cascade)
+  liveSessionId String
+  client        Client        @relation(fields: [clientId], references: [id])
+  clientId      String
+  status        BookingStatus @default(confirmed)
+  orderId       String?       // Order collegato se prenotazione a pagamento
+  createdAt     DateTime      @default(now())
+
+  @@unique([liveSessionId, clientId]) // un cliente non prenota due volte la stessa sessione
+  @@index([clientId])
+  @@index([liveSessionId])
 }
