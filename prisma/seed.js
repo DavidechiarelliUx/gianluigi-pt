@@ -8,25 +8,7 @@
  */
 import bcrypt from "bcryptjs";
 import { prisma } from "../server/lib/prisma.js";
-
-const EXERCISES = [
-  { name: "Panca piana", muscleGroup: "Petto" },
-  { name: "Spinte con manubri", muscleGroup: "Petto" },
-  { name: "Croci ai cavi", muscleGroup: "Petto" },
-  { name: "Trazioni", muscleGroup: "Dorso" },
-  { name: "Rematore con bilanciere", muscleGroup: "Dorso" },
-  { name: "Lat machine", muscleGroup: "Dorso" },
-  { name: "Squat", muscleGroup: "Gambe" },
-  { name: "Stacco da terra", muscleGroup: "Gambe" },
-  { name: "Pressa", muscleGroup: "Gambe" },
-  { name: "Affondi", muscleGroup: "Gambe" },
-  { name: "Lento avanti", muscleGroup: "Spalle" },
-  { name: "Alzate laterali", muscleGroup: "Spalle" },
-  { name: "Curl con bilanciere", muscleGroup: "Bicipiti" },
-  { name: "French press", muscleGroup: "Tricipiti" },
-  { name: "Plank", muscleGroup: "Core" },
-  { name: "Crunch", muscleGroup: "Core" },
-];
+import { EXERCISE_CATALOG } from "../server/lib/exercise-catalog.js";
 
 async function main() {
   const email = process.env.ADMIN_EMAIL;
@@ -45,14 +27,14 @@ async function main() {
   console.log("Admin pronto:", admin.email);
 
   // Catalogo esercizi
-  for (const ex of EXERCISES) {
+  for (const ex of EXERCISE_CATALOG) {
     await prisma.exercise.upsert({
       where: { name: ex.name },
-      update: { muscleGroup: ex.muscleGroup },
-      create: ex,
+      update: { muscleGroup: ex.muscleGroup, defaultNotes: ex.slug },
+      create: { name: ex.name, muscleGroup: ex.muscleGroup, defaultNotes: ex.slug },
     });
   }
-  console.log(`Esercizi seed: ${EXERCISES.length}`);
+  console.log(`Esercizi seed: ${EXERCISE_CATALOG.length}`);
 }
 
 main()

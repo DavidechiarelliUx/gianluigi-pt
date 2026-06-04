@@ -11,10 +11,13 @@ const DashboardLayout = lazy(() =>
 );
 const Dashboard = lazy(() => import("./pages/dashboard/Dashboard.jsx"));
 const Clients = lazy(() => import("./pages/dashboard/Clients.jsx"));
+const Workouts = lazy(() => import("./pages/dashboard/Workouts.jsx"));
 const ClientLayout = lazy(() =>
   import("./pages/client/ClientLayout.jsx").then((m) => ({ default: m.ClientLayout }))
 );
 const MyWorkout = lazy(() => import("./pages/client/MyWorkout.jsx"));
+const ClientHistory = lazy(() => import("./pages/client/ClientHistory.jsx"));
+const ClientProfile = lazy(() => import("./pages/client/ClientProfile.jsx"));
 
 import { RoleRoute } from "./components/RouteGuards.jsx";
 
@@ -41,6 +44,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: wrap(<Dashboard />) },
       { path: "clienti", element: wrap(<Clients />) },
+      { path: "schede", element: wrap(<Workouts />) },
     ],
   },
   {
@@ -50,7 +54,11 @@ export const router = createBrowserRouter([
         <ClientLayout />
       </RoleRoute>
     ),
-    children: [{ index: true, element: wrap(<MyWorkout />) }],
+    children: [
+      { index: true, element: wrap(<MyWorkout />) },
+      { path: "storico", element: wrap(<ClientHistory />) },
+      { path: "profilo", element: wrap(<ClientProfile />) },
+    ],
   },
   { path: "*", element: <Navigate to="/" replace /> },
 ]);

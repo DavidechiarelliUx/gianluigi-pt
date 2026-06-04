@@ -1,4 +1,7 @@
 User-agent: *
 Allow: /
+Disallow: /login
+Disallow: /dashboard
+Disallow: /area-cliente
 
 Sitemap: https://gianluigi-pt.vercel.app/sitemap.xml

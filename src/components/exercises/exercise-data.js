@@ -75,3 +75,20 @@ export const EXERCISE_ILLUSTRATIONS = [
 export const EXERCISE_ILLUSTRATION_MAP = new Map(
   EXERCISE_ILLUSTRATIONS.map((exercise) => [exercise.id, exercise])
 );
+
+const normalize = (value) =>
+  value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+const EXERCISE_ID_BY_LABEL = new Map(
+  EXERCISE_ILLUSTRATIONS.map((exercise) => [normalize(exercise.label), exercise.id])
+);
+
+export function getExerciseIllustrationId(name) {
+  if (!name) return null;
+  return EXERCISE_ID_BY_LABEL.get(normalize(name)) || null;
+}
