@@ -4,6 +4,7 @@ const variants = {
   default: "border border-border text-text-muted",
   neon: "border border-accent/40 text-accent",
   soon: "bg-accent/10 text-accent border border-accent/30",
+  live: "bg-accent text-bg font-semibold shadow-glow-soft",
 };
 
 /** Badge — variant: default|neon|soon ("coming soon"). */
