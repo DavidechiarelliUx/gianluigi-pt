@@ -300,6 +300,9 @@ async function handleCheckoutCompleted(session) {
 
   const { user, inviteToken } = await ensureClientFromPaidOrder(updatedOrder);
 
+  let emailSent = false;
+  let emailAlreadySent = !!updatedOrder.inviteSentAt;
+  let emailError = null;
   if (!updatedOrder.inviteSentAt) {
     const emailPayload = {
       to: user.email,
@@ -318,9 +321,47 @@ async function handleCheckoutCompleted(session) {
         await sendExistingClientPaymentEmail(emailPayload);
       }
       await prisma.order.update({ where: { id: updatedOrder.id }, data: { inviteSentAt: new Date() } });
+      emailSent = true;
     } catch (err) {
       console.error("Email post-pagamento non inviata:", err);
+      emailError = err.code || err.message || "EMAIL_SEND_FAILED";
     }
+  }
+
+  return {
+    orderId: updatedOrder.id,
+    userEmail: user.email,
+    emailSent,
+    emailAlreadySent,
+    emailError,
+  };
+}
+
+async function verifySession(req, res) {
+  if (req.method !== "GET") return methodNotAllowed(res, ["GET"]);
+  const sessionId = String(req.query.session_id || "");
+  if (!sessionId.startsWith("cs_")) {
+    return res.status(400).json({ ok: false, error: "Sessione Stripe non valida" });
+  }
+
+  try {
+    const stripe = stripeClient();
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    if (session.payment_status !== "paid" && session.status !== "complete") {
+      return res.status(200).json({ ok: true, status: "pending" });
+    }
+
+    const result = await handleCheckoutCompleted(session);
+    return res.status(200).json({
+      ok: true,
+      status: "paid",
+      emailSent: result.emailSent,
+      emailAlreadySent: result.emailAlreadySent,
+      emailError: result.emailError,
+    });
+  } catch (err) {
+    console.error("GET /api/payments/verify-session:", err);
+    return res.status(500).json({ ok: false, error: "Verifica pagamento non riuscita" });
   }
 }
 
@@ -384,6 +425,7 @@ export default function handler(req, res) {
   if (action === "products") return products(req, res);
   if (action === "checkout") return checkout(req, res);
   if (action === "webhook") return webhook(req, res);
+  if (action === "verify-session") return verifySession(req, res);
   if (action === "orders") return orders(req, res);
   return res.status(404).json({ ok: false, error: "Endpoint pagamenti non trovato" });
 }
