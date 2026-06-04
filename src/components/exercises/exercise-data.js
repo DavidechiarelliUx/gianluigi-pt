@@ -23,6 +23,16 @@ import sitUpImage from "../../assets/exercises/sit-up.webp";
 import hipThrustImage from "../../assets/exercises/hip-thrust.webp";
 import lateralRaiseImage from "../../assets/exercises/lateral-raise.webp";
 import militaryPressPushPressImage from "../../assets/exercises/military-press-push-press.webp";
+import pullUpImage from "../../assets/exercises/pull-up.webp";
+import cableRowImage from "../../assets/exercises/cable-row.webp";
+import dumbbellChestFlyImage from "../../assets/exercises/dumbbell-chest-fly.webp";
+import tricepsPushdownImage from "../../assets/exercises/triceps-pushdown.webp";
+import hammerCurlImage from "../../assets/exercises/hammer-curl.webp";
+import legExtensionImage from "../../assets/exercises/leg-extension.webp";
+import bulgarianSplitSquatImage from "../../assets/exercises/bulgarian-split-squat.webp";
+import stepUpBoxImage from "../../assets/exercises/step-up-box.webp";
+import kettlebellSwingImage from "../../assets/exercises/kettlebell-swing.webp";
+import bicycleCrunchImage from "../../assets/exercises/bicycle-crunch.webp";
 
 export const EXERCISE_ILLUSTRATIONS = [
   { id: "push-up", label: "Piegamenti", image: pushUpImage },
@@ -50,6 +60,16 @@ export const EXERCISE_ILLUSTRATIONS = [
   { id: "hip-thrust", label: "Hip thrust", image: hipThrustImage },
   { id: "lateral-raise", label: "Alzate laterali", image: lateralRaiseImage },
   { id: "military-press-push-press", label: "Military press / push press", image: militaryPressPushPressImage },
+  { id: "pull-up", label: "Pull-up / trazione sbarra", image: pullUpImage },
+  { id: "cable-row", label: "Cable row / pulley basso", image: cableRowImage },
+  { id: "dumbbell-chest-fly", label: "Croci manubri", image: dumbbellChestFlyImage },
+  { id: "triceps-pushdown", label: "Triceps pushdown", image: tricepsPushdownImage },
+  { id: "hammer-curl", label: "Hammer curl", image: hammerCurlImage },
+  { id: "leg-extension", label: "Leg extension", image: legExtensionImage },
+  { id: "bulgarian-split-squat", label: "Bulgarian split squat", image: bulgarianSplitSquatImage },
+  { id: "step-up-box", label: "Step-up box", image: stepUpBoxImage },
+  { id: "kettlebell-swing", label: "Kettlebell swing", image: kettlebellSwingImage },
+  { id: "bicycle-crunch", label: "Bicycle crunch", image: bicycleCrunchImage },
 ];
 
 export const EXERCISE_ILLUSTRATION_MAP = new Map(
