@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarCheck, Dumbbell, Save } from "lucide-react";
+import { CalendarCheck, CheckCircle2, Clock3, Dumbbell, Flame, Save } from "lucide-react";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { Textarea } from "../../components/ui/Textarea";
@@ -43,6 +43,10 @@ export default function MyWorkout() {
   const totalItems = activeDay?.items?.length || 0;
   const completedItems = activeDay?.items?.filter((item) => logs[item.id]?.completed).length || 0;
   const progress = totalItems ? (completedItems / totalItems) * 100 : 0;
+  const totalWorkoutItems = workout?.days?.reduce((sum, day) => sum + (day.items?.length || 0), 0) || 0;
+  const lastSession = sessions[0];
+  const lastSessionCompleted = lastSession?.itemLogs?.filter((log) => log.completed).length || 0;
+  const lastSessionTotal = lastSession?.itemLogs?.length || 0;
 
   const saveSession = useMutation({
     mutationFn: () =>
@@ -105,6 +109,35 @@ export default function MyWorkout() {
         <p className="text-sm text-text-muted">La tua scheda attiva: {workout.title}</p>
       </div>
 
+      <Card className="overflow-hidden border-accent/25 bg-gradient-to-br from-accent/10 via-surface to-surface">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-accent">Allenamento di oggi</p>
+            <h2 className="mt-1 font-display text-xl font-extrabold uppercase">
+              {activeDay?.label || workout.days[0]?.label}
+            </h2>
+            <p className="mt-1 text-sm text-text-muted">
+              Completa gli esercizi, segna carico/RPE e salva a fine sessione.
+            </p>
+          </div>
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-accent/30 bg-bg/70">
+            <Flame className="text-accent" size={24} />
+          </div>
+        </div>
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          {[
+            { value: completedItems, label: "fatti" },
+            { value: totalItems, label: "esercizi" },
+            { value: Math.round(progress), label: "% oggi" },
+          ].map((stat) => (
+            <div key={stat.label} className="rounded-lg border border-border bg-bg/45 p-2 text-center">
+              <div className="font-display text-lg font-extrabold text-accent">{stat.value}</div>
+              <div className="text-[10px] uppercase tracking-wide text-text-muted">{stat.label}</div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
       <Card className="space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -123,6 +156,27 @@ export default function MyWorkout() {
         />
         <ProgressBar label="Completamento sessione" value={progress} />
       </Card>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Card className="space-y-2">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-text-muted">
+            <Clock3 size={16} className="text-accent" /> Ultima sessione
+          </div>
+          <p className="font-display text-lg font-bold text-text">
+            {lastSession ? new Date(lastSession.date).toLocaleDateString("it-IT", { day: "2-digit", month: "short" }) : "—"}
+          </p>
+          <p className="text-xs text-text-muted">
+            {lastSession ? `${lastSessionCompleted}/${lastSessionTotal} esercizi completati` : "Ancora nessun salvataggio"}
+          </p>
+        </Card>
+        <Card className="space-y-2">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-text-muted">
+            <CheckCircle2 size={16} className="text-accent" /> Piano
+          </div>
+          <p className="font-display text-lg font-bold text-text">{workout.days.length} giorni</p>
+          <p className="text-xs text-text-muted">{totalWorkoutItems} esercizi totali nella scheda</p>
+        </Card>
+      </div>
 
       <div className="space-y-4">
         {activeDay?.items.map((item) => (

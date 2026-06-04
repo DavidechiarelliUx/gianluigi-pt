@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
-import { CalendarCheck } from "lucide-react";
+import { CalendarCheck, CheckCircle2 } from "lucide-react";
 import { Card } from "../../components/ui/Card";
-import { EmptyState } from "../../components/app";
+import { EmptyState, ProgressBar } from "../../components/app";
 import { apiFetch } from "../../lib/api";
 
 export default function ClientHistory() {
@@ -21,7 +21,7 @@ export default function ClientHistory() {
       </div>
       {sessions.length ? (
         sessions.map((session) => (
-          <Card key={session.id} className="space-y-2">
+          <Card key={session.id} className="space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="font-display text-sm font-bold uppercase">
                 {new Date(session.date).toLocaleDateString("it-IT", {
@@ -30,10 +30,19 @@ export default function ClientHistory() {
                   year: "numeric",
                 })}
               </h2>
-              <span className="text-xs font-semibold text-accent">
+              <span className="inline-flex items-center gap-1 text-xs font-semibold text-accent">
+                <CheckCircle2 size={14} />
                 {session.itemLogs.filter((log) => log.completed).length}/{session.itemLogs.length}
               </span>
             </div>
+            <ProgressBar
+              label="Completamento"
+              value={
+                session.itemLogs.length
+                  ? (session.itemLogs.filter((log) => log.completed).length / session.itemLogs.length) * 100
+                  : 0
+              }
+            />
             {session.feedbackNotes && <p className="text-sm text-text-muted">{session.feedbackNotes}</p>}
           </Card>
         ))
