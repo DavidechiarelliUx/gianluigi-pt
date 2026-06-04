@@ -1,4 +1,3 @@
-import { Calendar } from "lucide-react";
 import { MainLayout, Section } from "./components/layout";
 import {
   Hero,
@@ -10,12 +9,12 @@ import {
   PreviewLive,
   PreviewPricing,
   Results,
+  Contact,
 } from "./components/home";
-import { Button, GlowPanel } from "./components/ui";
 
 /**
- * F1.8 — Vetrina + anteprime prodotto + Risultati/prova sociale.
- * Form contatto reale (F1.12) resta segnaposto.
+ * F1.12 — Sito vetrina premium completo: hero, sezioni core, anteprime
+ * prodotto, prova sociale e form contatto reale.
  */
 export default function App() {
   return (
@@ -63,15 +62,9 @@ export default function App() {
         <Results />
       </Section>
 
-      {/* CONTATTI (placeholder — F1.12) */}
+      {/* CONTATTI — form reale */}
       <Section id="contatti">
-        <GlowPanel breathe className="flex flex-col items-center gap-4 text-center">
-          <h2 className="text-display font-display font-bold uppercase">Pronto a iniziare?</h2>
-          <p className="text-text-muted">Form contatto reale in arrivo (F1.12).</p>
-          <Button size="lg">
-            <Calendar size={18} /> Prenota una consulenza
-          </Button>
-        </GlowPanel>
+        <Contact />
       </Section>
     </MainLayout>
   );
