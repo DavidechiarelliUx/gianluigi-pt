@@ -1,9 +1,9 @@
 import { motion, useReducedMotion } from "framer-motion";
-import { Calendar, ArrowRight, Dumbbell, Activity, Flame } from "lucide-react";
+import { Calendar, ArrowRight, Dumbbell, Activity, CreditCard, Video } from "lucide-react";
 import { Button } from "../ui/Button";
 import { Badge } from "../ui/Badge";
 import { Container } from "../ui/Container";
-import gianluigiPhoto from "../../assets/gianluigi-chiarelli.webp";
+import { AppPreview } from "./AppPreview";
 
 const HEADLINE = ["TRASFORMA", "IL", "TUO", "FISICO"];
 const STATS = [
@@ -124,33 +124,21 @@ export function Hero() {
           </motion.dl>
         </div>
 
-        {/* Colonna visual: mockup app costruito in UI */}
+        {/* Colonna visual: super demo mobile dell'app reale */}
         <motion.div
           initial={{ opacity: 0, scale: 0.94 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.7, ease: "easeOut", delay: reduce ? 0 : 0.3 }}
-          className="relative mx-auto w-full max-w-sm"
+          className="relative mx-auto flex w-full max-w-md justify-center"
         >
-          {/* Glow neon dietro la foto */}
           <div
             aria-hidden
-            className="pointer-events-none absolute -inset-4 -z-10 rounded-[2rem] bg-accent/15 blur-[60px]"
+            className="pointer-events-none absolute -inset-8 -z-10 rounded-full bg-accent/15 blur-[90px]"
           />
-          {/* Foto reale di Gianluigi (asset brand principale) */}
-          <div className="relative overflow-hidden rounded-xl border border-border shadow-base">
-            <img
-              src={gianluigiPhoto}
-              alt="Gianluigi Chiarelli, personal trainer"
-              width={941}
-              height={1672}
-              loading="eager"
-              className="aspect-[4/5] w-full object-cover object-top"
-            />
-            {/* gradiente in basso per profondità */}
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-bg/80 to-transparent"
-            />
+
+          <div className="relative rounded-[2rem] border border-accent/20 bg-surface/50 p-4 shadow-glow-soft backdrop-blur">
+            <div className="absolute inset-x-10 -top-6 h-12 rounded-full bg-accent/25 blur-2xl" aria-hidden />
+            <AppPreview />
           </div>
 
           {/* Badge fluttuanti */}
@@ -158,20 +146,35 @@ export function Hero() {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: reduce ? 0 : 0.8 }}
-            className="absolute -left-4 top-10 hidden rounded-md border border-border bg-surface/90 px-3 py-2 shadow-base backdrop-blur sm:block"
+            className="absolute -left-1 top-10 hidden rounded-md border border-border bg-surface/95 px-3 py-2 shadow-base backdrop-blur sm:block lg:-left-8"
           >
-            <div className="flex items-center gap-2 text-sm">
-              <Flame size={16} className="text-accent" /> Coach certificato
+            <div className="flex items-center gap-2 text-sm font-semibold">
+              <CreditCard size={16} className="text-accent" /> Pagamento ok
             </div>
+            <p className="mt-1 text-[11px] text-text-muted">Accesso inviato via email</p>
           </motion.div>
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: reduce ? 0 : 0.95 }}
-            className="absolute -right-3 bottom-16 hidden rounded-md border border-accent/40 bg-surface/90 px-3 py-2 shadow-glow-soft backdrop-blur sm:block"
+            className="absolute -right-1 bottom-24 hidden rounded-md border border-accent/40 bg-surface/95 px-3 py-2 shadow-glow-soft backdrop-blur sm:block lg:-right-7"
           >
-            <div className="flex items-center gap-2 text-sm">
-              <Activity size={16} className="text-accent" /> +500 percorsi
+            <div className="flex items-center gap-2 text-sm font-semibold">
+              <Video size={16} className="text-accent" /> Live prenotata
+            </div>
+            <p className="mt-1 text-[11px] text-text-muted">1:1 · gruppo · app</p>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: reduce ? 0 : 1.1 }}
+            className="absolute -bottom-4 left-1/2 hidden w-[82%] -translate-x-1/2 rounded-md border border-border bg-bg/90 px-4 py-3 shadow-base backdrop-blur sm:block"
+          >
+            <div className="flex items-center justify-between gap-4 text-xs">
+              <span className="flex items-center gap-2 text-text-muted">
+                <Activity size={15} className="text-accent" /> Progressi salvati
+              </span>
+              <span className="font-display font-bold text-accent">+18%</span>
             </div>
           </motion.div>
         </motion.div>
