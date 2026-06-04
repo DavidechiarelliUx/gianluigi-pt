@@ -103,11 +103,10 @@ export default async function handler(req, res) {
   } catch (err) {
     // Log completo lato server (visibile nei Runtime Logs di Vercel)
     console.error("Errore invio email:", err);
-    // Dettaglio sicuro al client per il debug (nessuna credenziale)
+    // Messaggio generico al client (nessun dettaglio interno)
     return res.status(502).json({
       ok: false,
       error: "Invio non riuscito. Riprova o contattaci su WhatsApp.",
-      detail: { code: err?.code, command: err?.command, response: err?.response },
     });
   }
 }
