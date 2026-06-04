@@ -19,6 +19,7 @@ const sizes = {
 
 /** Bottone — variant: primary|secondary|ghost|danger · size: sm|md|lg */
 export function Button({
+  as,
   variant = "primary",
   size = "md",
   className,
@@ -26,9 +27,11 @@ export function Button({
   children,
   ...props
 }) {
+  const Component = as === "a" ? "a" : "button";
+
   return (
-    <button
-      type={type}
+    <Component
+      {...(Component === "button" ? { type } : {})}
       className={cn(
         "inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-all",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
@@ -40,6 +43,6 @@ export function Button({
       {...props}
     >
       {children}
-    </button>
+    </Component>
   );
 }

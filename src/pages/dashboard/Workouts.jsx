@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Archive, CheckCircle2, ClipboardList, Plus, Save, Trash2 } from "lucide-react";
+import { Archive, CheckCircle2, ClipboardList, CreditCard, Plus, Save, Trash2 } from "lucide-react";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { Input } from "../../components/ui/Input";
@@ -13,6 +13,9 @@ import { apiFetch } from "../../lib/api";
 const emptyItem = () => ({ exerciseId: "", sets: 3, reps: "8-10", restSeconds: 90, notes: "" });
 const emptyDay = () => ({ label: "Giorno A", items: [emptyItem()] });
 const emptyWorkout = () => ({ title: "", description: "", days: [emptyDay()] });
+
+const money = (cents = 0, currency = "eur") =>
+  new Intl.NumberFormat("it-IT", { style: "currency", currency }).format(cents / 100);
 
 function normalizeWorkout(workout) {
   return {
@@ -34,15 +37,52 @@ function normalizeWorkout(workout) {
 export default function Workouts() {
   const qc = useQueryClient();
   const { toast } = useToast();
-  const [clientId, setClientId] = useState("");
+  const [clientId, setClientId] = useState(() => new URLSearchParams(window.location.search).get("clientId") || "");
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(emptyWorkout);
 
   const clientsQuery = useQuery({ queryKey: ["clients"], queryFn: () => apiFetch("/api/clients") });
   const exercisesQuery = useQuery({ queryKey: ["exercises"], queryFn: () => apiFetch("/api/admin/exercises") });
+  const ordersQuery = useQuery({ queryKey: ["payments", "orders"], queryFn: () => apiFetch("/api/payments/orders") });
   const clients = useMemo(() => clientsQuery.data?.clients || [], [clientsQuery.data?.clients]);
   const exercises = useMemo(() => exercisesQuery.data?.exercises || [], [exercisesQuery.data?.exercises]);
+  const paidOrders = useMemo(
+    () => (ordersQuery.data?.orders || []).filter((order) => order.status === "paid" && order.user?.client?.id),
+    [ordersQuery.data?.orders]
+  );
   const selectedClient = clients.find((client) => client.id === clientId) || null;
+  const paidOrdersByClientId = useMemo(() => {
+    const map = new Map();
+    for (const order of paidOrders) {
+      const orderClientId = order.user?.client?.id;
+      if (!orderClientId) continue;
+      if (!map.has(orderClientId)) map.set(orderClientId, []);
+      map.get(orderClientId).push(order);
+    }
+    return map;
+  }, [paidOrders]);
+
+  const packageGroups = useMemo(() => {
+    const groups = new Map();
+    for (const client of clients) {
+      const clientOrders = paidOrdersByClientId.get(client.id) || [];
+      for (const order of clientOrders) {
+        const label = order.product?.name || "Pacchetto pagato";
+        if (!groups.has(label)) groups.set(label, []);
+        const group = groups.get(label);
+        if (!group.some((item) => item.id === client.id)) {
+          group.push({ ...client, latestOrder: order });
+        }
+      }
+    }
+    return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
+  }, [clients, paidOrdersByClientId]);
+
+  const unpaidClients = useMemo(
+    () => clients.filter((client) => !paidOrdersByClientId.has(client.id)),
+    [clients, paidOrdersByClientId]
+  );
+  const selectedClientOrders = selectedClient ? paidOrdersByClientId.get(selectedClient.id) || [] : [];
 
   const workoutsQuery = useQuery({
     queryKey: ["workouts", clientId],
@@ -149,15 +189,48 @@ export default function Workouts() {
             className="h-11 w-full rounded-md border border-border bg-surface-2 px-3 text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
             <option value="">Seleziona cliente</option>
-            {clients.map((client) => (
-              <option key={client.id} value={client.id}>{client.user.fullName}</option>
+            {packageGroups.map(([packageName, group]) => (
+              <optgroup key={packageName} label={packageName}>
+                {group.map((client) => (
+                  <option key={`${packageName}-${client.id}`} value={client.id}>
+                    {client.user.fullName} · {money(client.latestOrder.amountCents, client.latestOrder.currency)}
+                  </option>
+                ))}
+              </optgroup>
             ))}
+            {unpaidClients.length > 0 && (
+              <optgroup label="Clienti manuali / senza pagamento">
+                {unpaidClients.map((client) => (
+                  <option key={client.id} value={client.id}>{client.user.fullName}</option>
+                ))}
+              </optgroup>
+            )}
           </select>
         </label>
         {selectedClient && (
-          <p className="text-sm text-text-muted">
-            Scheda attiva: <span className="text-accent">{activeWorkout?.title || "nessuna"}</span>
-          </p>
+          <div className="space-y-3">
+            <p className="text-sm text-text-muted">
+              Scheda attiva: <span className="text-accent">{activeWorkout?.title || "nessuna"}</span>
+            </p>
+            <div className="rounded-lg border border-border bg-surface-2 p-3">
+              <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-text-muted">
+                <CreditCard size={15} className="text-accent" /> Pacchetti acquistati
+              </div>
+              {selectedClientOrders.length ? (
+                <div className="flex flex-wrap gap-2">
+                  {selectedClientOrders.map((order) => (
+                    <StatusBadge key={order.id} status="success">
+                      {order.product?.name || "Pacchetto"} · {money(order.amountCents, order.currency)}
+                    </StatusBadge>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-text-muted">
+                  Nessun pagamento registrato: puoi comunque creare una scheda manuale.
+                </p>
+              )}
+            </div>
+          </div>
         )}
       </Card>
 

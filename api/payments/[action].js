@@ -409,7 +409,27 @@ async function orders(req, res) {
     const where = auth.role === "admin" ? {} : { userId: auth.userId };
     const list = await prisma.order.findMany({
       where,
-      include: { product: true },
+      include: {
+        product: true,
+        ...(auth.role === "admin"
+          ? {
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  fullName: true,
+                  client: {
+                    select: {
+                      id: true,
+                      phone: true,
+                      goal: true,
+                    },
+                  },
+                },
+              },
+            }
+          : {}),
+      },
       orderBy: { createdAt: "desc" },
       take: 50,
     });
