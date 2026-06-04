@@ -39,7 +39,7 @@ export default function Workouts() {
   const [form, setForm] = useState(emptyWorkout);
 
   const clientsQuery = useQuery({ queryKey: ["clients"], queryFn: () => apiFetch("/api/clients") });
-  const exercisesQuery = useQuery({ queryKey: ["exercises"], queryFn: () => apiFetch("/api/exercises") });
+  const exercisesQuery = useQuery({ queryKey: ["exercises"], queryFn: () => apiFetch("/api/admin/exercises") });
   const clients = useMemo(() => clientsQuery.data?.clients || [], [clientsQuery.data?.clients]);
   const exercises = useMemo(() => exercisesQuery.data?.exercises || [], [exercisesQuery.data?.exercises]);
   const selectedClient = clients.find((client) => client.id === clientId) || null;

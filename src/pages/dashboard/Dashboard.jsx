@@ -9,7 +9,7 @@ export default function Dashboard() {
   const { user } = useAuth();
   const { data, isLoading } = useQuery({
     queryKey: ["dashboard", "summary"],
-    queryFn: () => apiFetch("/api/dashboard/summary"),
+    queryFn: () => apiFetch("/api/admin/summary"),
   });
   const summary = data?.summary;
   const stats = [
