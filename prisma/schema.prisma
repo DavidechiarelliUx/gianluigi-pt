@@ -180,13 +180,15 @@ model WorkoutItemLog {
 /// Prodotto/pacchetto acquistabile (sessione singola, pacchetto N sessioni).
 model Product {
   id          String      @id @default(uuid())
-  name        String
+  name        String      @unique
   description String?
   priceCents  Int         // prezzo in centesimi (es. 5000 = €50,00)
+  currency    String      @default("eur")
   type        ProductType
   sessionsQty Int?        // per pacchetti: quante sessioni include
   active      Boolean     @default(true)
   orders      Order[]
+  liveSessions LiveSession[]
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 }
@@ -194,18 +196,26 @@ model Product {
 /// Ordine di acquisto — creato al checkout, aggiornato dal webhook Stripe.
 model Order {
   id              String      @id @default(uuid())
-  user            User        @relation(fields: [userId], references: [id])
-  userId          String
+  user            User?       @relation(fields: [userId], references: [id])
+  userId          String?
   product         Product     @relation(fields: [productId], references: [id])
   productId       String
   status          OrderStatus @default(pending)
   amountCents     Int         // copia del prezzo al momento dell'acquisto
+  currency        String      @default("eur")
+  customerEmail   String
+  customerName    String
+  customerPhone   String?
+  stripeCustomerId String?
   stripeSessionId String?     @unique // Stripe Checkout Session ID
   stripePaymentId String?     // Stripe PaymentIntent ID (valorizzato post-webhook)
+  inviteSentAt    DateTime?
+  bookings        Booking[]
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
   @@index([userId, status])
+  @@index([customerEmail])
   @@index([stripeSessionId])
 }
 
@@ -218,6 +228,7 @@ model LiveSession {
   scheduledAt DateTime          // data e ora della sessione
   durationMin Int               @default(60)
   maxSlots    Int               @default(1)  // 1 per 1:1, N per gruppo
+  product     Product?          @relation(fields: [productId], references: [id])
   productId   String?           // Product collegato (null = sessione gratuita/interna)
   videoLink   String?           // link Zoom/Meet manuale
   notes       String?           // note interne del PT
@@ -236,6 +247,7 @@ model Booking {
   client        Client        @relation(fields: [clientId], references: [id])
   clientId      String
   status        BookingStatus @default(confirmed)
+  order         Order?        @relation(fields: [orderId], references: [id])
   orderId       String?       // Order collegato se prenotazione a pagamento
   createdAt     DateTime      @default(now())
 

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarCheck, Video } from "lucide-react";
+import { CalendarCheck, CreditCard, Video } from "lucide-react";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { EmptyState, StatusBadge } from "../../components/app";
@@ -25,6 +25,7 @@ export default function ClientLive() {
     queryFn: () => apiFetch("/api/live/sessions"),
   });
   const sessions = data?.sessions || [];
+  const paymentRequired = data?.access === "payment_required";
 
   const book = useMutation({
     mutationFn: (liveSessionId) =>
@@ -47,6 +48,27 @@ export default function ClientLive() {
   });
 
   if (isLoading) return <EmptyState icon={CalendarCheck} title="Carico le sessioni…" />;
+
+  if (paymentRequired) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="font-display text-2xl font-extrabold uppercase">Sessioni Live</h1>
+          <p className="text-sm text-text-muted">Le live sono riservate ai clienti con pacchetto attivo.</p>
+        </div>
+        <EmptyState
+          icon={CreditCard}
+          title="Sblocca le sessioni live"
+          description="Acquista un pacchetto o una sessione singola per prenotare le live con Gianluigi."
+          action={
+            <Button onClick={() => (window.location.href = "/pacchetti")}>
+              Vedi pacchetti
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
 
   // Separa prenotate e disponibili
   const booked = sessions.filter((s) => s.bookings?.some((b) => b.status === "confirmed"));

@@ -10,6 +10,7 @@ const LINKS = [
   { label: "Servizi", href: "#servizi" },
   { label: "Metodo", href: "#metodo" },
   { label: "Risultati", href: "#risultati" },
+  { label: "Pacchetti", href: "/pacchetti" },
   { label: "Contatti", href: "#contatti" },
 ];
 
@@ -51,7 +52,7 @@ export function Navbar() {
           {LINKS.map((l) => (
             <a
               key={l.href}
-              href={l.href}
+              href={l.href.startsWith("#") ? `/${l.href}` : l.href}
               className="text-sm font-medium text-text-muted transition-colors hover:text-accent"
             >
               {l.label}
@@ -87,7 +88,7 @@ export function Navbar() {
               {LINKS.map((l) => (
                 <a
                   key={l.href}
-                  href={l.href}
+                  href={l.href.startsWith("#") ? `/${l.href}` : l.href}
                   onClick={() => setOpen(false)}
                   className="rounded-sm px-2 py-3 text-text-muted transition-colors hover:bg-surface-2 hover:text-accent"
                 >

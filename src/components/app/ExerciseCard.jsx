@@ -21,6 +21,7 @@ export function ExerciseCard({ exercise, value = {}, onToggle, onChange, classNa
         className
       )}
     >
+      {/* Header: solo cerchio + nome/serie sulla stessa riga */}
       <div className="flex items-start gap-3">
         {/* Toggle completato — tap target ampio */}
         <button
@@ -56,49 +57,50 @@ export function ExerciseCard({ exercise, value = {}, onToggle, onChange, classNa
             {exercise.setsReps}
             {exercise.rest ? ` · rec ${exercise.rest}` : ""}
           </p>
-
-          {exercise.illustration && (
-            <ExerciseIllustration
-              exercise={exercise.illustration}
-              title={`Illustrazione esercizio ${exercise.name}`}
-              className="mt-3 aspect-square"
-            />
-          )}
-
-          {/* Tracking */}
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <label className="block">
-              <span className="mb-1 block text-[10px] uppercase tracking-wide text-text-muted">Carico</span>
-              <Input
-                inputMode="text"
-                placeholder="es. 60kg"
-                value={loadUsed}
-                onChange={set("loadUsed")}
-                className="h-10"
-              />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-[10px] uppercase tracking-wide text-text-muted">RPE 1-10</span>
-              <Input
-                inputMode="numeric"
-                placeholder="es. 8"
-                value={rpe}
-                onChange={set("rpe")}
-                className="h-10"
-              />
-            </label>
-          </div>
-          <label className="mt-2 block">
-            <span className="mb-1 block text-[10px] uppercase tracking-wide text-text-muted">Note</span>
-            <Input
-              placeholder="(facoltative)"
-              value={notes}
-              onChange={set("notes")}
-              className="h-10"
-            />
-          </label>
         </div>
       </div>
+
+      {/* Illustrazione — a tutta larghezza, centrata nel riquadro */}
+      {exercise.illustration && (
+        <ExerciseIllustration
+          exercise={exercise.illustration}
+          title={`Illustrazione esercizio ${exercise.name}`}
+          className="mx-auto mt-3 aspect-square w-full max-w-[260px]"
+        />
+      )}
+
+      {/* Tracking — a tutta larghezza */}
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <label className="block">
+          <span className="mb-1 block text-[10px] uppercase tracking-wide text-text-muted">Carico</span>
+          <Input
+            inputMode="text"
+            placeholder="es. 60kg"
+            value={loadUsed}
+            onChange={set("loadUsed")}
+            className="h-10"
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-[10px] uppercase tracking-wide text-text-muted">RPE 1-10</span>
+          <Input
+            inputMode="numeric"
+            placeholder="es. 8"
+            value={rpe}
+            onChange={set("rpe")}
+            className="h-10"
+          />
+        </label>
+      </div>
+      <label className="mt-2 block">
+        <span className="mb-1 block text-[10px] uppercase tracking-wide text-text-muted">Note</span>
+        <Input
+          placeholder="(facoltative)"
+          value={notes}
+          onChange={set("notes")}
+          className="h-10"
+        />
+      </label>
     </div>
   );
 }

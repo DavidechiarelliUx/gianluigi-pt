@@ -24,6 +24,20 @@ async function sessions(req, res) {
   /* ---- GET ---- */
   if (req.method === "GET") {
     try {
+      if (auth.role === "client") {
+        const paidOrder = await prisma.order.findFirst({
+          where: { userId: auth.userId, status: "paid" },
+          select: { id: true },
+        });
+        if (!paidOrder) {
+          return res.status(200).json({
+            ok: true,
+            access: "payment_required",
+            sessions: [],
+          });
+        }
+      }
+
       const where =
         auth.role === "admin"
           ? {} // admin vede tutto
@@ -191,6 +205,16 @@ async function bookings(req, res) {
     }
 
     try {
+      if (auth.role === "client") {
+        const paidOrder = await prisma.order.findFirst({
+          where: { userId: auth.userId, status: "paid" },
+          select: { id: true },
+        });
+        if (!paidOrder) {
+          return res.status(402).json({ ok: false, error: "Acquista un pacchetto per prenotare le live" });
+        }
+      }
+
       const session = await prisma.liveSession.findUnique({ where: { id: liveSessionId } });
       if (!session || session.status !== "scheduled") {
         return res.status(400).json({ ok: false, error: "Sessione non prenotabile" });

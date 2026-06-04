@@ -28,14 +28,14 @@ const PLANS = [
   },
 ];
 
-/** Anteprima Pagamenti e pacchetti (Fase 3). Pricing cards, non funzionanti. */
+/** Pacchetti e pagamenti: ingresso alla pagina Checkout Stripe. */
 export function PreviewPricing() {
   return (
     <>
       <SectionHeader
-        eyebrow="In arrivo · Pagamenti"
+        eyebrow="Pagamenti online"
         title="Pacchetti e abbonamenti"
-        subtitle="Paga una sessione, un pacchetto o abbonati. Online e sicuro."
+        subtitle="Acquista una sessione o un pacchetto. Dopo il pagamento ricevi l'accesso alla tua area cliente."
         align="center"
       />
       <div className="mt-10 grid gap-4 md:grid-cols-3">
@@ -74,16 +74,16 @@ export function PreviewPricing() {
               <Button
                 variant={p.featured ? "primary" : "secondary"}
                 className="w-full"
-                disabled
+                onClick={() => (window.location.href = "/pacchetti")}
               >
-                <CreditCard size={16} /> Presto disponibile
+                <CreditCard size={16} /> Vedi pacchetti
               </Button>
             </div>
           </motion.div>
         ))}
       </div>
       <p className="mt-6 text-center text-xs text-text-muted">
-        Pagamenti online con Stripe in arrivo. Per ora, contattami per prenotare.
+        Pagamento sicuro con Stripe. Le sessioni live sono riservate ai clienti con pacchetto attivo.
       </p>
     </>
   );

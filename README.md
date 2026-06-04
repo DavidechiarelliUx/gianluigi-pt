@@ -6,7 +6,7 @@ Sito vetrina premium dark/neon + (in fasi successive) app allenamenti, sessioni 
 ## Stato
 
 **Fase 1 (design-first)** — sito vetrina premium + design system + motion + form contatto reale.
-Login, database, dashboard funzionante e pagamenti arrivano in Fase 2/3.
+Login, database, dashboard e app allenamenti sono attivi. La Fase 3 aggiunge live, pacchetti e pagamenti Stripe.
 
 ## Stack (Fase 1)
 
@@ -96,6 +96,44 @@ Le credenziali NON vanno mai committate (`.env` è in `.gitignore`).
   vercel dev        # esegue frontend + funzioni /api
   ```
   con un file `.env` valorizzato.
+
+## Pagamenti Stripe — Fase 3C
+
+I pacchetti sono acquistabili da `/pacchetti` tramite **Stripe Checkout**. Dopo il pagamento, il webhook:
+
+1. marca l'ordine come `paid`
+2. crea o collega l'utente cliente
+3. crea il profilo `Client` se manca
+4. genera il link invito se il cliente non ha ancora password
+5. invia la email “la tua app è pronta” con guida PWA
+
+### Variabili Stripe
+
+| Variabile | Uso |
+|---|---|
+| `STRIPE_SECRET_KEY` | Chiave segreta Stripe, prima in modalità test |
+| `STRIPE_WEBHOOK_SECRET` | Signing secret del webhook Stripe |
+| `APP_URL` | URL base usato per success/cancel/invito |
+
+Webhook endpoint su Vercel:
+
+```text
+https://gianluigi-pt.vercel.app/api/payments/webhook
+```
+
+Eventi minimi da abilitare:
+
+- `checkout.session.completed`
+- `checkout.session.expired`
+
+Per test locale completo:
+
+```bash
+vercel dev
+stripe listen --forward-to localhost:3000/api/payments/webhook
+```
+
+Poi copia il webhook secret mostrato dalla Stripe CLI in `STRIPE_WEBHOOK_SECRET`.
 
 ## Documentazione
 
