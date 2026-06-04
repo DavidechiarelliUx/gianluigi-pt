@@ -3,7 +3,7 @@ import { Calendar, ArrowRight, Dumbbell, Activity, Flame } from "lucide-react";
 import { Button } from "../ui/Button";
 import { Badge } from "../ui/Badge";
 import { Container } from "../ui/Container";
-import gianluigiPhoto from "../../assets/gianluigi-chiarelli.png";
+import gianluigiPhoto from "../../assets/gianluigi-chiarelli.webp";
 
 const HEADLINE = ["TRASFORMA", "IL", "TUO", "FISICO"];
 const STATS = [

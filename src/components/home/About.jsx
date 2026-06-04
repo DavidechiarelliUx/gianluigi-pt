@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { Dumbbell, Target, HeartPulse } from "lucide-react";
 import { SectionHeader } from "../ui/SectionHeader";
-import gianluigiPhoto from "../../assets/gianluigi-chiarelli.png";
+import gianluigiPhoto from "../../assets/gianluigi-chiarelli.webp";
 
 const PILLARS = [
   { icon: Target, title: "Metodo", text: "Programmazione basata su dati, non su sensazioni." },

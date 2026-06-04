@@ -129,26 +129,26 @@ export function Contact() {
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block text-xs uppercase tracking-wide text-text-muted">Nome *</label>
-            <Input placeholder="Il tuo nome" error={!!errors.name} {...register("name")} />
+            <label htmlFor="cf-name" className="mb-1 block text-xs uppercase tracking-wide text-text-muted">Nome *</label>
+            <Input id="cf-name" placeholder="Il tuo nome" error={!!errors.name} aria-invalid={!!errors.name} {...register("name")} />
             <FieldError msg={errors.name?.message} />
           </div>
           <div>
-            <label className="mb-1 block text-xs uppercase tracking-wide text-text-muted">Email *</label>
-            <Input type="email" placeholder="email@esempio.it" error={!!errors.email} {...register("email")} />
+            <label htmlFor="cf-email" className="mb-1 block text-xs uppercase tracking-wide text-text-muted">Email *</label>
+            <Input id="cf-email" type="email" placeholder="email@esempio.it" error={!!errors.email} aria-invalid={!!errors.email} {...register("email")} />
             <FieldError msg={errors.email?.message} />
           </div>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block text-xs uppercase tracking-wide text-text-muted">Telefono</label>
-            <Input placeholder="(facoltativo)" error={!!errors.phone} {...register("phone")} />
+            <label htmlFor="cf-phone" className="mb-1 block text-xs uppercase tracking-wide text-text-muted">Telefono</label>
+            <Input id="cf-phone" placeholder="(facoltativo)" error={!!errors.phone} {...register("phone")} />
             <FieldError msg={errors.phone?.message} />
           </div>
           <div>
-            <label className="mb-1 block text-xs uppercase tracking-wide text-text-muted">Obiettivo</label>
-            <Input placeholder="es. dimagrimento" error={!!errors.goal} {...register("goal")} />
+            <label htmlFor="cf-goal" className="mb-1 block text-xs uppercase tracking-wide text-text-muted">Obiettivo</label>
+            <Input id="cf-goal" placeholder="es. dimagrimento" error={!!errors.goal} {...register("goal")} />
             <FieldError msg={errors.goal?.message} />
           </div>
         </div>
@@ -176,8 +176,8 @@ export function Contact() {
         </div>
 
         <div>
-          <label className="mb-1 block text-xs uppercase tracking-wide text-text-muted">Messaggio *</label>
-          <Textarea rows={4} placeholder="Scrivi qui la tua richiesta..." error={!!errors.message} {...register("message")} />
+          <label htmlFor="cf-message" className="mb-1 block text-xs uppercase tracking-wide text-text-muted">Messaggio *</label>
+          <Textarea id="cf-message" rows={4} placeholder="Scrivi qui la tua richiesta..." error={!!errors.message} aria-invalid={!!errors.message} {...register("message")} />
           <FieldError msg={errors.message?.message} />
         </div>
 

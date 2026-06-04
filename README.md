@@ -16,6 +16,13 @@ Login, database, dashboard funzionante e pagamenti arrivano in Fase 2/3.
 - React Hook Form + Zod (form)
 - Form contatto: Vercel serverless function + Nodemailer
 
+## SEO & asset
+
+- Meta SEO completi in `index.html` (title, description, Open Graph, Twitter card, canonical)
+- `public/robots.txt`, `public/sitemap.xml`, `public/favicon.svg` (manubrio neon), `public/og-image.jpg` (1200×630)
+- Foto brand: `gianluigi-chiarelli.png` (originale conservato) + `.webp` ottimizzata (~55 kB) usata nel sito
+- ⚠️ Aggiorna gli URL assoluti (`https://gianluigi-pt.vercel.app/`) in `index.html`/`sitemap.xml`/`robots.txt` con il dominio definitivo dopo il deploy
+
 ## Sviluppo
 
 ```bash
