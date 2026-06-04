@@ -9,3 +9,10 @@ export { StatusBadge } from "./StatusBadge";
 export { EmptyState } from "./EmptyState";
 export { Skeleton } from "./Skeleton";
 export { Avatar } from "./Avatar";
+// P2 / tracking
+export { DataTable } from "./DataTable";
+export { DataList } from "./DataList";
+export { Tabs } from "./Tabs";
+export { ProgressBar } from "./ProgressBar";
+export { ExerciseCard } from "./ExerciseCard";
+export { StickyActionBar } from "./StickyActionBar";
