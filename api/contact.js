@@ -57,7 +57,11 @@ export default async function handler(req, res) {
   const { name, email, phone, goal, requestType, message } = body;
 
   // Env SMTP
-  const { EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS, STUDIO_EMAIL } = process.env;
+  const EMAIL_HOST = process.env.EMAIL_HOST?.trim();
+  const EMAIL_PORT = process.env.EMAIL_PORT?.trim();
+  const EMAIL_USER = process.env.EMAIL_USER?.trim();
+  const EMAIL_PASS = process.env.EMAIL_PASS?.trim();
+  const STUDIO_EMAIL = process.env.STUDIO_EMAIL?.trim();
   if (!EMAIL_HOST || !EMAIL_USER || !EMAIL_PASS || !STUDIO_EMAIL) {
     return res.status(503).json({
       ok: false,
