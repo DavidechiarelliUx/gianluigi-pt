@@ -3,7 +3,7 @@ import { Calendar, ArrowRight, Dumbbell, Activity, Flame } from "lucide-react";
 import { Button } from "../ui/Button";
 import { Badge } from "../ui/Badge";
 import { Container } from "../ui/Container";
-import { AppPreview } from "./AppPreview";
+import gianluigiPhoto from "../../assets/gianluigi-chiarelli.png";
 
 const HEADLINE = ["TRASFORMA", "IL", "TUO", "FISICO"];
 const STATS = [
@@ -131,27 +131,47 @@ export function Hero() {
           transition={{ duration: 0.7, ease: "easeOut", delay: reduce ? 0 : 0.3 }}
           className="relative mx-auto w-full max-w-sm"
         >
-          <AppPreview />
+          {/* Glow neon dietro la foto */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -inset-4 -z-10 rounded-[2rem] bg-accent/15 blur-[60px]"
+          />
+          {/* Foto reale di Gianluigi (asset brand principale) */}
+          <div className="relative overflow-hidden rounded-xl border border-border shadow-base">
+            <img
+              src={gianluigiPhoto}
+              alt="Gianluigi Chiarelli, personal trainer"
+              width={941}
+              height={1672}
+              loading="eager"
+              className="aspect-[4/5] w-full object-cover object-top"
+            />
+            {/* gradiente in basso per profondità */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-bg/80 to-transparent"
+            />
+          </div>
 
           {/* Badge fluttuanti */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: reduce ? 0 : 0.8 }}
-            className="absolute -left-4 top-10 hidden rounded-md border border-border bg-surface px-3 py-2 shadow-base sm:block"
+            className="absolute -left-4 top-10 hidden rounded-md border border-border bg-surface/90 px-3 py-2 shadow-base backdrop-blur sm:block"
           >
             <div className="flex items-center gap-2 text-sm">
-              <Flame size={16} className="text-accent" /> Scheda del giorno
+              <Flame size={16} className="text-accent" /> Coach certificato
             </div>
           </motion.div>
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: reduce ? 0 : 0.95 }}
-            className="absolute -right-3 bottom-16 hidden rounded-md border border-accent/40 bg-surface px-3 py-2 shadow-glow-soft sm:block"
+            className="absolute -right-3 bottom-16 hidden rounded-md border border-accent/40 bg-surface/90 px-3 py-2 shadow-glow-soft backdrop-blur sm:block"
           >
             <div className="flex items-center gap-2 text-sm">
-              <Activity size={16} className="text-accent" /> +12% forza
+              <Activity size={16} className="text-accent" /> +500 percorsi
             </div>
           </motion.div>
         </motion.div>

@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { Dumbbell, Target, HeartPulse } from "lucide-react";
 import { SectionHeader } from "../ui/SectionHeader";
+import gianluigiPhoto from "../../assets/gianluigi-chiarelli.png";
 
 const PILLARS = [
   { icon: Target, title: "Metodo", text: "Programmazione basata su dati, non su sensazioni." },
@@ -20,24 +21,22 @@ export function About() {
         transition={{ duration: 0.6, ease: "easeOut" }}
         className="relative mx-auto w-full max-w-md"
       >
-        <div className="relative aspect-square overflow-hidden rounded-xl border border-border bg-surface">
-          {/* griglia neon di sfondo */}
+        <div aria-hidden className="absolute -bottom-10 -right-10 -z-10 h-48 w-48 rounded-full bg-accent/20 blur-[80px]" />
+        <div className="relative aspect-[4/5] overflow-hidden rounded-xl border border-border bg-surface">
+          {/* Foto reale di Gianluigi */}
+          <img
+            src={gianluigiPhoto}
+            alt="Gianluigi Chiarelli, personal trainer"
+            width={941}
+            height={1672}
+            loading="lazy"
+            className="h-full w-full object-cover object-top"
+          />
+          {/* gradiente in basso per leggibilità etichetta */}
           <div
             aria-hidden
-            className="absolute inset-0 opacity-[0.12]"
-            style={{
-              backgroundImage:
-                "linear-gradient(hsl(var(--accent)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--accent)) 1px, transparent 1px)",
-              backgroundSize: "32px 32px",
-            }}
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-bg via-bg/60 to-transparent"
           />
-          <div aria-hidden className="absolute -bottom-10 -right-10 h-48 w-48 rounded-full bg-accent/20 blur-[80px]" />
-          {/* iniziali grandi */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="font-display text-[7rem] font-extrabold uppercase leading-none text-accent drop-shadow-[0_0_24px_rgba(57,255,20,0.4)]">
-              GC
-            </span>
-          </div>
           {/* etichetta */}
           <div className="absolute bottom-4 left-4 rounded-md border border-border bg-bg/80 px-3 py-2 backdrop-blur">
             <p className="text-sm font-semibold">Gianluigi Chiarelli</p>
