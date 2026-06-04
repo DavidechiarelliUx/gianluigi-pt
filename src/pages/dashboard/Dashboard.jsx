@@ -6,6 +6,7 @@ import {
   ExternalLink,
   Mail,
   MessageCircle,
+  MessageSquareText,
   Users,
   Video,
 } from "lucide-react";
@@ -71,10 +72,15 @@ export default function Dashboard() {
     queryKey: ["live", "sessions", "admin"],
     queryFn: () => apiFetch("/api/live/sessions"),
   });
+  const messagesQuery = useQuery({
+    queryKey: ["admin", "messages"],
+    queryFn: () => apiFetch("/api/admin/messages"),
+  });
 
   const summary = summaryQuery.data?.summary;
   const orders = useMemo(() => ordersQuery.data?.orders || [], [ordersQuery.data?.orders]);
   const sessions = useMemo(() => liveQuery.data?.sessions || [], [liveQuery.data?.sessions]);
+  const messages = useMemo(() => messagesQuery.data?.messages || [], [messagesQuery.data?.messages]);
   const paidOrders = useMemo(() => orders.filter((order) => order.status === "paid"), [orders]);
   const upcomingSessions = useMemo(() => {
     return sessions
@@ -94,7 +100,7 @@ export default function Dashboard() {
   }, [paidOrders]);
 
   const revenueCents = paidOrders.reduce((sum, order) => sum + (order.amountCents || 0), 0);
-  const isLoading = summaryQuery.isLoading || ordersQuery.isLoading || liveQuery.isLoading;
+  const isLoading = summaryQuery.isLoading || ordersQuery.isLoading || liveQuery.isLoading || messagesQuery.isLoading;
 
   const stats = [
     { label: "Clienti", value: summary?.clients ?? "—", icon: Users },
@@ -249,6 +255,58 @@ export default function Dashboard() {
           </div>
         </Card>
       </div>
+
+      <Card className="space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <MessageSquareText className="text-accent" size={20} />
+            <div>
+              <h3 className="font-display text-lg font-bold uppercase">Richieste clienti</h3>
+              <p className="text-sm text-text-muted">Messaggi inviati dall'area cliente.</p>
+            </div>
+          </div>
+          <StatusBadge status={messages.length ? "warning" : "neutral"}>{messages.length}</StatusBadge>
+        </div>
+        {messages.length ? (
+          <div className="grid gap-3 lg:grid-cols-2">
+            {messages.slice(0, 4).map((message) => {
+              const email = message.client?.user?.email;
+              const phone = message.client?.phone;
+              const wa = whatsappHref(phone);
+              return (
+                <article key={message.id} className="rounded-lg border border-border bg-surface-2 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h4 className="truncate font-display text-sm font-bold uppercase">{message.subject}</h4>
+                      <p className="text-xs text-text-muted">
+                        {message.client?.user?.fullName || email || "Cliente"} · {shortDate(message.createdAt)}
+                      </p>
+                    </div>
+                    <StatusBadge status={message.status === "open" ? "warning" : "success"}>{message.status}</StatusBadge>
+                  </div>
+                  <p className="mt-2 line-clamp-2 text-sm text-text-muted">{message.message}</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {email && (
+                      <Button as="a" size="sm" variant="secondary" href={`mailto:${email}`}>
+                        <Mail size={15} /> Email
+                      </Button>
+                    )}
+                    {wa && (
+                      <Button as="a" size="sm" variant="secondary" href={wa} target="_blank" rel="noreferrer">
+                        <MessageCircle size={15} /> WhatsApp
+                      </Button>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="rounded-lg border border-border bg-surface-2 p-4 text-sm text-text-muted">
+            Nessuna richiesta inviata dai clienti.
+          </p>
+        )}
+      </Card>
 
       <Card className="space-y-4">
         <div className="flex items-center gap-2">

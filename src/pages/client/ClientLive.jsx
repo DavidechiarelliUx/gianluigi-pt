@@ -1,5 +1,6 @@
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarCheck, CreditCard, Video } from "lucide-react";
+import { Bell, CalendarCheck, Clock3, CreditCard, Video } from "lucide-react";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { EmptyState, StatusBadge } from "../../components/app";
@@ -16,9 +17,31 @@ function formatDate(dt) {
   });
 }
 
+function timeUntil(dt, now) {
+  const diff = new Date(dt).getTime() - now;
+  if (diff <= 0) return "in corso / imminente";
+  const minutes = Math.ceil(diff / 60000);
+  if (minutes < 60) return `inizia tra ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (hours < 24) return `inizia tra ${hours}h ${rest ? `${rest}m` : ""}`.trim();
+  const days = Math.floor(hours / 24);
+  return `inizia tra ${days} giorni`;
+}
+
 export default function ClientLive() {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const [now, setNow] = useState(0);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setNow(Date.now()));
+    const timer = window.setInterval(() => setNow(Date.now()), 60000);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearInterval(timer);
+    };
+  }, []);
 
   const { data, isLoading } = useQuery({
     queryKey: ["live", "sessions"],
@@ -93,6 +116,9 @@ export default function ClientLive() {
                     <div>
                       <h3 className="font-display text-base font-bold uppercase">{session.title}</h3>
                       <p className="mt-1 text-sm text-text-muted">{formatDate(session.scheduledAt)}</p>
+                      <p className="flex items-center gap-1 text-xs text-accent">
+                        <Clock3 size={13} /> {timeUntil(session.scheduledAt, now)}
+                      </p>
                       <p className="text-xs text-text-muted">{session.durationMin} min</p>
                     </div>
                     <StatusBadge status="active">Prenotata</StatusBadge>
@@ -107,6 +133,11 @@ export default function ClientLive() {
                       >
                         <Video size={16} /> Entra nella sessione
                       </a>
+                    )}
+                    {session.status === "scheduled" && (
+                      <div className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface-2 px-3 py-2 text-xs text-text-muted">
+                        <Bell size={14} className="text-accent" /> Link disponibile quando la live parte
+                      </div>
                     )}
                     {session.status === "scheduled" && myBooking && (
                       <Button
@@ -146,6 +177,9 @@ export default function ClientLive() {
                         </StatusBadge>
                       </div>
                       <p className="mt-1 text-sm text-text-muted">{formatDate(session.scheduledAt)}</p>
+                      <p className="flex items-center gap-1 text-xs text-accent">
+                        <Clock3 size={13} /> {timeUntil(session.scheduledAt, now)}
+                      </p>
                       <p className="text-xs text-text-muted">{session.durationMin} min</p>
                       {session.type === "group" && (
                         <p className="text-xs text-text-muted">

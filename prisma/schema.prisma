@@ -92,6 +92,8 @@ model Client {
   workouts        Workout[]
   workoutSessions WorkoutSession[]
   bookings        Booking[]        // Fase 3
+  metrics         ClientMetric[]
+  coachMessages   CoachMessage[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   deletedAt       DateTime?        // soft delete (GDPR)
@@ -256,4 +258,35 @@ model Booking {
   @@unique([liveSessionId, clientId]) // un cliente non prenota due volte la stessa sessione
   @@index([clientId])
   @@index([liveSessionId])
+}
+
+/// Misure e check-in inseriti dal cliente.
+model ClientMetric {
+  id        String   @id @default(uuid())
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId  String
+  date      DateTime @default(now())
+  weightKg  Float?
+  waistCm   Float?
+  chestCm   Float?
+  hipsCm    Float?
+  photoUrl  String?
+  notes     String?
+  createdAt DateTime @default(now())
+
+  @@index([clientId, date])
+}
+
+/// Messaggi/richieste del cliente verso il coach.
+model CoachMessage {
+  id        String   @id @default(uuid())
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId  String
+  subject   String
+  message   String
+  status    String   @default("open")
+  createdAt DateTime @default(now())
+  readAt    DateTime?
+
+  @@index([clientId, createdAt])
 }

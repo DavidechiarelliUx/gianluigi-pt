@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarCheck, CheckCircle2, Clock3, Dumbbell, Flame, Save } from "lucide-react";
+import { CalendarCheck, CheckCircle2, Clock3, CreditCard, Dumbbell, Flame, Minimize2, Save, Smartphone } from "lucide-react";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { Textarea } from "../../components/ui/Textarea";
@@ -15,10 +15,14 @@ function itemToExercise(item) {
     name: item.exercise.name,
     setsReps: `${item.sets} x ${item.reps}`,
     rest: item.restSeconds ? `${item.restSeconds}s` : "",
+    restSeconds: item.restSeconds || 0,
     videoUrl: item.exercise.videoUrl,
     illustration: item.exercise.defaultNotes || getExerciseIllustrationId(item.exercise.name),
   };
 }
+
+const money = (cents = 0, currency = "eur") =>
+  new Intl.NumberFormat("it-IT", { style: "currency", currency }).format(cents / 100);
 
 export default function MyWorkout() {
   const { user } = useAuth();
@@ -27,14 +31,20 @@ export default function MyWorkout() {
   const [activeDayId, setActiveDayId] = useState(null);
   const [logs, setLogs] = useState({});
   const [feedbackNotes, setFeedbackNotes] = useState("");
+  const [gymMode, setGymMode] = useState(false);
 
   const workoutQuery = useQuery({
     queryKey: ["client", "active-workout"],
     queryFn: () => apiFetch("/api/client/active-workout"),
   });
+  const overviewQuery = useQuery({
+    queryKey: ["client", "overview"],
+    queryFn: () => apiFetch("/api/client/overview"),
+  });
 
   const workout = workoutQuery.data?.workout;
   const sessions = workoutQuery.data?.sessions || [];
+  const activePackage = overviewQuery.data?.activePackage;
   const activeDay = useMemo(() => {
     if (!workout?.days?.length) return null;
     return workout.days.find((day) => day.id === activeDayId) || workout.days[0];
@@ -102,11 +112,22 @@ export default function MyWorkout() {
 
   return (
     <div className="space-y-6 pb-20">
-      <div>
-        <h1 className="font-display text-2xl font-extrabold uppercase">
-          Ciao, {user?.fullName?.split(" ")[0] || "Atleta"}
-        </h1>
-        <p className="text-sm text-text-muted">La tua scheda attiva: {workout.title}</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display text-2xl font-extrabold uppercase">
+            Ciao, {user?.fullName?.split(" ")[0] || "Atleta"}
+          </h1>
+          <p className="text-sm text-text-muted">La tua scheda attiva: {workout.title}</p>
+        </div>
+        <Button
+          size="sm"
+          variant={gymMode ? "primary" : "secondary"}
+          onClick={() => setGymMode((value) => !value)}
+          aria-pressed={gymMode}
+        >
+          {gymMode ? <Minimize2 size={16} /> : <Smartphone size={16} />}
+          {gymMode ? "Normale" : "Palestra"}
+        </Button>
       </div>
 
       <Card className="overflow-hidden border-accent/25 bg-gradient-to-br from-accent/10 via-surface to-surface">
@@ -138,6 +159,36 @@ export default function MyWorkout() {
         </div>
       </Card>
 
+      {activePackage && !gymMode && (
+        <Card className="space-y-3 border-accent/25">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-accent">
+                <CreditCard size={15} /> Pacchetto attivo
+              </div>
+              <h2 className="mt-1 font-display text-lg font-bold uppercase">{activePackage.productName}</h2>
+              <p className="text-sm text-text-muted">
+                {money(activePackage.amountCents, activePackage.currency)}
+                {activePackage.quantity > 1 ? ` · x${activePackage.quantity}` : ""}
+              </p>
+            </div>
+            {activePackage.remainingSessions != null && (
+              <div className="rounded-full border border-accent/30 px-3 py-1 text-xs font-semibold text-accent">
+                {activePackage.remainingSessions} rimaste
+              </div>
+            )}
+          </div>
+          {activePackage.sessionsQty ? (
+            <ProgressBar
+              label="Sessioni usate"
+              value={(activePackage.usedSessions / activePackage.sessionsQty) * 100}
+            />
+          ) : (
+            <p className="text-sm text-text-muted">Accesso piattaforma attivo.</p>
+          )}
+        </Card>
+      )}
+
       <Card className="space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -157,7 +208,7 @@ export default function MyWorkout() {
         <ProgressBar label="Completamento sessione" value={progress} />
       </Card>
 
-      <div className="grid grid-cols-2 gap-3">
+      {!gymMode && <div className="grid grid-cols-2 gap-3">
         <Card className="space-y-2">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-text-muted">
             <Clock3 size={16} className="text-accent" /> Ultima sessione
@@ -176,7 +227,7 @@ export default function MyWorkout() {
           <p className="font-display text-lg font-bold text-text">{workout.days.length} giorni</p>
           <p className="text-xs text-text-muted">{totalWorkoutItems} esercizi totali nella scheda</p>
         </Card>
-      </div>
+      </div>}
 
       <div className="space-y-4">
         {activeDay?.items.map((item) => (

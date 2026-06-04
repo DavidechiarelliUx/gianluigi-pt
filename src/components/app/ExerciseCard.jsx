@@ -1,5 +1,7 @@
-import { CheckCircle2, Circle, PlayCircle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CheckCircle2, Circle, Clock3, PlayCircle, RotateCcw } from "lucide-react";
 import { Input } from "../ui/Input";
+import { Button } from "../ui/Button";
 import { ExerciseIllustration } from "../exercises";
 import { cn } from "../../lib/utils";
 
@@ -11,7 +13,21 @@ import { cn } from "../../lib/utils";
  */
 export function ExerciseCard({ exercise, value = {}, onToggle, onChange, className }) {
   const { completed, loadUsed = "", rpe = "", notes = "" } = value;
+  const [remainingRest, setRemainingRest] = useState(0);
   const set = (field) => (e) => onChange?.(field, e.target.value);
+  const restSeconds = Number(exercise.restSeconds || 0);
+  const hasTimer = restSeconds > 0;
+
+  useEffect(() => {
+    if (!remainingRest) return undefined;
+    const timer = window.setInterval(() => {
+      setRemainingRest((current) => Math.max(0, current - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [remainingRest]);
+
+  const minutes = Math.floor(remainingRest / 60);
+  const seconds = String(remainingRest % 60).padStart(2, "0");
 
   return (
     <div
@@ -92,6 +108,33 @@ export function ExerciseCard({ exercise, value = {}, onToggle, onChange, classNa
           />
         </label>
       </div>
+      {hasTimer && (
+        <div className="mt-3 rounded-md border border-border bg-bg/45 p-3">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-text-muted">
+              <Clock3 size={15} className="text-accent" /> Timer recupero
+            </div>
+            <span className="font-display text-lg font-bold text-accent">
+              {remainingRest ? `${minutes}:${seconds}` : exercise.rest}
+            </span>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              className="flex-1"
+              onClick={() => setRemainingRest(restSeconds)}
+            >
+              <Clock3 size={15} /> Avvia
+            </Button>
+            {remainingRest > 0 && (
+              <Button size="sm" variant="ghost" onClick={() => setRemainingRest(0)}>
+                <RotateCcw size={15} />
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
       <label className="mt-2 block">
         <span className="mb-1 block text-[10px] uppercase tracking-wide text-text-muted">Note</span>
         <Input

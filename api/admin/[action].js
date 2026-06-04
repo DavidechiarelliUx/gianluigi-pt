@@ -61,6 +61,29 @@ async function exercises(req, res) {
   }
 }
 
+/** GET /api/admin/messages — richieste inviate dai clienti al coach. */
+async function messages(req, res) {
+  if (req.method !== "GET") return methodNotAllowed(res, ["GET"]);
+
+  try {
+    const list = await prisma.coachMessage.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 12,
+      include: {
+        client: {
+          include: {
+            user: { select: { fullName: true, email: true } },
+          },
+        },
+      },
+    });
+    return res.status(200).json({ ok: true, messages: list });
+  } catch (err) {
+    console.error("GET /api/admin/messages:", err);
+    return res.status(500).json({ ok: false, error: "Errore interno" });
+  }
+}
+
 export default function handler(req, res) {
   const auth = requireAdmin(req, res);
   if (!auth) return;
@@ -68,5 +91,6 @@ export default function handler(req, res) {
   const { action } = req.query;
   if (action === "summary") return summary(req, res);
   if (action === "exercises") return exercises(req, res);
+  if (action === "messages") return messages(req, res);
   return res.status(404).json({ ok: false, error: "Endpoint admin non trovato" });
 }
