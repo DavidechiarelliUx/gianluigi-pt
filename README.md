@@ -16,6 +16,44 @@ Login, database, dashboard funzionante e pagamenti arrivano in Fase 2/3.
 - React Hook Form + Zod (form)
 - Form contatto: Vercel serverless function + Nodemailer
 
+## Database — Neon + Prisma (Fase 2)
+
+L'app allenamenti usa **PostgreSQL su Neon** con **Prisma 7** (adapter Neon, serverless).
+
+### Setup iniziale (una tantum)
+
+1. Crea un progetto gratuito su **https://neon.tech**
+2. Dalla dashboard Neon copia **due** connection string:
+   - **Pooled** → `DATABASE_URL` (runtime serverless)
+   - **Direct** → `DIRECT_URL` (migrations)
+3. Copia `.env.example` in `.env` e compila `DATABASE_URL`, `DIRECT_URL`, `JWT_SECRET`, `APP_URL`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`
+
+> In Prisma 7 le connection URL stanno in `prisma.config.ts` (non nello schema). `.env` viene caricato via `dotenv`.
+
+### Comandi Prisma
+
+```bash
+npx prisma validate         # valida lo schema (no DB)
+npx prisma generate         # genera il client (no DB)
+npx prisma migrate dev      # crea/applica le migration in locale (richiede DIRECT_URL)
+npx prisma db seed          # crea admin + esercizi base (richiede DATABASE_URL + ADMIN_*)
+npx prisma studio           # esplora il DB
+# produzione (Neon prod):
+npx prisma migrate deploy
+```
+
+### Variabili d'ambiente (Fase 2, oltre alle EMAIL_*)
+
+| Variabile | Uso |
+|---|---|
+| `DATABASE_URL` | Neon **pooled** (runtime, adapter) |
+| `DIRECT_URL` | Neon **direct** (migrations) |
+| `JWT_SECRET` | Firma JWT (cookie httpOnly) |
+| `APP_URL` | Base URL per i link d'invito |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Primo account admin (seed) |
+
+In produzione, impostarle su **Vercel → Settings → Environment Variables**.
+
 ## SEO & asset
 
 - Meta SEO completi in `index.html` (title, description, Open Graph, Twitter card, canonical)

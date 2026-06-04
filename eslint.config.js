@@ -19,8 +19,8 @@ export default defineConfig([
     },
   },
   {
-    // Serverless functions: ambiente Node (process, ecc.)
-    files: ['api/**/*.js'],
+    // Codice lato server (Node): serverless functions, lib, prisma, seed
+    files: ['api/**/*.js', 'server/**/*.js', 'prisma/**/*.js'],
     languageOptions: {
       globals: globals.node,
     },

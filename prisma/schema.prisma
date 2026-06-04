@@ -1,0 +1,129 @@
+// Schema Prisma — Gianluigi PT, Fase 2 (app allenamenti)
+// Sessioni live, gruppo e pagamenti restano fuori (Fase 3).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  // URL gestite in prisma.config.ts (Prisma 7) e via adapter Neon a runtime
+}
+
+enum Role {
+  admin
+  client
+}
+
+enum WorkoutStatus {
+  active // scheda attiva principale (max 1 per cliente)
+  archived // scheda storica, consultabile
+}
+
+enum SessionStatus {
+  in_progress
+  completed
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String? // null finché il cliente non imposta la password
+  role          Role      @default(client)
+  fullName      String
+  inviteToken   String?   @unique // token monouso "imposta password"
+  inviteExpires DateTime?
+  client        Client?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Client {
+  id              String           @id @default(uuid())
+  user            User             @relation(fields: [userId], references: [id])
+  userId          String           @unique
+  phone           String?
+  goal            String?
+  notes           String?
+  workouts        Workout[]
+  workoutSessions WorkoutSession[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime? // soft delete (GDPR)
+}
+
+model Workout {
+  id          String           @id @default(uuid())
+  client      Client           @relation(fields: [clientId], references: [id])
+  clientId    String
+  title       String
+  description String?
+  status      WorkoutStatus    @default(active)
+  days        WorkoutDay[]
+  sessions    WorkoutSession[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  archivedAt  DateTime?
+
+  @@index([clientId, status])
+}
+
+model WorkoutDay {
+  id        String        @id @default(uuid())
+  workout   Workout       @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  workoutId String
+  label     String // "Giorno A · Push"
+  order     Int           @default(0)
+  items     WorkoutItem[]
+}
+
+model Exercise {
+  id           String        @id @default(uuid())
+  name         String        @unique
+  muscleGroup  String?
+  defaultNotes String?
+  videoUrl     String?
+  items        WorkoutItem[]
+}
+
+model WorkoutItem {
+  id           String     @id @default(uuid())
+  day          WorkoutDay @relation(fields: [workoutDayId], references: [id], onDelete: Cascade)
+  workoutDayId String
+  exercise     Exercise   @relation(fields: [exerciseId], references: [id])
+  exerciseId   String
+  sets         Int
+  reps         String // "8", "8-10", "cedimento"
+  restSeconds  Int?
+  notes        String?
+  order        Int        @default(0)
+}
+
+model WorkoutSession {
+  id                 String           @id @default(uuid())
+  client             Client           @relation(fields: [clientId], references: [id])
+  clientId           String
+  workout            Workout          @relation(fields: [workoutId], references: [id])
+  workoutId          String
+  workoutDayId       String? // giorno svolto
+  date               DateTime         @default(now())
+  status             SessionStatus    @default(in_progress)
+  feedbackDifficulty Int? // RPE complessivo 1-10
+  feedbackNotes      String?
+  itemLogs           WorkoutItemLog[]
+  createdAt          DateTime         @default(now())
+
+  @@index([clientId, date])
+}
+
+model WorkoutItemLog {
+  id                  String         @id @default(uuid())
+  session             WorkoutSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId           String
+  workoutItemId       String // riferimento alla riga di scheda
+  completed           Boolean        @default(false)
+  loadUsed            String? // "60kg", "elastico medio"
+  repsDone            String?
+  perceivedDifficulty Int? // RPE per esercizio 1-10
+  notes               String?
+}
