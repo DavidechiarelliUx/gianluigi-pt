@@ -16,6 +16,15 @@ export default {
         text: "hsl(var(--text) / <alpha-value>)",
         "text-muted": "hsl(var(--text-muted) / <alpha-value>)",
         danger: "hsl(var(--danger) / <alpha-value>)",
+        // App-mode: stati semantici
+        success: "hsl(var(--success) / <alpha-value>)",
+        warning: "hsl(var(--warning) / <alpha-value>)",
+        info: "hsl(var(--info) / <alpha-value>)",
+        // App-mode: palette dati (grafici/progressi)
+        "chart-1": "hsl(var(--chart-1) / <alpha-value>)",
+        "chart-2": "hsl(var(--chart-2) / <alpha-value>)",
+        "chart-3": "hsl(var(--chart-3) / <alpha-value>)",
+        "chart-4": "hsl(var(--chart-4) / <alpha-value>)",
       },
       ringColor: {
         DEFAULT: "hsl(var(--accent))",
@@ -51,9 +60,13 @@ export default {
           "0%, 100%": { boxShadow: "0 0 8px rgba(57,255,20,0.2)" },
           "50%": { boxShadow: "0 0 20px rgba(57,255,20,0.45)" },
         },
+        shimmer: {
+          "100%": { transform: "translateX(100%)" },
+        },
       },
       animation: {
         "neon-breathe": "neon-breathe 2.5s ease-in-out infinite",
+        shimmer: "shimmer 1.5s infinite",
       },
     },
   },
