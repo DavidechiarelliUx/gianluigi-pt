@@ -203,6 +203,8 @@ model Order {
   status          OrderStatus @default(pending)
   amountCents     Int         // copia del prezzo al momento dell'acquisto
   currency        String      @default("eur")
+  quantity        Int         @default(1)
+  sessionsQty     Int?
   customerEmail   String
   customerName    String
   customerPhone   String?

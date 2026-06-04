@@ -6,24 +6,31 @@ import { Button } from "../ui/Button";
 
 const PLANS = [
   {
-    name: "Sessione singola",
-    price: "40€",
-    unit: "/ seduta",
-    features: ["Personal training 1:1", "Nessun vincolo", "Ideale per provare"],
+    name: "Sessioni 1:1",
+    price: "45€",
+    unit: "/ sessione",
+    features: ["Scegli quante sessioni", "Pagamento aggiornato in automatico", "Accesso area cliente"],
     featured: false,
   },
   {
-    name: "Pacchetto 10",
-    price: "350€",
-    unit: "/ 10 sedute",
-    features: ["Risparmio sul singolo", "Programmazione continua", "Priorità di prenotazione"],
+    name: "Abbonamento",
+    price: "99€",
+    unit: "/ mese",
+    features: ["Scheda + monitoraggio", "Priorità live", "Percorso continuativo"],
     featured: true,
   },
   {
-    name: "Abbonamento",
-    price: "—",
-    unit: "mensile",
-    features: ["Coaching online continuo", "Schede + sessioni live", "Disponibile in futuro"],
+    name: "Live gruppo",
+    price: "10€",
+    unit: "/ live",
+    features: ["Accesso singolo", "Allenamento live", "Ideale per provare"],
+    featured: false,
+  },
+  {
+    name: "Scheda",
+    price: "29€",
+    unit: "/ piano",
+    features: ["Scheda personalizzata", "Accesso piattaforma", "Base per iniziare"],
     featured: false,
   },
 ];
@@ -38,7 +45,7 @@ export function PreviewPricing() {
         subtitle="Acquista una sessione o un pacchetto. Dopo il pagamento ricevi l'accesso alla tua area cliente."
         align="center"
       />
-      <div className="mt-10 grid gap-4 md:grid-cols-3">
+      <div className="mt-10 grid gap-4 md:grid-cols-4">
         {PLANS.map((p, i) => (
           <motion.div
             key={p.name}

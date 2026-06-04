@@ -3,12 +3,18 @@ import Stripe from "stripe";
 import { prisma } from "../../server/lib/prisma.js";
 import { requireAuth } from "../../server/lib/guards.js";
 import { methodNotAllowed, parseJsonBody } from "../../server/lib/body.js";
-import { appUrl, sendClientInviteEmail } from "../../server/lib/mailer.js";
+import { appUrl, sendClientInviteEmail, sendExistingClientPaymentEmail } from "../../server/lib/mailer.js";
+
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
 
 const DEFAULT_PRODUCTS = [
   {
-    name: "Sessione live 1:1",
-    description: "Una sessione individuale online con Gianluigi.",
+    name: "Sessioni 1:1",
+    description: "Scegli quante sessioni individuali online vuoi acquistare.",
     priceCents: 4500,
     type: "session_solo",
     sessionsQty: 1,
@@ -16,23 +22,23 @@ const DEFAULT_PRODUCTS = [
   {
     name: "Live di gruppo",
     description: "Accesso a una sessione live di gruppo.",
-    priceCents: 1500,
+    priceCents: 1000,
     type: "session_group",
     sessionsQty: 1,
   },
   {
-    name: "Pacchetto 4 sessioni",
-    description: "Quattro sessioni live 1:1 per lavorare con continuita.",
-    priceCents: 16000,
+    name: "Abbonamento mensile",
+    description: "Scheda, monitoraggio e accesso prioritario alle live del mese.",
+    priceCents: 9900,
     type: "package",
     sessionsQty: 4,
   },
   {
-    name: "Pacchetto 10 sessioni",
-    description: "Percorso completo da dieci sessioni live 1:1.",
-    priceCents: 35000,
+    name: "Scheda personalizzata",
+    description: "Piano di allenamento su misura con accesso alla piattaforma.",
+    priceCents: 2900,
     type: "package",
-    sessionsQty: 10,
+    sessionsQty: 0,
   },
 ];
 
@@ -70,6 +76,10 @@ async function ensureDefaultProducts() {
       create: { ...item, currency: "eur", active: true },
     });
   }
+  await prisma.product.updateMany({
+    where: { name: { notIn: DEFAULT_PRODUCTS.map((product) => product.name) } },
+    data: { active: false },
+  });
 }
 
 async function readRawBody(req) {
@@ -84,6 +94,15 @@ async function readRawBody(req) {
     chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
   }
   return Buffer.concat(chunks);
+}
+
+async function readJsonBody(req) {
+  if (req.body) return parseJsonBody(req);
+  try {
+    return JSON.parse((await readRawBody(req)).toString("utf8"));
+  } catch {
+    return null;
+  }
 }
 
 async function createInviteForUser(tx, userId) {
@@ -166,13 +185,14 @@ async function products(req, res) {
 async function checkout(req, res) {
   if (req.method !== "POST") return methodNotAllowed(res, ["POST"]);
 
-  const body = parseJsonBody(req);
+  const body = await readJsonBody(req);
   if (!body) return res.status(400).json({ ok: false, error: "Body non valido" });
 
   const productId = String(body.productId || "");
   const customerEmail = String(body.email || "").trim().toLowerCase();
   const customerName = String(body.fullName || "").trim();
   const customerPhone = body.phone ? String(body.phone).trim() : null;
+  const requestedQuantity = Math.max(1, Math.min(20, Number(body.quantity) || 1));
 
   if (!productId || !isEmail(customerEmail) || customerName.length < 2) {
     return res.status(400).json({ ok: false, error: "Prodotto, nome ed email sono obbligatori" });
@@ -182,13 +202,18 @@ async function checkout(req, res) {
     const stripe = stripeClient();
     const product = await prisma.product.findFirst({ where: { id: productId, active: true } });
     if (!product) return res.status(404).json({ ok: false, error: "Pacchetto non trovato" });
+    const quantity = product.type === "session_solo" ? requestedQuantity : 1;
+    const sessionsQty = product.sessionsQty != null ? product.sessionsQty * quantity : null;
+    const amountCents = product.priceCents * quantity;
 
     const order = await prisma.order.create({
       data: {
         productId: product.id,
         status: "pending",
-        amountCents: product.priceCents,
+        amountCents,
         currency: product.currency,
+        quantity,
+        sessionsQty,
         customerEmail,
         customerName,
         customerPhone,
@@ -206,17 +231,19 @@ async function checkout(req, res) {
         orderId: order.id,
         productId: product.id,
         customerEmail,
+        quantity: String(quantity),
       },
       payment_intent_data: {
         metadata: {
           orderId: order.id,
           productId: product.id,
           customerEmail,
+          quantity: String(quantity),
         },
       },
       line_items: [
         {
-          quantity: 1,
+          quantity,
           price_data: {
             currency: product.currency,
             unit_amount: product.priceCents,
@@ -273,14 +300,23 @@ async function handleCheckoutCompleted(session) {
 
   const { user, inviteToken } = await ensureClientFromPaidOrder(updatedOrder);
 
-  if (inviteToken && !updatedOrder.inviteSentAt) {
+  if (!updatedOrder.inviteSentAt) {
+    const emailPayload = {
+      to: user.email,
+      fullName: user.fullName,
+      productName: updatedOrder.product?.name,
+      sessionsQty: updatedOrder.sessionsQty,
+    };
     try {
-      await sendClientInviteEmail({
-        to: user.email,
-        fullName: user.fullName,
-        token: inviteToken,
-        context: "payment",
-      });
+      if (inviteToken) {
+        await sendClientInviteEmail({
+          ...emailPayload,
+          token: inviteToken,
+          context: "payment",
+        });
+      } else {
+        await sendExistingClientPaymentEmail(emailPayload);
+      }
       await prisma.order.update({ where: { id: updatedOrder.id }, data: { inviteSentAt: new Date() } });
     } catch (err) {
       console.error("Email post-pagamento non inviata:", err);

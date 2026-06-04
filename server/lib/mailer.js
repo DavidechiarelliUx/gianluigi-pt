@@ -32,7 +32,34 @@ export function createTransporter() {
   });
 }
 
-export async function sendClientInviteEmail({ to, fullName, token, context = "manual" }) {
+function appInstallBlock(installLink) {
+  return `
+    <div style="margin-top:22px;padding:18px;border-radius:14px;background:#111610;border:1px solid rgba(255,255,255,.08);">
+      <h3 style="margin:0 0 8px;color:#ffffff;font-size:16px;">Aggiungila alla schermata Home</h3>
+      <p style="margin:0;color:#aeb9aa;line-height:1.55;font-size:14px;">Da iPhone apri il link in Safari, premi Condividi e scegli “Aggiungi alla schermata Home”. Così avrai l'app Gianluigi PT tra le tue app.</p>
+      <p style="margin:10px 0 0;"><a href="${installLink}" style="color:#39FF14;font-weight:800;">Guida installazione app</a></p>
+    </div>
+  `;
+}
+
+function emailShell({ firstName, intro, ctaHref, ctaLabel, extraHtml = "", footer = "" }) {
+  const installLink = `${appUrl()}/installa-app`;
+  return `
+    <div style="font-family:Inter,Arial,sans-serif;max-width:560px;margin:0 auto;background:#0a0b0a;color:#f4f7f2;border-radius:18px;padding:32px;border:1px solid rgba(57,255,20,.28);">
+      <p style="margin:0 0 10px;color:#39FF14;font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;">Gianluigi Chiarelli PT</p>
+      <h2 style="margin:0 0 18px;color:#ffffff;font-size:28px;line-height:1.1;">Ciao, ${firstName}.</h2>
+      <p style="color:#c7d0c3;line-height:1.6;">${intro}</p>
+      ${extraHtml}
+      <a href="${ctaHref}" style="display:inline-block;margin:22px 0;padding:14px 24px;background:#39FF14;color:#071007;font-weight:900;border-radius:999px;text-decoration:none;font-size:15px;">
+        ${ctaLabel}
+      </a>
+      ${appInstallBlock(installLink)}
+      <p style="color:#7f887b;font-size:12px;margin-top:22px;">${footer}</p>
+    </div>
+  `;
+}
+
+export async function sendClientInviteEmail({ to, fullName, token, context = "manual", productName, sessionsQty }) {
   const { user } = smtpConfig();
   const firstName = fullName?.split(" ")[0] || "ciao";
   const baseUrl = appUrl();
@@ -45,8 +72,11 @@ export async function sendClientInviteEmail({ to, fullName, token, context = "ma
     : "Benvenuto — imposta la tua password";
 
   const intro = isPayment
-    ? "Pagamento ricevuto. La tua area allenamenti è pronta."
+    ? "Pagamento ricevuto. La tua area allenamenti è pronta.<br>Imposta la password e accedi alla piattaforma."
     : "Gianluigi ti ha aggiunto alla sua piattaforma di allenamento.";
+  const extraHtml = productName
+    ? `<div style="margin-top:18px;padding:14px;border-radius:12px;background:#111610;border:1px solid rgba(57,255,20,.22);"><strong style="color:#39FF14;">Acquisto:</strong> ${productName}${sessionsQty ? ` · ${sessionsQty} sessioni` : ""}</div>`
+    : "";
 
   const transporter = createTransporter();
 
@@ -54,26 +84,19 @@ export async function sendClientInviteEmail({ to, fullName, token, context = "ma
     from: `"Gianluigi PT" <${user}>`,
     to,
     subject,
-    html: `
-      <div style="font-family:Inter,Arial,sans-serif;max-width:560px;margin:0 auto;background:#0a0b0a;color:#f4f7f2;border-radius:18px;padding:32px;border:1px solid rgba(57,255,20,.28);">
-        <p style="margin:0 0 10px;color:#39FF14;font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;">Gianluigi Chiarelli PT</p>
-        <h2 style="margin:0 0 18px;color:#ffffff;font-size:28px;line-height:1.1;">Ciao, ${firstName}.</h2>
-        <p style="color:#c7d0c3;line-height:1.6;">${intro}<br>Imposta la tua password e accedi alla tua scheda, alle sessioni live e ai prossimi contenuti riservati.</p>
-        <a href="${loginLink}" style="display:inline-block;margin:22px 0;padding:14px 24px;background:#39FF14;color:#071007;font-weight:900;border-radius:999px;text-decoration:none;font-size:15px;">
-          Entra nella tua area
-        </a>
-        <div style="margin-top:22px;padding:18px;border-radius:14px;background:#111610;border:1px solid rgba(255,255,255,.08);">
-          <h3 style="margin:0 0 8px;color:#ffffff;font-size:16px;">Aggiungila alla schermata Home</h3>
-          <p style="margin:0;color:#aeb9aa;line-height:1.55;font-size:14px;">Da iPhone apri il link in Safari, premi Condividi e scegli “Aggiungi alla schermata Home”. Così avrai l'app Gianluigi PT tra le tue app.</p>
-          <p style="margin:10px 0 0;"><a href="${installLink}" style="color:#39FF14;font-weight:800;">Guida installazione app</a></p>
-        </div>
-        <p style="color:#7f887b;font-size:12px;margin-top:22px;">Il link scade tra 48 ore. Se non hai richiesto questo accesso, ignora questa email.</p>
-      </div>
-    `,
+    html: emailShell({
+      firstName,
+      intro,
+      ctaHref: loginLink,
+      ctaLabel: "Imposta password",
+      extraHtml,
+      footer: "Il link scade tra 48 ore. Se non hai richiesto questo accesso, ignora questa email.",
+    }),
     text: [
       `Ciao ${fullName || ""}!`,
       "",
       intro,
+      productName ? `Acquisto: ${productName}${sessionsQty ? ` · ${sessionsQty} sessioni` : ""}` : "",
       `Imposta la password qui: ${loginLink}`,
       "",
       "Per aggiungere l'app alla schermata Home:",
@@ -81,6 +104,42 @@ export async function sendClientInviteEmail({ to, fullName, token, context = "ma
       `Guida: ${installLink}`,
       "",
       "Il link scade tra 48 ore.",
-    ].join("\n"),
+    ].filter(Boolean).join("\n"),
+  });
+}
+
+export async function sendExistingClientPaymentEmail({ to, fullName, productName, sessionsQty }) {
+  const { user } = smtpConfig();
+  const firstName = fullName?.split(" ")[0] || "ciao";
+  const baseUrl = appUrl();
+  const loginLink = `${baseUrl}/login`;
+  const installLink = `${baseUrl}/installa-app`;
+  const summary = productName
+    ? `<div style="margin-top:18px;padding:14px;border-radius:12px;background:#111610;border:1px solid rgba(57,255,20,.22);"><strong style="color:#39FF14;">Acquisto confermato:</strong> ${productName}${sessionsQty ? ` · ${sessionsQty} sessioni` : ""}</div>`
+    : "";
+
+  await createTransporter().sendMail({
+    from: `"Gianluigi PT" <${user}>`,
+    to,
+    subject: "Pagamento confermato — accedi alla tua area Gianluigi PT",
+    html: emailShell({
+      firstName,
+      intro: "Pagamento ricevuto. Il tuo acquisto è stato aggiunto alla tua area cliente.",
+      ctaHref: loginLink,
+      ctaLabel: "Accedi alla tua area",
+      extraHtml: summary,
+      footer: "Se hai dubbi, rispondi a questa email o contatta Gianluigi.",
+    }),
+    text: [
+      `Ciao ${fullName || ""}!`,
+      "",
+      "Pagamento ricevuto. Il tuo acquisto è stato aggiunto alla tua area cliente.",
+      productName ? `Acquisto: ${productName}${sessionsQty ? ` · ${sessionsQty} sessioni` : ""}` : "",
+      `Accedi qui: ${loginLink}`,
+      "",
+      "Per aggiungere l'app alla schermata Home:",
+      "iPhone: apri il link in Safari → Condividi → Aggiungi alla schermata Home.",
+      `Guida: ${installLink}`,
+    ].filter(Boolean).join("\n"),
   });
 }

@@ -12,8 +12,8 @@ import { EXERCISE_CATALOG } from "../server/lib/exercise-catalog.js";
 
 const PRODUCTS = [
   {
-    name: "Sessione live 1:1",
-    description: "Una sessione individuale online con Gianluigi.",
+    name: "Sessioni 1:1",
+    description: "Scegli quante sessioni individuali online vuoi acquistare.",
     priceCents: 4500,
     currency: "eur",
     type: "session_solo",
@@ -22,26 +22,26 @@ const PRODUCTS = [
   {
     name: "Live di gruppo",
     description: "Accesso a una sessione live di gruppo.",
-    priceCents: 1500,
+    priceCents: 1000,
     currency: "eur",
     type: "session_group",
     sessionsQty: 1,
   },
   {
-    name: "Pacchetto 4 sessioni",
-    description: "Quattro sessioni live 1:1 per lavorare con continuita.",
-    priceCents: 16000,
+    name: "Abbonamento mensile",
+    description: "Scheda, monitoraggio e accesso prioritario alle live del mese.",
+    priceCents: 9900,
     currency: "eur",
     type: "package",
     sessionsQty: 4,
   },
   {
-    name: "Pacchetto 10 sessioni",
-    description: "Percorso completo da dieci sessioni live 1:1.",
-    priceCents: 35000,
+    name: "Scheda personalizzata",
+    description: "Piano di allenamento su misura con accesso alla piattaforma.",
+    priceCents: 2900,
     currency: "eur",
     type: "package",
-    sessionsQty: 10,
+    sessionsQty: 0,
   },
 ];
 
@@ -78,6 +78,10 @@ async function main() {
       create: { ...product, active: true },
     });
   }
+  await prisma.product.updateMany({
+    where: { name: { notIn: PRODUCTS.map((product) => product.name) } },
+    data: { active: false },
+  });
   console.log(`Pacchetti seed: ${PRODUCTS.length}`);
 }
 

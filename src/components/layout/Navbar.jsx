@@ -48,7 +48,7 @@ export function Navbar() {
         </a>
 
         {/* Desktop nav */}
-        <nav className="hidden items-center gap-8 md:flex">
+        <nav className="hidden items-center gap-6 md:flex">
           {LINKS.map((l) => (
             <a
               key={l.href}
@@ -58,7 +58,10 @@ export function Navbar() {
               {l.label}
             </a>
           ))}
-          <Button size="sm" onClick={() => (window.location.hash = "#contatti")}>
+          <Button size="sm" variant="ghost" onClick={() => (window.location.href = "/login")}>
+            Login
+          </Button>
+          <Button size="sm" onClick={() => (window.location.href = "/#contatti")}>
             Prenota
           </Button>
         </nav>
@@ -97,9 +100,19 @@ export function Navbar() {
               ))}
               <Button
                 className="mt-2 w-full"
+                variant="secondary"
                 onClick={() => {
                   setOpen(false);
-                  window.location.hash = "#contatti";
+                  window.location.href = "/login";
+                }}
+              >
+                Login
+              </Button>
+              <Button
+                className="w-full"
+                onClick={() => {
+                  setOpen(false);
+                  window.location.href = "/#contatti";
                 }}
               >
                 Prenota una seduta

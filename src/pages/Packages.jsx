@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CreditCard, Loader2, ShieldCheck, Zap } from "lucide-react";
+import { CreditCard, Loader2, Minus, Plus, ShieldCheck, Zap } from "lucide-react";
 import { MainLayout } from "../components/layout/MainLayout";
 import { Container } from "../components/ui/Container";
 import { SectionHeader } from "../components/ui/SectionHeader";
@@ -23,6 +23,7 @@ export default function Packages() {
   const [products, setProducts] = useState([]);
   const [selectedId, setSelectedId] = useState("");
   const [form, setForm] = useState(DEFAULT_FORM);
+  const [quantity, setQuantity] = useState(1);
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
 
@@ -47,6 +48,12 @@ export default function Packages() {
     [products, selectedId]
   );
 
+  const canChooseQuantity = selected?.type === "session_solo";
+  const totalCents = (selected?.priceCents || 0) * (canChooseQuantity ? quantity : 1);
+  const totalSessions = selected?.sessionsQty != null
+    ? selected.sessionsQty * (canChooseQuantity ? quantity : 1)
+    : null;
+
   const checkout = async (event) => {
     event.preventDefault();
     setError("");
@@ -56,7 +63,7 @@ export default function Packages() {
       const res = await fetch("/api/payments/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId: selectedId, ...form }),
+        body: JSON.stringify({ productId: selectedId, quantity, ...form }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Checkout non riuscito");
@@ -83,12 +90,15 @@ export default function Packages() {
             <div className="grid gap-5 sm:grid-cols-2">
               {products.map((product) => {
                 const active = product.id === selectedId;
-                const featured = product.name.includes("10");
+                const featured = product.name === "Abbonamento mensile";
                 return (
                   <button
                     key={product.id}
                     type="button"
-                    onClick={() => setSelectedId(product.id)}
+                    onClick={() => {
+                      setSelectedId(product.id);
+                      setQuantity(1);
+                    }}
                     className={cn(
                       "rounded-lg border bg-surface p-6 text-left transition-all",
                       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
@@ -114,7 +124,11 @@ export default function Packages() {
                         {formatPrice(product.priceCents, product.currency)}
                       </p>
                       <p className="text-sm text-text-muted">
-                        {product.sessionsQty || 1} {product.sessionsQty === 1 ? "sessione" : "sessioni"}
+                        {product.type === "session_solo"
+                          ? "cad."
+                          : product.sessionsQty
+                            ? `${product.sessionsQty} sessioni`
+                            : "accesso app"}
                       </p>
                     </div>
                   </button>
@@ -162,13 +176,46 @@ export default function Packages() {
                   />
                 </label>
 
+                {canChooseQuantity && (
+                  <div className="rounded-md border border-border bg-surface-2 p-4">
+                    <span className="mb-3 block text-sm font-semibold text-text-muted">Numero sessioni</span>
+                    <div className="flex items-center justify-between gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setQuantity((v) => Math.max(1, v - 1))}
+                        className="grid h-10 w-10 place-items-center rounded-full border border-border text-text hover:border-accent"
+                        aria-label="Diminuisci sessioni"
+                      >
+                        <Minus size={16} />
+                      </button>
+                      <div className="text-center">
+                        <p className="font-display text-3xl font-black text-accent">{quantity}</p>
+                        <p className="text-xs text-text-muted">{quantity === 1 ? "sessione" : "sessioni"}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setQuantity((v) => Math.min(20, v + 1))}
+                        className="grid h-10 w-10 place-items-center rounded-full border border-border text-text hover:border-accent"
+                        aria-label="Aumenta sessioni"
+                      >
+                        <Plus size={16} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {selected && (
                   <div className="rounded-md border border-border bg-surface-2 p-4">
                     <p className="text-sm text-text-muted">Stai acquistando</p>
                     <p className="mt-1 font-bold text-text">{selected.name}</p>
                     <p className="mt-1 text-lg font-black text-accent">
-                      {formatPrice(selected.priceCents, selected.currency)}
+                      {formatPrice(totalCents, selected.currency)}
                     </p>
+                    {totalSessions != null && totalSessions > 0 && (
+                      <p className="mt-1 text-xs text-text-muted">
+                        Include {totalSessions} {totalSessions === 1 ? "sessione" : "sessioni"}.
+                      </p>
+                    )}
                   </div>
                 )}
 
