@@ -58,26 +58,11 @@ export function ExerciseCard({ exercise, value = {}, onToggle, onChange, classNa
           </p>
 
           {exercise.illustration && (
-            <div className="mt-3 grid grid-cols-2 gap-2" aria-label={`Illustrazione esercizio ${exercise.name}`}>
-              <div>
-                <ExerciseIllustration
-                  exercise={exercise.illustration}
-                  phase="load"
-                  title={`${exercise.name} fase di carico`}
-                  className="aspect-[4/3]"
-                />
-                <p className="mt-1 text-center text-[10px] uppercase tracking-wide text-text-muted">Carico</p>
-              </div>
-              <div>
-                <ExerciseIllustration
-                  exercise={exercise.illustration}
-                  phase="unload"
-                  title={`${exercise.name} fase di scarico`}
-                  className="aspect-[4/3]"
-                />
-                <p className="mt-1 text-center text-[10px] uppercase tracking-wide text-text-muted">Scarico</p>
-              </div>
-            </div>
+            <ExerciseIllustration
+              exercise={exercise.illustration}
+              title={`Illustrazione esercizio ${exercise.name}`}
+              className="mt-3 aspect-square"
+            />
           )}
 
           {/* Tracking */}
