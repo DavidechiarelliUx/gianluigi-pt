@@ -42,7 +42,7 @@ function MetricBar({ m }) {
   const Icon = m.down ? TrendingDown : TrendingUp;
   return (
     <div className="space-y-1.5">
-      <div className="flex items-center justify-between text-xs">
+      <div className="flex flex-col gap-1 text-xs min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
         <span className="text-text-muted">{m.label}</span>
         <span className="flex items-center gap-1 font-semibold text-accent">
           <Icon size={13} />
@@ -58,11 +58,12 @@ function MetricBar({ m }) {
       {/* dopo (neon) */}
       <div className="h-1.5 overflow-hidden rounded-full bg-surface-2">
         <motion.div
-          initial={{ width: 0 }}
-          whileInView={{ width: `${toPct}%` }}
-          viewport={{ once: true, margin: "-60px" }}
+          initial={{ scaleX: 0 }}
+          whileInView={{ scaleX: 1 }}
+          viewport={{ once: true, margin: "-40px", amount: 0.35 }}
           transition={{ duration: 0.9, ease: "easeOut" }}
-          className="h-full rounded-full bg-neon-gradient"
+          className="h-full origin-left rounded-full bg-neon-gradient will-change-transform"
+          style={{ width: `${toPct}%` }}
         />
       </div>
     </div>
