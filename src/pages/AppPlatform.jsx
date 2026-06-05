@@ -58,7 +58,7 @@ export default function AppPlatform() {
             <div>
               <Badge variant="neon">App personale</Badge>
               <h1 className="mt-5 font-display text-5xl font-black uppercase leading-none sm:text-6xl">
-                Allenati seguito, non lasciato solo
+                Un percorso guidato, pensato per te
               </h1>
               <p className="mt-6 max-w-2xl text-lg leading-8 text-text-muted">
                 La piattaforma raccoglie scheda, tracking, progressi, live e feedback al coach
