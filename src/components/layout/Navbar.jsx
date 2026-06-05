@@ -7,6 +7,7 @@ import { cn } from "../../lib/utils";
 
 const LINKS = [
   { label: "Home", href: "/" },
+  { label: "App", href: "/app" },
   { label: "Pacchetti", href: "/pacchetti" },
   { label: "Login", href: "/login" },
 ];
@@ -34,7 +35,7 @@ export function Navbar() {
     >
       <Container className="flex h-16 items-center justify-between">
         <a
-          href="#top"
+          href="/"
           className="group flex items-center gap-2 font-display text-lg font-bold uppercase"
         >
           <Dumbbell

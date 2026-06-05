@@ -1,86 +1,71 @@
 import { motion } from "framer-motion";
-import { UserCheck, ClipboardList, Wifi, Video, Flame, ArrowUpRight } from "lucide-react";
+import { UserCheck, Smartphone, Video, ArrowUpRight } from "lucide-react";
 import { SectionHeader } from "../ui/SectionHeader";
-import { Badge } from "../ui/Badge";
 
 const SERVICES = [
   {
-    icon: UserCheck,
-    title: "Personal Training",
-    text: "Sessioni 1:1 in studio, tecnica e intensità seguite da vicino.",
-    featured: true,
-  },
-  {
-    icon: ClipboardList,
-    title: "Schede personalizzate",
-    text: "Programmi costruiti sui tuoi obiettivi, aggiornati nel tempo.",
-  },
-  {
-    icon: Wifi,
-    title: "Coaching online",
-    text: "Allenati ovunque, seguito a distanza con feedback costanti.",
-  },
-  {
-    icon: Flame,
-    title: "Trasformazione fisica",
-    text: "Percorsi completi per dimagrimento, massa o ricomposizione.",
+    icon: Smartphone,
+    title: "Applicazione personale",
+    text: "Schede, tracking, progressi, timer recupero e messaggi diretti al coach.",
+    href: "/app",
   },
   {
     icon: Video,
-    title: "Sessioni live 1:1 e di gruppo",
-    text: "Allenamenti dal vivo e classi online.",
-    soon: true,
+    title: "Live di gruppo",
+    text: "Allenamenti online, classi a posti limitati e calendario prenotazioni.",
+    href: "/app#live",
+  },
+  {
+    icon: UserCheck,
+    title: "Personal training 1:1 / online",
+    text: "Percorso individuale, tecnica, coaching e adattamento continuo del piano.",
+    href: "/pacchetti",
   },
 ];
 
-function ServiceCard({ s, className }) {
+function ServiceCard({ s, index }) {
   const Icon = s.icon;
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-60px" }}
-      transition={{ duration: 0.45, ease: "easeOut" }}
+      transition={{ duration: 0.45, ease: "easeOut", delay: index * 0.08 }}
       whileHover={{ y: -4 }}
-      className={
-        "group relative flex flex-col rounded-lg border bg-surface p-6 transition-colors " +
-        (s.featured ? "border-accent/40 shadow-glow-soft" : "border-border hover:border-accent") +
-        " " + (className || "")
-      }
+      className="group relative flex min-h-[240px] flex-col rounded-lg border border-border bg-surface p-6 transition-colors hover:border-accent"
     >
       <div className="mb-4 flex items-center justify-between">
-        <Icon className="text-accent" size={s.featured ? 30 : 24} />
-        {s.soon && <Badge variant="soon">Presto</Badge>}
-        {!s.soon && (
-          <ArrowUpRight
-            size={18}
-            className="text-text-muted transition-colors group-hover:text-accent"
-          />
-        )}
+        <Icon className="text-accent" size={28} />
+        <ArrowUpRight
+          size={18}
+          className="text-text-muted transition-colors group-hover:text-accent"
+        />
       </div>
-      <h3 className={"font-display uppercase " + (s.featured ? "text-2xl" : "text-lg")}>
-        {s.title}
-      </h3>
+      <h3 className="font-display text-xl uppercase">{s.title}</h3>
       <p className="mt-2 text-sm text-text-muted">{s.text}</p>
+      <a
+        href={s.href}
+        className="mt-auto pt-6 text-sm font-semibold text-accent transition-colors hover:text-text"
+      >
+        Scopri di più
+      </a>
     </motion.div>
   );
 }
 
-/** Sezione Servizi con layout asimmetrico (featured + griglia). */
+/** Sezione Servizi principale: solo tre scelte chiare. */
 export function Services() {
-  const [featured, ...rest] = SERVICES;
   return (
     <>
       <SectionHeader
-        eyebrow="Cosa offro"
-        title="Servizi su misura"
-        subtitle="Dallo studio al coaching online: un percorso per ogni obiettivo."
+        eyebrow="Servizi principali"
+        title="Scegli come iniziare"
+        subtitle="Un percorso semplice: app personale, live di gruppo o coaching diretto 1:1."
         align="center"
       />
-      <div className="mt-10 grid gap-4 lg:grid-cols-3">
-        <ServiceCard s={featured} className="lg:row-span-2 lg:justify-end" />
-        {rest.map((s) => (
-          <ServiceCard key={s.title} s={s} />
+      <div className="mt-10 grid gap-4 md:grid-cols-3">
+        {SERVICES.map((s, index) => (
+          <ServiceCard key={s.title} s={s} index={index} />
         ))}
       </div>
     </>
