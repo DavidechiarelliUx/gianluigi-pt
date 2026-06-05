@@ -23,15 +23,6 @@ const CASES = [
       { label: "Energia", from: 4, to: 9, unit: "/10", down: false },
     ],
   },
-  {
-    name: "Andrea, 41",
-    goal: "Postura",
-    weeks: 12,
-    metrics: [
-      { label: "Giro vita", from: 102, to: 92, unit: "cm", down: true },
-      { label: "Dolore schiena", from: 7, to: 2, unit: "/10", down: true },
-    ],
-  },
 ];
 
 /** Barra prima/dopo astratta (no foto): mostra la variazione con dati. */
@@ -142,7 +133,7 @@ export function Results() {
       />
 
       {/* Casi studio */}
-      <div className="mt-10 grid gap-4 lg:grid-cols-3">
+      <div className="mx-auto mt-10 grid max-w-5xl gap-4 lg:grid-cols-2">
         {CASES.map((c, i) => (
           <CaseCard key={c.name} c={c} delay={i * 0.1} />
         ))}
