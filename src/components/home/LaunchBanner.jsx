@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { ArrowRight, Timer, Zap } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "../ui/Button";
@@ -5,6 +6,23 @@ import { Badge } from "../ui/Badge";
 
 /** Banner conversione home → pacchetti, centrato su App Mensile. */
 export function LaunchBanner() {
+  const [appSeats, setAppSeats] = useState(12);
+
+  useEffect(() => {
+    let mounted = true;
+    fetch("/api/payments/products")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!mounted) return;
+        const appMensile = data.products?.find((product) => product.name === "App Mensile");
+        if (typeof appMensile?.remainingSeats === "number") setAppSeats(appMensile.remainingSeats);
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 18 }}
@@ -22,13 +40,13 @@ export function LaunchBanner() {
             App Mensile a <span className="text-accent">59€/mese</span>
           </h2>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-text-muted sm:text-base sm:leading-7">
-            Scheda mensile, app, tracking e aggiornamento manuale. Sono aperti solo 12 posti lancio perché ogni percorso viene seguito da Gianluigi.
+            Scheda mensile, app, tracking e aggiornamento manuale. Apro pochi posti perché ogni percorso lo seguo io.
           </p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
           <div className="rounded-md border border-border bg-bg/70 px-4 py-3 text-center">
-            <p className="font-display text-3xl font-black text-accent">12</p>
-            <p className="text-xs uppercase tracking-wide text-text-muted">posti App Mensile</p>
+            <p className="font-display text-3xl font-black text-accent">{appSeats}</p>
+            <p className="text-xs uppercase tracking-wide text-text-muted">posti rimasti</p>
           </div>
           <Button as="a" href="/pacchetti" className="w-full whitespace-nowrap sm:w-auto lg:w-full">
             Blocca il prezzo <ArrowRight size={18} />

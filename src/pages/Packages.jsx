@@ -48,20 +48,20 @@ const PLAN_COPY = {
     cta: "Blocca il prezzo lancio",
     anchor: "Scelta consigliata",
     badge: "Consigliato",
-    scarcity: "12 posti lancio",
-    scarcityNote: "Ogni scheda viene costruita e aggiornata manualmente da Gianluigi.",
+    launchCapacity: 12,
+    scarcityNote: "Ogni scheda la costruisco e la aggiorno manualmente: per questo apro pochi posti alla volta.",
     monthly: true,
     bullets: ["Scheda mensile aggiornata", "App + tracking", "Progressi e adattamenti"],
   },
   "App + Live": {
     order: 4,
     headline: "Aggiungi guida live",
-    subtitle: "Per chi vuole anche allenarsi in gruppo con Gianluigi.",
+    subtitle: "Per chi vuole anche allenarsi in gruppo con me.",
     standardCents: 12900,
     cta: "Aggiungi le live",
     anchor: "Upgrade gruppo",
-    scarcity: "8 posti lancio",
-    scarcityNote: "Le live hanno posti limitati per mantenere qualità e correzioni utili.",
+    launchCapacity: 8,
+    scarcityNote: "Tengo le live piccole per poter seguire davvero tecnica, dubbi e progressi.",
     monthly: true,
     bullets: ["Tutto App Mensile", "Live gruppo settimanale", "Calendario prenotazioni"],
   },
@@ -72,8 +72,8 @@ const PLAN_COPY = {
     standardCents: 19900,
     cta: "Richiedi il premium",
     anchor: "Pochi posti",
-    scarcity: "4 posti lancio",
-    scarcityNote: "Il tempo 1:1 è volutamente limitato perché richiede presenza diretta.",
+    launchCapacity: 4,
+    scarcityNote: "Il lavoro 1:1 richiede presenza diretta: preferisco pochi clienti seguiti bene.",
     monthly: true,
     bullets: ["Tutto App Mensile", "Feedback prioritario", "Sessione individuale 1:1"],
   },
@@ -93,6 +93,8 @@ const LOCAL_PREVIEW_PRODUCTS = Object.entries(PLAN_COPY).map(([name, meta]) => (
   currency: "eur",
   type: "package",
   sessionsQty: 0,
+  launchCapacity: meta.launchCapacity || null,
+  remainingSeats: meta.launchCapacity || null,
 }));
 
 const OBJECTIONS = [
@@ -109,7 +111,7 @@ const OBJECTIONS = [
   {
     icon: Users,
     title: "Posti limitati reali",
-    text: "La scarsità vale solo sui percorsi seguiti: ogni scheda richiede tempo manuale di Gianluigi.",
+    text: "La scarsità vale solo sui percorsi seguiti: ogni scheda richiede il mio tempo manuale.",
   },
 ];
 
@@ -137,17 +139,19 @@ function displayPrice(product, meta, cents = product.priceCents) {
   return `${formatPrice(cents, product.currency)}${meta.monthly ? "/mese" : ""}`;
 }
 
+function productAvailability(product, meta) {
+  const capacity = product.launchCapacity ?? meta.launchCapacity ?? null;
+  if (!capacity) return null;
+  const remaining = Math.max(0, product.remainingSeats ?? capacity);
+  const percent = Math.max(0, Math.min(100, (remaining / capacity) * 100));
+  return { capacity, remaining, percent };
+}
+
 function PackageCard({ product, active, onSelect }) {
   const meta = planMeta(product);
   const recommended = product.name === "App Mensile";
   const saving = Math.max(0, meta.standardCents - product.priceCents);
-  const desktopOrder = {
-    1: "lg:order-1 2xl:order-none",
-    2: "lg:order-3 2xl:order-none",
-    3: "lg:order-2 2xl:order-none",
-    4: "lg:order-4 2xl:order-none",
-    5: "lg:order-5 2xl:order-none",
-  }[meta.order];
+  const availability = productAvailability(product, meta);
 
   return (
     <button
@@ -157,8 +161,7 @@ function PackageCard({ product, active, onSelect }) {
         "group flex h-full flex-col rounded-xl border bg-surface p-5 text-left transition-all",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
         active ? "border-accent shadow-glow-soft" : "border-border hover:border-accent/60",
-        desktopOrder,
-        recommended && "bg-accent/5 lg:-translate-y-3 lg:scale-[1.04] lg:border-accent lg:shadow-glow-soft"
+        recommended && "bg-accent/5 lg:-translate-y-2 lg:border-accent lg:shadow-glow-soft"
       )}
       aria-pressed={active}
     >
@@ -168,13 +171,13 @@ function PackageCard({ product, active, onSelect }) {
       </div>
 
       <h2 className="font-display text-xl font-black uppercase leading-tight">{product.name}</h2>
-      <p className="mt-2 min-h-[3.5rem] text-sm leading-6 text-text-muted">{meta.subtitle}</p>
+      <p className="mt-2 text-sm leading-6 text-text-muted lg:min-h-[3rem]">{meta.subtitle}</p>
 
       <div className="mt-5 space-y-1">
         <p className="text-sm text-text-muted">
           Standard <span className="line-through">{displayPrice(product, meta, meta.standardCents)}</span>
         </p>
-        <p className="font-display text-4xl font-black text-accent">
+        <p className="whitespace-nowrap font-display text-[2.65rem] font-black leading-none text-accent sm:text-5xl lg:text-4xl xl:text-5xl">
           {displayPrice(product, meta)}
         </p>
         {saving > 0 && (
@@ -184,14 +187,17 @@ function PackageCard({ product, active, onSelect }) {
         )}
       </div>
 
-      {meta.scarcity ? (
+      {availability ? (
         <div className="mt-5 rounded-md border border-accent/35 bg-bg/70 p-3">
           <div className="flex items-center justify-between gap-3 text-xs font-semibold uppercase tracking-wide">
             <span className="text-text-muted">Disponibilità</span>
-            <span className="text-accent">{meta.scarcity}</span>
+            <span className="text-accent">{availability.remaining}/{availability.capacity} posti</span>
           </div>
           <div className="mt-2 h-2 overflow-hidden rounded-full bg-surface-2">
-            <div className="h-full rounded-full bg-neon-gradient shadow-[0_0_14px_rgba(57,255,20,0.45)]" />
+            <div
+              className="h-full rounded-full bg-neon-gradient shadow-[0_0_14px_rgba(57,255,20,0.45)]"
+              style={{ width: `${availability.percent}%` }}
+            />
           </div>
           <p className="mt-2 text-xs leading-5 text-text-muted">{meta.scarcityNote}</p>
         </div>
@@ -260,6 +266,14 @@ export default function Packages() {
     [products, selectedId]
   );
   const selectedMeta = selected ? planMeta(selected) : null;
+  const appMonthly = products.find((product) => product.name === "App Mensile");
+  const appLive = products.find((product) => product.name === "App + Live");
+  const premium = products.find((product) => product.name === "Premium 1:1");
+  const appMonthlyAvailability = appMonthly ? productAvailability(appMonthly, planMeta(appMonthly)) : null;
+  const appLiveAvailability = appLive ? productAvailability(appLive, planMeta(appLive)) : null;
+  const premiumAvailability = premium ? productAvailability(premium, planMeta(premium)) : null;
+  const entryPlans = products.filter((product) => planMeta(product).order <= 2);
+  const corePlans = products.filter((product) => planMeta(product).order >= 3);
 
   const checkout = async (event) => {
     event.preventDefault();
@@ -295,51 +309,64 @@ export default function Packages() {
               <Sparkles size={14} /> Prezzi lancio piattaforma
             </Badge>
             <h1 className="mt-5 font-display text-4xl font-black uppercase leading-tight sm:text-5xl lg:text-6xl">
-              Scegli il percorso. <span className="text-accent">App Mensile</span> è il punto intelligente.
+              Scegli il percorso. <span className="text-accent">App Mensile</span> è la scelta intelligente.
             </h1>
             <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-text-muted sm:text-lg sm:leading-8">
-              Parti leggero se vuoi provare, ma il vero programma è scheda mensile + app + tracking + aggiornamento manuale.
+              Parti leggero se vuoi provare. Ma il vero percorso è scheda mensile, app, tracking e aggiornamento manuale fatto da me.
             </p>
           </div>
 
           <div className="mt-8 rounded-xl border border-accent/35 bg-accent/5 p-4 sm:p-5">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <p className="font-display text-lg font-black uppercase">Fase lancio: posti limitati sui percorsi seguiti</p>
+                <p className="font-display text-lg font-black uppercase">Fase lancio: apro pochi posti sui percorsi seguiti</p>
                 <p className="mt-1 text-sm leading-6 text-text-muted">
-                  La scarsità è reale: Gianluigi costruisce e aggiorna manualmente le schede dei pacchetti mensili.
+                  La scarsità è reale: costruisco e aggiorno personalmente le schede dei pacchetti mensili.
                 </p>
               </div>
               <div className="grid grid-cols-3 gap-2 text-center text-xs sm:min-w-[340px]">
                 <div className="rounded-md border border-border bg-bg/70 p-3">
-                  <p className="font-display text-xl font-black text-accent">12</p>
+                  <p className="font-display text-xl font-black text-accent">{appMonthlyAvailability?.remaining ?? 12}</p>
                   <p className="text-text-muted">App Mensile</p>
                 </div>
                 <div className="rounded-md border border-border bg-bg/70 p-3">
-                  <p className="font-display text-xl font-black text-accent">8</p>
+                  <p className="font-display text-xl font-black text-accent">{appLiveAvailability?.remaining ?? 8}</p>
                   <p className="text-text-muted">App + Live</p>
                 </div>
                 <div className="rounded-md border border-border bg-bg/70 p-3">
-                  <p className="font-display text-xl font-black text-accent">4</p>
+                  <p className="font-display text-xl font-black text-accent">{premiumAvailability?.remaining ?? 4}</p>
                   <p className="text-text-muted">Premium</p>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="mt-10 grid gap-8 2xl:grid-cols-[1fr_360px]">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
-              {products.map((product) => (
-                <PackageCard
-                  key={product.id}
-                  product={product}
-                  active={product.id === selectedId}
-                  onSelect={() => setSelectedId(product.id)}
-                />
-              ))}
+          <div className="mt-10 grid gap-8">
+            <div className="space-y-5">
+              <div className="grid gap-4 lg:grid-cols-2">
+                {entryPlans.map((product) => (
+                  <PackageCard
+                    key={product.id}
+                    product={product}
+                    active={product.id === selectedId}
+                    onSelect={() => setSelectedId(product.id)}
+                  />
+                ))}
+              </div>
+
+              <div className="grid gap-4 xl:grid-cols-[1.16fr_0.92fr_0.92fr]">
+                {corePlans.map((product) => (
+                  <PackageCard
+                    key={product.id}
+                    product={product}
+                    active={product.id === selectedId}
+                    onSelect={() => setSelectedId(product.id)}
+                  />
+                ))}
+              </div>
             </div>
 
-            <Card className="h-fit border-accent/30 bg-bg/80 2xl:sticky 2xl:top-32">
+            <Card className="mx-auto h-fit w-full max-w-2xl border-accent/30 bg-bg/80">
               <div className="mb-6 flex items-center gap-3">
                 <div className="grid h-11 w-11 place-items-center rounded-full bg-accent text-bg">
                   <CreditCard size={22} />
@@ -420,7 +447,7 @@ export default function Packages() {
           <SectionHeader
             eyebrow="Perché App Mensile"
             title="Il prodotto vero non è una singola scheda"
-            subtitle="Start Check e App Starter servono per entrare. App Mensile è dove il programma inizia a lavorare ogni settimana."
+            subtitle="Start Check e App Starter servono per entrare. App Mensile è dove posso aggiornare il percorso ogni mese."
             align="center"
           />
           <div className="mt-10 grid gap-4 md:grid-cols-3">

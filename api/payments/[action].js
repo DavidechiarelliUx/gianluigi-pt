@@ -49,6 +49,12 @@ const DEFAULT_PRODUCTS = [
   },
 ];
 
+const LAUNCH_CAPACITY = {
+  "App Mensile": 12,
+  "App + Live": 8,
+  "Premium 1:1": 4,
+};
+
 function stripeClient() {
   const key = process.env.STRIPE_SECRET_KEY?.trim();
   if (!key) {
@@ -63,7 +69,12 @@ function isEmail(value) {
   return typeof value === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
-function publicProduct(product) {
+function publicProduct(product, paidQuantity = 0) {
+  const launchCapacity = LAUNCH_CAPACITY[product.name] || null;
+  const remainingSeats = launchCapacity == null
+    ? null
+    : Math.max(0, launchCapacity - paidQuantity);
+
   return {
     id: product.id,
     name: product.name,
@@ -72,6 +83,8 @@ function publicProduct(product) {
     currency: product.currency,
     type: product.type,
     sessionsQty: product.sessionsQty,
+    launchCapacity,
+    remainingSeats,
   };
 }
 
@@ -182,7 +195,22 @@ async function products(req, res) {
       where: { active: true },
       orderBy: [{ type: "asc" }, { priceCents: "asc" }],
     });
-    return res.status(200).json({ ok: true, products: list.map(publicProduct) });
+    const paidByProduct = await prisma.order.groupBy({
+      by: ["productId"],
+      where: {
+        status: "paid",
+        productId: { in: list.map((product) => product.id) },
+      },
+      _sum: { quantity: true },
+    });
+    const paidQuantityByProductId = new Map(
+      paidByProduct.map((row) => [row.productId, row._sum.quantity || 0])
+    );
+
+    return res.status(200).json({
+      ok: true,
+      products: list.map((product) => publicProduct(product, paidQuantityByProductId.get(product.id) || 0)),
+    });
   } catch (err) {
     console.error("GET /api/payments/products:", err);
     return res.status(500).json({ ok: false, error: "Errore interno" });

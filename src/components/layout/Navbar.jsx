@@ -16,6 +16,7 @@ const LINKS = [
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+  const [appSeats, setAppSeats] = useState(12);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -23,6 +24,23 @@ export function Navbar() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    fetch("/api/payments/products")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!mounted) return;
+        const appMensile = data.products?.find((product) => product.name === "App Mensile");
+        if (typeof appMensile?.remainingSeats === "number") setAppSeats(appMensile.remainingSeats);
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const marqueeText = `PREZZO LANCIO APP MENSILE 59€/MESE • ${appSeats} POSTI RIMASTI • SCHEDE AGGIORNATE MANUALMENTE • BLOCCA IL PREZZO LANCIO`;
 
   return (
     <header
@@ -33,18 +51,18 @@ export function Navbar() {
           : "border-b border-transparent bg-transparent"
       )}
     >
-      <div className="border-b border-accent/25 bg-bg/95 text-xs backdrop-blur-md">
-        <Container className="flex min-h-9 items-center justify-between gap-3 py-2">
-          <a href="/pacchetti" className="min-w-0 font-semibold text-text transition-colors hover:text-accent">
-            <span className="text-accent">Prezzo lancio:</span> App Mensile 59€/mese
-          </a>
-          <a
-            href="/pacchetti"
-            className="shrink-0 rounded-full border border-accent/40 px-3 py-1 font-semibold text-accent transition hover:bg-accent/10"
-          >
-            12 posti
-          </a>
-        </Container>
+      <div className="overflow-hidden bg-accent text-bg">
+        <a
+          href="/pacchetti"
+          className="flex min-h-9 items-center whitespace-nowrap font-display text-xs font-black uppercase tracking-wide text-bg sm:text-sm"
+          aria-label={`Prezzo lancio App Mensile 59 euro al mese, ${appSeats} posti rimasti`}
+        >
+          <span className="flex min-w-max animate-marquee-x items-center gap-8 pr-8">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <span key={index}>{marqueeText}</span>
+            ))}
+          </span>
+        </a>
       </div>
       <Container className="flex h-16 items-center justify-between">
         <a
