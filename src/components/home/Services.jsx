@@ -26,13 +26,14 @@ const SERVICES = [
 function ServiceCard({ s, index }) {
   const Icon = s.icon;
   return (
-    <motion.div
+    <motion.a
+      href={s.href}
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-60px" }}
       transition={{ duration: 0.45, ease: "easeOut", delay: index * 0.08 }}
       whileHover={{ y: -4 }}
-      className="group relative flex min-h-[240px] flex-col rounded-lg border border-border bg-surface p-6 transition-colors hover:border-accent"
+      className="group relative flex min-h-[240px] flex-col rounded-lg border border-border bg-surface p-6 transition-colors hover:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
     >
       <div className="mb-4 flex items-center justify-between">
         <Icon className="text-accent" size={28} />
@@ -43,13 +44,10 @@ function ServiceCard({ s, index }) {
       </div>
       <h3 className="font-display text-xl uppercase">{s.title}</h3>
       <p className="mt-2 text-sm text-text-muted">{s.text}</p>
-      <a
-        href={s.href}
-        className="mt-auto pt-6 text-sm font-semibold text-accent transition-colors hover:text-text"
-      >
+      <span className="mt-auto pt-6 text-sm font-semibold text-accent transition-colors group-hover:text-text">
         Scopri di più
-      </a>
-    </motion.div>
+      </span>
+    </motion.a>
   );
 }
 

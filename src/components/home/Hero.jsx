@@ -92,15 +92,15 @@ export function Hero() {
             transition={{ duration: 0.5, delay: reduce ? 0 : 0.7 }}
             className="flex flex-wrap gap-4"
           >
-            <Button size="lg" onClick={() => (window.location.hash = "#contatti")}>
+            <Button size="lg" onClick={() => (window.location.href = "/contatti")}>
               <Calendar size={18} /> Prenota consulenza
             </Button>
             <Button
               variant="secondary"
               size="lg"
-              onClick={() => (window.location.hash = "#metodo")}
+              onClick={() => (window.location.href = "/pacchetti")}
             >
-              Scopri il metodo <ArrowRight size={18} />
+              Vedi i pacchetti <ArrowRight size={18} />
             </Button>
           </motion.div>
 

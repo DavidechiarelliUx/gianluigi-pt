@@ -68,8 +68,8 @@ export default function AppPlatform() {
                 <Button onClick={() => (window.location.href = "/pacchetti")}>
                   Vedi pacchetti
                 </Button>
-                <Button variant="secondary" onClick={() => (window.location.href = "/#contatti")}>
-                  Prenota una seduta
+                <Button variant="secondary" onClick={() => (window.location.href = "/contatti")}>
+                  Prenota consulenza
                 </Button>
               </div>
             </div>

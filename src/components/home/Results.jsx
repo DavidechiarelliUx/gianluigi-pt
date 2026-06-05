@@ -158,7 +158,7 @@ export function Results() {
           Il prossimo risultato può essere il tuo. Partiamo da una consulenza.
         </p>
         <div className="flex flex-wrap justify-center gap-4">
-          <Button size="lg" onClick={() => (window.location.hash = "#contatti")}>
+          <Button size="lg" onClick={() => (window.location.href = "/contatti")}>
             <Calendar size={18} /> Prenota consulenza
           </Button>
           <Button

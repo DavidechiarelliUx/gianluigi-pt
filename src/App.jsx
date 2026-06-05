@@ -4,13 +4,9 @@ import {
   About,
   Services,
   Results,
-  Contact,
 } from "./components/home";
 
-/**
- * F1.12 — Sito vetrina premium completo: hero, sezioni core, anteprime
- * prodotto, prova sociale e form contatto reale.
- */
+/** Home marketing essenziale: hero, chi sono, servizi principali e risultati. */
 export default function App() {
   return (
     <MainLayout>
@@ -26,10 +22,6 @@ export default function App() {
 
       <Section id="risultati">
         <Results />
-      </Section>
-
-      <Section id="contatti" surface>
-        <Contact />
       </Section>
     </MainLayout>
   );

@@ -41,16 +41,16 @@ const STEPS = [
 export default function AboutPage() {
   return (
     <MainLayout>
-      <section className="pt-32 pb-20">
+      <section className="pt-28 pb-14 sm:pt-32 sm:pb-20">
         <Container>
-          <div className="grid items-center gap-12 lg:grid-cols-[0.85fr_1fr]">
+          <div className="grid items-center gap-9 lg:grid-cols-[0.85fr_1fr] lg:gap-12">
             <motion.div
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.55, ease: "easeOut" }}
-              className="relative mx-auto w-full max-w-md"
+              className="relative order-2 mx-auto w-full max-w-[240px] sm:max-w-[300px] md:max-w-sm lg:order-1 lg:max-w-md"
             >
-              <div aria-hidden className="absolute -inset-8 -z-10 rounded-full bg-accent/12 blur-[90px]" />
+              <div aria-hidden className="absolute -inset-6 -z-10 rounded-full bg-accent/12 blur-[70px] lg:-inset-8 lg:blur-[90px]" />
               <div className="relative aspect-[4/5] overflow-hidden rounded-xl border border-border bg-surface">
                 <img
                   src={gianluigiPhoto}
@@ -60,8 +60,8 @@ export default function AboutPage() {
                   className="h-full w-full object-cover object-top"
                 />
                 <div aria-hidden className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-bg via-bg/55 to-transparent" />
-                <div className="absolute bottom-5 left-5 right-5 rounded-lg border border-border bg-bg/80 p-4 backdrop-blur">
-                  <p className="font-display text-lg font-bold uppercase">Gianluigi Chiarelli</p>
+                <div className="absolute bottom-3 left-3 right-3 rounded-lg border border-border bg-bg/80 p-3 backdrop-blur sm:bottom-5 sm:left-5 sm:right-5 sm:p-4">
+                  <p className="font-display text-base font-bold uppercase sm:text-lg">Gianluigi Chiarelli</p>
                   <p className="text-sm text-text-muted">Personal Trainer · Coach online</p>
                 </div>
               </div>
@@ -71,12 +71,13 @@ export default function AboutPage() {
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.55, ease: "easeOut", delay: 0.08 }}
+              className="order-1 text-center lg:order-2 lg:text-left"
             >
               <Badge variant="neon">Chi sono</Badge>
-              <h1 className="mt-5 font-display text-5xl font-black uppercase leading-none sm:text-6xl">
+              <h1 className="mt-5 font-display text-4xl font-black uppercase leading-tight sm:text-5xl lg:text-6xl lg:leading-none">
                 Allenare è una responsabilità
               </h1>
-              <div className="mt-6 space-y-5 text-lg leading-8 text-text-muted">
+              <div className="mx-auto mt-5 max-w-2xl space-y-4 text-base leading-7 text-text-muted sm:text-lg sm:leading-8 lg:mx-0">
                 <p>
                   Sono <span className="text-text">Gianluigi Chiarelli</span>, personal trainer e coach.
                   Seguo persone che vogliono trasformare il proprio fisico senza affidarsi a scorciatoie,
@@ -87,9 +88,9 @@ export default function AboutPage() {
                   misurare quello che succede e adattare l'allenamento nel tempo.
                 </p>
               </div>
-              <div className="mt-8 flex flex-wrap gap-3">
-                <Button onClick={() => (window.location.href = "/#contatti")}>Prenota una seduta</Button>
-                <Button variant="secondary" onClick={() => (window.location.href = "/app")}>
+              <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-center lg:justify-start">
+                <Button className="w-full sm:w-auto" onClick={() => (window.location.href = "/contatti")}>Prenota consulenza</Button>
+                <Button className="w-full sm:w-auto" variant="secondary" onClick={() => (window.location.href = "/app")}>
                   Scopri l'app
                 </Button>
               </div>
@@ -105,7 +106,7 @@ export default function AboutPage() {
           subtitle="La differenza non è fare di più. È fare le cose giuste, nel momento giusto, con controllo."
           align="center"
         />
-        <div className="mt-10 grid gap-4 md:grid-cols-4">
+        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {STEPS.map((step, index) => (
             <Card key={step}>
               <div className="mb-5 font-display text-4xl font-black text-accent">
@@ -123,7 +124,7 @@ export default function AboutPage() {
           title="Cosa guida ogni percorso"
           align="center"
         />
-        <div className="mt-10 grid gap-4 md:grid-cols-2">
+        <div className="mt-10 grid gap-4 sm:grid-cols-2">
           {VALUES.map((value) => {
             const Icon = value.icon;
             return (

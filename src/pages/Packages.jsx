@@ -33,9 +33,11 @@ export default function Packages() {
       .then((res) => res.json())
       .then((data) => {
         if (!mounted) return;
-        const list = data.products || [];
+        const list = [...(data.products || [])].sort(
+          (a, b) => (a.priceCents || 0) - (b.priceCents || 0)
+        );
         setProducts(list);
-        setSelectedId(list.find((p) => p.type === "package")?.id || list[0]?.id || "");
+        setSelectedId(list[0]?.id || "");
       })
       .catch(() => mounted && setError("Pacchetti non disponibili. Riprova tra poco."));
     return () => {
@@ -105,7 +107,6 @@ export default function Packages() {
                       active
                         ? "border-accent shadow-glow-soft"
                         : "border-border hover:border-accent/50 hover:-translate-y-1",
-                      featured && "sm:col-span-2"
                     )}
                   >
                     <div className="flex items-start justify-between gap-4">

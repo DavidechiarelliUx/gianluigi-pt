@@ -47,8 +47,8 @@ export function About() {
           <Button onClick={() => (window.location.href = "/chi-sono")}>
             Leggi la storia <ArrowRight size={18} />
           </Button>
-          <Button variant="secondary" onClick={() => (window.location.href = "/#contatti")}>
-            Prenota una seduta
+          <Button variant="secondary" onClick={() => (window.location.href = "/contatti")}>
+            Prenota consulenza
           </Button>
         </div>
       </motion.div>

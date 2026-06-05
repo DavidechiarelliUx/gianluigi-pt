@@ -153,7 +153,7 @@ export default function ClientProfile() {
         <p className="text-sm text-text-muted">
           Se devi parlare fuori dall'app, passa dai contatti del sito.
         </p>
-        <Button as="a" href="/#contatti" variant="secondary" className="w-full">
+        <Button as="a" href="/contatti" variant="secondary" className="w-full">
           Vai ai contatti
         </Button>
       </Card>

@@ -9,7 +9,7 @@ const LINKS = [
   { label: "Home", href: "/" },
   { label: "App", href: "/app" },
   { label: "Pacchetti", href: "/pacchetti" },
-  { label: "Login", href: "/login" },
+  { label: "Contatti", href: "/contatti" },
 ];
 
 /** Navbar fixed scroll-aware: trasparente in cima → blur+bordo dopo lo scroll. */
@@ -56,8 +56,12 @@ export function Navbar() {
               {l.label}
             </a>
           ))}
-          <Button size="sm" onClick={() => (window.location.href = "/#contatti")}>
-            Prenota una seduta
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => (window.location.href = "/login")}
+          >
+            Login
           </Button>
         </nav>
 
@@ -95,12 +99,13 @@ export function Navbar() {
               ))}
               <Button
                 className="mt-2 w-full"
+                variant="secondary"
                 onClick={() => {
                   setOpen(false);
-                  window.location.href = "/#contatti";
+                  window.location.href = "/login";
                 }}
               >
-                Prenota una seduta
+                Login
               </Button>
             </Container>
           </motion.nav>

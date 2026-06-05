@@ -7,6 +7,7 @@ import App from "./App.jsx"; // marketing: eager (è la landing)
 const Login = lazy(() => import("./pages/Login.jsx"));
 const AppPlatform = lazy(() => import("./pages/AppPlatform.jsx"));
 const AboutPage = lazy(() => import("./pages/AboutPage.jsx"));
+const ContactPage = lazy(() => import("./pages/ContactPage.jsx"));
 const Packages = lazy(() => import("./pages/Packages.jsx"));
 const CheckoutSuccess = lazy(() => import("./pages/CheckoutSuccess.jsx"));
 const InstallApp = lazy(() => import("./pages/InstallApp.jsx"));
@@ -43,6 +44,7 @@ export const router = createBrowserRouter([
   { path: "/login", element: wrap(<Login />) },
   { path: "/app", element: wrap(<AppPlatform />) },
   { path: "/chi-sono", element: wrap(<AboutPage />) },
+  { path: "/contatti", element: wrap(<ContactPage />) },
   { path: "/pacchetti", element: wrap(<Packages />) },
   { path: "/checkout/success", element: wrap(<CheckoutSuccess />) },
   { path: "/installa-app", element: wrap(<InstallApp />) },
