@@ -9,3 +9,4 @@ export { PreviewLive } from "./PreviewLive";
 export { PreviewPricing } from "./PreviewPricing";
 export { Results } from "./Results";
 export { Contact } from "./Contact";
+export { LaunchBanner } from "./LaunchBanner";

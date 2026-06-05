@@ -33,6 +33,19 @@ export function Navbar() {
           : "border-b border-transparent bg-transparent"
       )}
     >
+      <div className="border-b border-accent/25 bg-bg/95 text-xs backdrop-blur-md">
+        <Container className="flex min-h-9 items-center justify-between gap-3 py-2">
+          <a href="/pacchetti" className="min-w-0 font-semibold text-text transition-colors hover:text-accent">
+            <span className="text-accent">Prezzo lancio:</span> App Mensile 59€/mese
+          </a>
+          <a
+            href="/pacchetti"
+            className="shrink-0 rounded-full border border-accent/40 px-3 py-1 font-semibold text-accent transition hover:bg-accent/10"
+          >
+            12 posti
+          </a>
+        </Container>
+      </div>
       <Container className="flex h-16 items-center justify-between">
         <a
           href="/"

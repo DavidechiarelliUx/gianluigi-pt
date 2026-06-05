@@ -1,6 +1,7 @@
 import { MainLayout, Section } from "./components/layout";
 import {
   Hero,
+  LaunchBanner,
   About,
   Services,
   Results,
@@ -11,6 +12,10 @@ export default function App() {
   return (
     <MainLayout>
       <Hero />
+
+      <Section surface>
+        <LaunchBanner />
+      </Section>
 
       <Section id="chi-sono">
         <About />
