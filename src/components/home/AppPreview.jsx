@@ -267,7 +267,7 @@ export function AppPreview() {
       style={{
         width: 224,
         height: 448,
-        borderRadius: 38,
+        borderRadius: 20,
         background: "#080808",
         border: "2.5px solid #252525",
         boxShadow:
