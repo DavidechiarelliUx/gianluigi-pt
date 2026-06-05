@@ -40,7 +40,8 @@ export function LaunchBanner() {
             App Mensile a <span className="text-accent">59€/mese</span>
           </h2>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-text-muted sm:text-base sm:leading-7">
-            Scheda mensile, app, tracking e aggiornamento manuale. Apro pochi posti perché ogni percorso lo seguo io.
+            Avrai una scheda mensile personalizzata, accesso all’app, tracking dei progressi e aggiornamenti manuali costanti.
+            Per seguirti davvero e darti un supporto concreto, ho deciso di aprire solo 12 posti per questa fase di lancio.
           </p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">

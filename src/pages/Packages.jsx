@@ -61,7 +61,7 @@ const PLAN_COPY = {
     cta: "Aggiungi le live",
     anchor: "Upgrade gruppo",
     launchCapacity: 8,
-    scarcityNote: "Tengo le live piccole per poter seguire davvero tecnica, dubbi e progressi.",
+    scarcityNote: "Live piccole: posso correggere tecnica, dubbi e progressi.",
     monthly: true,
     bullets: ["Tutto App Mensile", "Live gruppo settimanale", "Calendario prenotazioni"],
   },
@@ -73,7 +73,7 @@ const PLAN_COPY = {
     cta: "Richiedi il premium",
     anchor: "Pochi posti",
     launchCapacity: 4,
-    scarcityNote: "Il lavoro 1:1 richiede presenza diretta: preferisco pochi clienti seguiti bene.",
+    scarcityNote: "Pochi clienti 1:1, così posso seguirti con presenza reale.",
     monthly: true,
     bullets: ["Tutto App Mensile", "Feedback prioritario", "Sessione individuale 1:1"],
   },
@@ -158,10 +158,12 @@ function PackageCard({ product, active, onSelect }) {
       type="button"
       onClick={onSelect}
       className={cn(
-        "group flex h-full flex-col rounded-xl border bg-surface p-5 text-left transition-all",
+        "group flex h-full flex-col rounded-xl border bg-surface p-5 text-left transition-all duration-300",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
         active ? "border-accent shadow-glow-soft" : "border-border hover:border-accent/60",
-        recommended && "bg-accent/5 lg:-translate-y-2 lg:border-accent lg:shadow-glow-soft"
+        recommended
+          ? "z-10 bg-accent/5 xl:-translate-y-4 xl:scale-[1.04] xl:border-accent xl:p-5 2xl:p-6 xl:shadow-glow-soft"
+          : "xl:p-3.5 2xl:p-4"
       )}
       aria-pressed={active}
     >
@@ -170,14 +172,35 @@ function PackageCard({ product, active, onSelect }) {
         {meta.badge && <Badge variant="neon">{meta.badge}</Badge>}
       </div>
 
-      <h2 className="font-display text-xl font-black uppercase leading-tight">{product.name}</h2>
-      <p className="mt-2 text-sm leading-6 text-text-muted lg:min-h-[3rem]">{meta.subtitle}</p>
+      <h2
+        className={cn(
+          "font-display font-black uppercase leading-tight",
+          recommended ? "text-2xl xl:text-[1.65rem] 2xl:text-3xl" : "text-xl xl:text-[1.05rem] 2xl:text-lg"
+        )}
+      >
+        {product.name}
+      </h2>
+      <p
+        className={cn(
+          "mt-2 text-sm leading-6 text-text-muted",
+          recommended ? "xl:min-h-[5rem]" : "xl:min-h-[4.6rem] xl:text-[0.8rem] xl:leading-5 2xl:text-sm 2xl:leading-6"
+        )}
+      >
+        {meta.subtitle}
+      </p>
 
       <div className="mt-5 space-y-1">
         <p className="text-sm text-text-muted">
           Standard <span className="line-through">{displayPrice(product, meta, meta.standardCents)}</span>
         </p>
-        <p className="whitespace-nowrap font-display text-[2.65rem] font-black leading-none text-accent sm:text-5xl lg:text-4xl xl:text-5xl">
+        <p
+          className={cn(
+            "whitespace-nowrap font-display text-[2.65rem] font-black leading-none text-accent sm:text-5xl",
+            recommended
+              ? "xl:text-[2.85rem] 2xl:text-[3.25rem]"
+              : "xl:text-[1.48rem] 2xl:text-[1.86rem]"
+          )}
+        >
           {displayPrice(product, meta)}
         </p>
         {saving > 0 && (
@@ -188,8 +211,8 @@ function PackageCard({ product, active, onSelect }) {
       </div>
 
       {availability ? (
-        <div className="mt-5 rounded-md border border-accent/35 bg-bg/70 p-3">
-          <div className="flex items-center justify-between gap-3 text-xs font-semibold uppercase tracking-wide">
+        <div className="mt-5 rounded-md border border-accent/35 bg-bg/70 p-3 xl:p-2.5 2xl:p-3">
+          <div className="flex items-center justify-between gap-3 text-[0.7rem] font-semibold uppercase tracking-wide">
             <span className="text-text-muted">Disponibilità</span>
             <span className="text-accent">{availability.remaining}/{availability.capacity} posti</span>
           </div>
@@ -199,15 +222,11 @@ function PackageCard({ product, active, onSelect }) {
               style={{ width: `${availability.percent}%` }}
             />
           </div>
-          <p className="mt-2 text-xs leading-5 text-text-muted">{meta.scarcityNote}</p>
+          <p className="mt-2 text-xs leading-5 text-text-muted xl:text-[0.72rem] xl:leading-4 2xl:text-xs 2xl:leading-5">{meta.scarcityNote}</p>
         </div>
-      ) : (
-        <p className="mt-5 rounded-md border border-border bg-bg/50 p-3 text-xs leading-5 text-text-muted">
-          Nessuna pressione: serve per entrare nel metodo con un primo passo semplice.
-        </p>
-      )}
+      ): null}
 
-      <ul className="mt-5 space-y-2 text-sm text-text-muted">
+      <ul className="mt-5 space-y-2 text-sm text-text-muted xl:text-[0.82rem] 2xl:text-sm">
         {meta.bullets.map((bullet) => (
           <li key={bullet} className="flex gap-2">
             <CheckCircle2 className="mt-0.5 shrink-0 text-accent" size={16} />
@@ -272,9 +291,6 @@ export default function Packages() {
   const appMonthlyAvailability = appMonthly ? productAvailability(appMonthly, planMeta(appMonthly)) : null;
   const appLiveAvailability = appLive ? productAvailability(appLive, planMeta(appLive)) : null;
   const premiumAvailability = premium ? productAvailability(premium, planMeta(premium)) : null;
-  const entryPlans = products.filter((product) => planMeta(product).order <= 2);
-  const corePlans = products.filter((product) => planMeta(product).order >= 3);
-
   const checkout = async (event) => {
     event.preventDefault();
     setError("");
@@ -303,7 +319,7 @@ export default function Packages() {
     <MainLayout>
       <section className="relative overflow-hidden py-12 sm:py-section">
         <div className="absolute right-0 top-20 h-80 w-80 rounded-full bg-accent/10 blur-3xl" aria-hidden />
-        <Container className="relative">
+        <Container className="relative max-w-7xl">
           <div className="mx-auto max-w-4xl text-center">
             <Badge variant="neon">
               <Sparkles size={14} /> Prezzi lancio piattaforma
@@ -342,28 +358,15 @@ export default function Packages() {
           </div>
 
           <div className="mt-10 grid gap-8">
-            <div className="space-y-5">
-              <div className="grid gap-4 lg:grid-cols-2">
-                {entryPlans.map((product) => (
-                  <PackageCard
-                    key={product.id}
-                    product={product}
-                    active={product.id === selectedId}
-                    onSelect={() => setSelectedId(product.id)}
-                  />
-                ))}
-              </div>
-
-              <div className="grid gap-4 xl:grid-cols-[1.16fr_0.92fr_0.92fr]">
-                {corePlans.map((product) => (
-                  <PackageCard
-                    key={product.id}
-                    product={product}
-                    active={product.id === selectedId}
-                    onSelect={() => setSelectedId(product.id)}
-                  />
-                ))}
-              </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-[minmax(0,0.78fr)_minmax(0,0.78fr)_minmax(0,1.34fr)_minmax(0,0.78fr)_minmax(0,0.78fr)] xl:items-stretch">
+              {products.map((product) => (
+                <PackageCard
+                  key={product.id}
+                  product={product}
+                  active={product.id === selectedId}
+                  onSelect={() => setSelectedId(product.id)}
+                />
+              ))}
             </div>
 
             <Card className="mx-auto h-fit w-full max-w-2xl border-accent/30 bg-bg/80">
