@@ -129,7 +129,7 @@ export default function AppPlatform() {
           <div className="mx-auto max-w-3xl text-center">
             <Smartphone className="mx-auto text-accent" size={34} />
             <h2 className="mt-5 font-display text-3xl font-black uppercase sm:text-4xl">
-              Funziona anche da telefono
+              Installa in modo semplice e veloce
             </h2>
             <p className="mt-4 text-text-muted">
               Il cliente può aggiungerla alla schermata Home e usarla quasi come un'app,
