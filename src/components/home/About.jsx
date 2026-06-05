@@ -6,7 +6,7 @@ import gianluigiPhoto from "../../assets/gianluigi-chiarelli.webp";
 const PILLARS = [
   { icon: Target, title: "Metodo", text: "Programmazione basata su dati, non su sensazioni." },
   { icon: Dumbbell, title: "Disciplina", text: "Costanza guidata, obiettivi misurabili nel tempo." },
-  { icon: HeartPulse, title: "Personalizzazione", text: "Ogni percorso è costruito sul tuo corpo e sulla tua vita." },
+  { icon: HeartPulse, title: "Su misura", text: "Ogni percorso è costruito sul tuo corpo e sulla tua vita." },
 ];
 
 /** Sezione "Chi sono": autorevole ma umana, con visual geometrico in UI. */
