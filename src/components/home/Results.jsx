@@ -37,11 +37,15 @@ const CASES = [
 /** Barra prima/dopo astratta (no foto): mostra la variazione con dati. */
 function MetricBar({ m }) {
   const max = Math.max(m.from, m.to);
-  const fromPct = (m.from / max) * 100;
-  const toPct = (m.to / max) * 100;
+  const min = Math.min(m.from, m.to);
+  const beforePct = (m.from / max) * 100;
+  const afterPct = (m.to / max) * 100;
+  const lowPct = (min / max) * 100;
+  const improvementPct = Math.abs(afterPct - beforePct);
+  const neonStart = Math.min(beforePct, afterPct);
   const Icon = m.down ? TrendingDown : TrendingUp;
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       <div className="flex flex-col gap-1 text-xs min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
         <span className="text-text-muted">{m.label}</span>
         <span className="flex items-center gap-1 font-semibold text-accent">
@@ -51,19 +55,23 @@ function MetricBar({ m }) {
           {m.unit}
         </span>
       </div>
-      {/* prima (attenuato) */}
-      <div className="h-1.5 overflow-hidden rounded-full bg-surface-2">
-        <div className="h-full rounded-full bg-border" style={{ width: `${fromPct}%` }} />
-      </div>
-      {/* dopo (neon) */}
-      <div className="h-1.5 overflow-hidden rounded-full bg-surface-2">
+
+      <div className="relative h-2 overflow-hidden rounded-full bg-surface-2">
+        <div
+          className="absolute inset-y-0 left-0 rounded-full bg-border/80"
+          style={{ width: `${lowPct}%` }}
+        />
         <motion.div
           initial={{ scaleX: 0 }}
           whileInView={{ scaleX: 1 }}
           viewport={{ once: true, margin: "-40px", amount: 0.35 }}
           transition={{ duration: 0.9, ease: "easeOut" }}
-          className="h-full origin-left rounded-full bg-neon-gradient will-change-transform"
-          style={{ width: `${toPct}%` }}
+          className="absolute inset-y-0 rounded-full bg-neon-gradient shadow-[0_0_14px_rgba(57,255,20,0.45)] will-change-transform"
+          style={{
+            left: `${neonStart}%`,
+            width: `${Math.max(improvementPct, 3)}%`,
+            transformOrigin: m.down ? "right center" : "left center",
+          }}
         />
       </div>
     </div>
