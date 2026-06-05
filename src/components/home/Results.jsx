@@ -24,12 +24,12 @@ const CASES = [
     ],
   },
   {
-    name: "Luca, 41",
-    goal: "Forza",
-    weeks: 24,
+    name: "Andrea, 41",
+    goal: "Postura",
+    weeks: 12,
     metrics: [
-      { label: "Stacco", from: 90, to: 140, unit: "kg", down: false },
       { label: "Giro vita", from: 102, to: 92, unit: "cm", down: true },
+      { label: "Dolore schiena", from: 7, to: 2, unit: "/10", down: true },
     ],
   },
 ];
