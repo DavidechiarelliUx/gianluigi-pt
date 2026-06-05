@@ -37,12 +37,7 @@ const CASES = [
 /** Barra prima/dopo astratta (no foto): mostra la variazione con dati. */
 function MetricBar({ m }) {
   const max = Math.max(m.from, m.to);
-  const min = Math.min(m.from, m.to);
-  const beforePct = (m.from / max) * 100;
-  const afterPct = (m.to / max) * 100;
-  const lowPct = (min / max) * 100;
-  const improvementPct = Math.abs(afterPct - beforePct);
-  const neonStart = Math.min(beforePct, afterPct);
+  const toPct = (m.to / max) * 100;
   const Icon = m.down ? TrendingDown : TrendingUp;
   return (
     <div className="space-y-2">
@@ -57,21 +52,13 @@ function MetricBar({ m }) {
       </div>
 
       <div className="relative h-2 overflow-hidden rounded-full bg-surface-2">
-        <div
-          className="absolute inset-y-0 left-0 rounded-full bg-border/80"
-          style={{ width: `${lowPct}%` }}
-        />
         <motion.div
           initial={{ scaleX: 0 }}
           whileInView={{ scaleX: 1 }}
           viewport={{ once: true, margin: "-40px", amount: 0.35 }}
           transition={{ duration: 0.9, ease: "easeOut" }}
-          className="absolute inset-y-0 rounded-full bg-neon-gradient shadow-[0_0_14px_rgba(57,255,20,0.45)] will-change-transform"
-          style={{
-            left: `${neonStart}%`,
-            width: `${Math.max(improvementPct, 3)}%`,
-            transformOrigin: m.down ? "right center" : "left center",
-          }}
+          className="absolute inset-y-0 left-0 origin-left rounded-full bg-neon-gradient shadow-[0_0_14px_rgba(57,255,20,0.45)] will-change-transform"
+          style={{ width: `${toPct}%` }}
         />
       </div>
     </div>
