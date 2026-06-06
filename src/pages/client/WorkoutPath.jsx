@@ -396,7 +396,7 @@ function ExerciseSheet({ item, log, onClose, onSave }) {
             {/* RPE */}
             <label className="block">
               <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide" style={{ color: "#888" }}>
-                RPE percepito (1–10)
+                Sforzo percepito (1–10)
               </span>
               <div className="flex flex-wrap gap-1.5">
                 {Array.from({ length: 10 }, (_, i) => i + 1).map((v) => (
