@@ -28,6 +28,7 @@ const MyWorkout = lazy(() => import("./pages/client/MyWorkout.jsx"));
 const ClientHistory = lazy(() => import("./pages/client/ClientHistory.jsx"));
 const ClientProfile = lazy(() => import("./pages/client/ClientProfile.jsx"));
 const ClientLive = lazy(() => import("./pages/client/ClientLive.jsx"));
+const ClientSupport = lazy(() => import("./pages/client/ClientSupport.jsx"));
 
 import { RoleRoute } from "./components/RouteGuards.jsx";
 
@@ -78,6 +79,7 @@ export const router = createBrowserRouter([
       { path: "storico", element: wrap(<ClientHistory />) },
       { path: "profilo", element: wrap(<ClientProfile />) },
       { path: "live", element: wrap(<ClientLive />) },
+      { path: "supporto", element: wrap(<ClientSupport />) },
     ],
   },
   { path: "*", element: <Navigate to="/" replace /> },
