@@ -162,7 +162,7 @@ function PackageCard({ product, active, onSelect }) {
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
         active ? "border-accent shadow-glow-soft" : "border-border hover:border-accent/60",
         recommended
-          ? "z-10 bg-accent/5 xl:-translate-y-4 xl:scale-[1.04] xl:border-accent xl:p-5 2xl:p-6 xl:shadow-glow-soft"
+          ? "z-10 border-accent/50 bg-accent/5 shadow-glow-soft xl:-translate-y-4 xl:scale-[1.04] xl:border-accent xl:p-5 2xl:p-6 xl:shadow-glow-soft"
           : "xl:p-3.5 2xl:p-4"
       )}
       aria-pressed={active}
@@ -195,7 +195,7 @@ function PackageCard({ product, active, onSelect }) {
         </p>
         <p
           className={cn(
-            "whitespace-nowrap font-display text-[2.65rem] font-black leading-none text-accent sm:text-5xl",
+            "font-display text-[2rem] font-black leading-none text-accent sm:text-[2.65rem] sm:whitespace-nowrap",
             recommended
               ? "xl:text-[2.85rem] 2xl:text-[3.25rem]"
               : "xl:text-[1.48rem] 2xl:text-[1.86rem]"

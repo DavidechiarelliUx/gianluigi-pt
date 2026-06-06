@@ -313,10 +313,11 @@ export default function Workouts() {
                     {day.items.map((item, itemIndex) => {
                       const exercise = exerciseById.get(item.exerciseId);
                       return (
-                        <div key={itemIndex} className="grid gap-2 rounded-md border border-border bg-surface p-3 lg:grid-cols-[1.1fr_0.5fr_0.6fr_0.5fr_auto]">
-                          <div className="flex gap-2">
+                        <div key={itemIndex} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 rounded-md border border-border bg-surface p-3 lg:grid-cols-[1.1fr_0.5fr_0.6fr_0.5fr_auto]">
+                          {/* Esercizio: occupa tutta la riga su mobile (4 col), 1 col su desktop */}
+                          <div className="col-span-4 flex gap-2 lg:col-span-1">
                             {exercise?.illustration && (
-                              <ExerciseIllustration exercise={exercise.illustration} className="h-16 w-16 shrink-0" />
+                              <ExerciseIllustration exercise={exercise.illustration} className="h-14 w-14 shrink-0" />
                             )}
                             <select
                               value={item.exerciseId}
@@ -331,14 +332,16 @@ export default function Workouts() {
                               ))}
                             </select>
                           </div>
+                          {/* Campi numerici: una riga da 3+1 su mobile, singole colonne su desktop */}
                           <Input type="number" min="1" value={item.sets} onChange={(e) => setItem(dayIndex, itemIndex, { sets: e.target.value })} placeholder="Serie" />
                           <Input value={item.reps} onChange={(e) => setItem(dayIndex, itemIndex, { reps: e.target.value })} placeholder="Rip" />
-                          <Input type="number" min="0" value={item.restSeconds} onChange={(e) => setItem(dayIndex, itemIndex, { restSeconds: e.target.value })} placeholder="Rec sec" />
+                          <Input type="number" min="0" value={item.restSeconds} onChange={(e) => setItem(dayIndex, itemIndex, { restSeconds: e.target.value })} placeholder="Rec s" />
                           <Button size="sm" variant="ghost" onClick={() => removeItem(dayIndex, itemIndex)}>
                             <Trash2 size={16} />
                           </Button>
+                          {/* Note: occupa tutta la riga su entrambi i layout */}
                           <Textarea
-                            className="lg:col-span-5"
+                            className="col-span-4 lg:col-span-5"
                             placeholder="Note esercizio"
                             value={item.notes}
                             onChange={(e) => setItem(dayIndex, itemIndex, { notes: e.target.value })}

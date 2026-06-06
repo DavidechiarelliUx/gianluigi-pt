@@ -129,7 +129,7 @@ export function Hero() {
           initial={{ opacity: 0, scale: 0.94 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.7, ease: "easeOut", delay: reduce ? 0 : 0.3 }}
-          className="relative mx-auto flex w-full max-w-md justify-center"
+          className="relative mx-auto flex w-full max-w-md justify-center pb-4 sm:pb-10"
         >
           <div
             aria-hidden

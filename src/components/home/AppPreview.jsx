@@ -13,11 +13,12 @@ import {
 // ─── Dati mock ────────────────────────────────────────────────────────────────
 
 const WORKOUT = {
-  day: "Giorno A · Gambe",
   name: "Forza & Ipertrofia",
+  days: ["Giorno A", "Giorno B", "Giorno C"],
+  activeDay: "Giorno A",
   items: [
-    { name: "Squat", detail: "4 × 8  ·  rec 90s", done: true },
-    { name: "Stacco da terra", detail: "4 × 6  ·  rec 120s", done: true },
+    { name: "Squat", detail: "4 × 8  ·  rec 90s", done: true, load: "80kg", rpe: "7" },
+    { name: "Stacco da terra", detail: "4 × 6  ·  rec 120s", done: true, load: "100kg", rpe: "8" },
     { name: "Leg press", detail: "3 × 12  ·  rec 60s", done: false },
     { name: "Leg curl", detail: "3 × 12  ·  rec 45s", done: false },
   ],
@@ -58,52 +59,83 @@ function ScreenWorkout() {
   const pct = Math.round((done / WORKOUT.items.length) * 100);
   return (
     <div className="flex h-full flex-col">
-      <div className="px-4 pb-2 pt-3">
-        <p className="text-[9px] uppercase tracking-widest" style={{ color: "#39FF14" }}>
-          {WORKOUT.day}
-        </p>
+      {/* Header scheda */}
+      <div className="px-4 pb-1 pt-3">
         <p className="font-display text-sm font-bold uppercase text-white">{WORKOUT.name}</p>
       </div>
-      <div className="px-4 pb-2">
-        <div className="mb-1 flex justify-between text-[8px] uppercase tracking-wide" style={{ color: "#666" }}>
+
+      {/* Tab giorni — stile reale app (underline) */}
+      <div className="flex gap-0 overflow-x-auto border-b px-4 [scrollbar-width:none]" style={{ borderColor: "#222" }}>
+        {WORKOUT.days.map((day) => {
+          const active = day === WORKOUT.activeDay;
+          return (
+            <div
+              key={day}
+              className="relative shrink-0 px-3 py-1.5 text-[9px] font-medium"
+              style={{ color: active ? "#39FF14" : "#555" }}
+            >
+              {day}
+              {active && (
+                <div className="absolute inset-x-1 bottom-0 h-0.5 rounded-full" style={{ background: "#39FF14" }} />
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Progress bar */}
+      <div className="px-4 py-1.5">
+        <div className="mb-0.5 flex justify-between text-[7.5px] uppercase tracking-wide" style={{ color: "#555" }}>
           <span>Completamento</span>
           <span style={{ color: "#39FF14" }}>{pct}%</span>
         </div>
-        <div className="h-1.5 overflow-hidden rounded-full" style={{ background: "#1e1e1e" }}>
-          <div
-            className="h-full rounded-full"
-            style={{ width: `${pct}%`, background: "linear-gradient(90deg,#39FF14,#00FF87)" }}
-          />
+        <div className="h-1 overflow-hidden rounded-full" style={{ background: "#1e1e1e" }}>
+          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: "linear-gradient(90deg,#39FF14,#00FF87)" }} />
         </div>
       </div>
-      <div className="flex-1 space-y-1.5 overflow-hidden px-4 pb-2">
+
+      {/* Esercizi — stile ExerciseCard reale */}
+      <div className="flex-1 space-y-1.5 overflow-hidden px-3 pb-2">
         {WORKOUT.items.map((item) => (
           <div
             key={item.name}
-            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5"
+            className="rounded-lg p-2.5"
             style={{
-              background: item.done ? "rgba(57,255,20,0.06)" : "#141414",
+              background: item.done ? "rgba(57,255,20,0.05)" : "#141414",
               border: `1px solid ${item.done ? "rgba(57,255,20,0.3)" : "#222"}`,
-              boxShadow: item.done ? "0 0 6px rgba(57,255,20,0.12)" : "none",
+              boxShadow: item.done ? "0 0 5px rgba(57,255,20,0.1)" : "none",
             }}
           >
-            {item.done ? (
-              <CheckCircle2 size={15} style={{ color: "#39FF14", flexShrink: 0 }} />
-            ) : (
-              <Circle size={15} style={{ color: "#444", flexShrink: 0 }} />
-            )}
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[11px] font-semibold text-white">{item.name}</p>
-              <p className="text-[9px]" style={{ color: "#777" }}>{item.detail}</p>
+            <div className="flex items-start gap-2">
+              {/* Toggle grande come nel vero ExerciseCard */}
+              {item.done ? (
+                <CheckCircle2 size={20} style={{ color: "#39FF14", flexShrink: 0, marginTop: 1 }} />
+              ) : (
+                <Circle size={20} style={{ color: "#444", flexShrink: 0, marginTop: 1 }} />
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-bold uppercase text-white">{item.name}</p>
+                <p className="text-[8.5px]" style={{ color: "#777" }}>{item.detail}</p>
+                {/* Campi tracking per esercizi completati */}
+                {item.done && (
+                  <div className="mt-1 flex gap-1.5">
+                    <div className="flex-1 rounded px-1.5 py-0.5 text-[8px]" style={{ background: "#1a1a1a", border: "1px solid #2a2a2a", color: "#39FF14" }}>
+                      {item.load}
+                    </div>
+                    <div className="rounded px-1.5 py-0.5 text-[8px]" style={{ background: "#1a1a1a", border: "1px solid #2a2a2a", color: "#39FF14" }}>
+                      RPE {item.rpe}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         ))}
       </div>
-      <div className="px-4 pb-3">
-        <div
-          className="rounded-lg py-2 text-center text-[11px] font-bold uppercase tracking-wide"
-          style={{ background: "#39FF14", color: "#0a0a0a" }}
-        >
+
+      {/* StickyActionBar */}
+      <div className="border-t px-3 pb-2 pt-2" style={{ borderColor: "#1a1a1a", background: "rgba(13,13,13,0.9)" }}>
+        <div className="rounded-lg py-2 text-center text-[10px] font-bold uppercase tracking-wide" style={{ background: "#39FF14", color: "#0a0a0a" }}>
           Termina e salva
         </div>
       </div>
