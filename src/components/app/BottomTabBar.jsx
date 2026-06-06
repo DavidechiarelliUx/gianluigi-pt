@@ -2,10 +2,12 @@ import { cn } from "../../lib/utils";
 
 /**
  * Bottom tab bar per l'area cliente mobile. Fixed in basso, safe-area iOS.
- * tabs: [{label, icon, href}] · activeHref · onNavigate(href).
+ * tabs: [{label, icon, href}] · activeHref · onNavigate(href) · hidden.
  * Su desktop (lg) si nasconde a favore di un layout centrato/nav alternativa.
  */
-export function BottomTabBar({ tabs = [], activeHref, onNavigate }) {
+export function BottomTabBar({ tabs = [], activeHref, onNavigate, hidden = false }) {
+  if (hidden) return null;
+
   return (
     <nav
       className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-bg/95 backdrop-blur-md lg:hidden"
