@@ -22,6 +22,8 @@ const Live = lazy(() => import("./pages/dashboard/Live.jsx"));
 const ClientLayout = lazy(() =>
   import("./pages/client/ClientLayout.jsx").then((m) => ({ default: m.ClientLayout }))
 );
+const ClientHome = lazy(() => import("./pages/client/ClientHome.jsx"));
+const WorkoutPath = lazy(() => import("./pages/client/WorkoutPath.jsx"));
 const MyWorkout = lazy(() => import("./pages/client/MyWorkout.jsx"));
 const ClientHistory = lazy(() => import("./pages/client/ClientHistory.jsx"));
 const ClientProfile = lazy(() => import("./pages/client/ClientProfile.jsx"));
@@ -70,7 +72,9 @@ export const router = createBrowserRouter([
       </RoleRoute>
     ),
     children: [
-      { index: true, element: wrap(<MyWorkout />) },
+      { index: true, element: wrap(<ClientHome />) },
+      { path: "allenamento", element: wrap(<WorkoutPath />) },
+      { path: "scheda", element: wrap(<MyWorkout />) },     // legacy, tenuto per compatibilità
       { path: "storico", element: wrap(<ClientHistory />) },
       { path: "profilo", element: wrap(<ClientProfile />) },
       { path: "live", element: wrap(<ClientLive />) },

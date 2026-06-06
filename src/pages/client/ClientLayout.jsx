@@ -1,10 +1,10 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { Dumbbell, History, Video, User } from "lucide-react";
+import { Dumbbell, Home, User, Video } from "lucide-react";
 import { BottomTabBar } from "../../components/app/BottomTabBar";
 
 const TABS = [
-  { label: "Allenamento", icon: Dumbbell, href: "/area-cliente" },
-  { label: "Storico", icon: History, href: "/area-cliente/storico" },
+  { label: "Home", icon: Home, href: "/area-cliente" },
+  { label: "Allenati", icon: Dumbbell, href: "/area-cliente/allenamento" },
   { label: "Live", icon: Video, href: "/area-cliente/live" },
   { label: "Profilo", icon: User, href: "/area-cliente/profilo" },
 ];
