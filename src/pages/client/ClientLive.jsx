@@ -146,14 +146,18 @@ function BookedCard({ session, now, onCancel, isCancelling }) {
 
         {/* Actions */}
         <div className="flex flex-wrap gap-2">
-          {session.videoLink && session.status === "live" && (
-            <a href={session.videoLink} target="_blank" rel="noopener noreferrer"
+          {session.videoLink ? (
+            <a
+              href={session.videoLink}
+              target="_blank"
+              rel="noopener noreferrer"
               className="flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-bold"
-              style={{ background: "#39FF14", color: "#0a0a0a" }}>
-              <Video size={16} /> Entra nella sessione
+              style={{ background: "#39FF14", color: "#0a0a0a" }}
+            >
+              <Video size={16} />
+              {session.status === "live" ? "Entra nella sessione" : "Vai alla sessione"}
             </a>
-          )}
-          {session.status === "scheduled" && !session.videoLink && (
+          ) : (
             <div className="flex items-center gap-1.5 rounded-xl border border-border bg-surface-2 px-3 py-2 text-xs text-text-muted">
               <Bell size={13} className="text-accent" />
               Link disponibile all'avvio

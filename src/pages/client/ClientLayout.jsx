@@ -6,7 +6,7 @@ import { ClientLayoutContext } from "./ClientLayoutContext";
 
 const TABS = [
   { label: "Home", icon: Home, href: "/area-cliente" },
-  { label: "Allenati", icon: Dumbbell, href: "/area-cliente/allenamento" },
+  { label: "Allenamento", icon: Dumbbell, href: "/area-cliente/allenamento" },
   { label: "Live", icon: Video, href: "/area-cliente/live" },
   { label: "Profilo", icon: User, href: "/area-cliente/profilo" },
 ];

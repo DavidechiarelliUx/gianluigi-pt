@@ -669,6 +669,18 @@ export default function WorkoutPath() {
   );
   const pct = items.length ? Math.round((doneCount / items.length) * 100) : 0;
 
+  // Controlla se oggi c'è già una sessione completata (dal server)
+  const alreadyTrainedToday = useMemo(() => {
+    const sessions = workoutQuery.data?.sessions ?? [];
+    if (!sessions.length) return false;
+    const todayTs = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); })();
+    return sessions.some((s) => {
+      const d = new Date(s.date);
+      d.setHours(0, 0, 0, 0);
+      return d.getTime() === todayTs;
+    });
+  }, [workoutQuery.data?.sessions]);
+
   const nodeStatus = useCallback(
     (item, idx) => {
       if (logs[item.id]?.completed) return "done";
@@ -813,6 +825,22 @@ export default function WorkoutPath() {
           <span style={{ color: pct > 0 ? "#39FF14" : undefined }}>{pct}%</span>
         </div>
       </div>
+
+      {/* Banner "già allenato oggi" */}
+      {alreadyTrainedToday && (
+        <motion.div
+          initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
+          className="rounded-xl px-4 py-3"
+          style={{ background: "rgba(57,255,20,0.07)", border: "1px solid rgba(57,255,20,0.25)" }}
+        >
+          <p className="flex items-center gap-2 text-sm font-semibold" style={{ color: "#39FF14" }}>
+            <CheckCircle2 size={15} /> Hai già completato l&apos;allenamento di oggi!
+          </p>
+          <p className="mt-0.5 text-xs text-text-muted">
+            Puoi comunque aggiungere un&apos;altra sessione o modificare i dati.
+          </p>
+        </motion.div>
+      )}
 
       {/* Exercise nodes */}
       <div className="py-4">

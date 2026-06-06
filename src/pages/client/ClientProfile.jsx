@@ -1,8 +1,19 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronRight, Dumbbell, Settings, TrendingUp, Video, Zap } from "lucide-react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  Camera,
+  ChevronRight,
+  Dumbbell,
+  Settings,
+  TrendingUp,
+  Video,
+  X,
+  Zap,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { Button } from "../../components/ui/Button";
+import { Input } from "../../components/ui/Input";
 import { useAuth } from "../../hooks/useAuth";
 import { apiFetch } from "../../lib/api";
 
@@ -22,23 +33,16 @@ function getLevel(xp) {
   return [...LEVELS].reverse().find((l) => xp >= l.min) || LEVELS[0];
 }
 
-// ─── Streak / month stats ──────────────────────────────────────────────────────
-
 function computeStats(sessions) {
   const now = new Date();
   const thisMonth = sessions.filter((s) => {
     const d = new Date(s.date);
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   }).length;
-
-  // "streak": sessions in last 14 days
   const twoWeeksAgo = new Date(now.getTime() - 14 * 86400000);
   const recentSessions = sessions.filter((s) => new Date(s.date) >= twoWeeksAgo).length;
-
   return { thisMonth, recentSessions };
 }
-
-// ─── Badges ───────────────────────────────────────────────────────────────────
 
 function buildBadges({ totalSessions, messages, activePackage }) {
   return [
@@ -50,6 +54,21 @@ function buildBadges({ totalSessions, messages, activePackage }) {
     { id: "feedback",emoji: "💬", label: "Feedback al coach",   earned: messages.length > 0 },
     { id: "package", emoji: "⭐", label: "Pacchetto attivo",    earned: !!activePackage },
   ];
+}
+
+// ─── Avatar storage helpers ────────────────────────────────────────────────────
+
+const AVATAR_KEY = "gianluigi-pt:avatar";
+
+function loadAvatar() {
+  try { return localStorage.getItem(AVATAR_KEY) || ""; } catch { return ""; }
+}
+
+function saveAvatarStorage(url) {
+  try {
+    if (url) localStorage.setItem(AVATAR_KEY, url);
+    else localStorage.removeItem(AVATAR_KEY);
+  } catch { /* noop */ }
 }
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
@@ -100,11 +119,94 @@ function QuickAction({ icon: Icon, label, sublabel, onClick }) {
   );
 }
 
+// ─── Avatar edit modal ─────────────────────────────────────────────────────────
+
+function AvatarModal({ current, onSave, onClose }) {
+  const [url, setUrl] = useState(current);
+
+  return (
+    <>
+      <motion.div
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="fixed inset-0 z-40 bg-black/70"
+        onClick={onClose}
+      />
+      <motion.div
+        initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+        transition={{ type: "spring", stiffness: 380, damping: 38 }}
+        className="fixed inset-x-0 bottom-0 z-50 mx-auto max-w-md rounded-t-3xl px-5 pb-10 pt-4"
+        style={{ background: "#111" }}
+      >
+        <div className="mx-auto mb-5 h-1 w-10 rounded-full" style={{ background: "#333" }} />
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="font-display text-lg font-black uppercase text-white">Foto profilo</h3>
+          <button onClick={onClose} className="rounded-full p-1 text-text-muted hover:text-text">
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Preview */}
+        {url && (
+          <div className="mb-4 flex justify-center">
+            <div className="h-20 w-20 overflow-hidden rounded-full"
+              style={{ border: "2px solid rgba(57,255,20,0.4)" }}>
+              <img
+                src={url}
+                alt="Anteprima avatar"
+                className="h-full w-full object-cover"
+                onError={() => {}}
+              />
+            </div>
+          </div>
+        )}
+
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide"
+            style={{ color: "#888" }}>
+            URL immagine
+          </span>
+          <Input
+            placeholder="https://..."
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            inputMode="url"
+          />
+        </label>
+        <p className="mt-1.5 text-[11px] text-text-muted">
+          Incolla l'URL di una tua foto (Imgur, GitHub, Google Drive, ecc.)
+        </p>
+
+        <div className="mt-5 space-y-2">
+          <Button className="w-full" onClick={() => onSave(url)}>Salva foto</Button>
+          {current && (
+            <button
+              onClick={() => onSave("")}
+              className="w-full text-center text-sm text-text-muted hover:text-text"
+            >
+              Rimuovi foto
+            </button>
+          )}
+        </div>
+      </motion.div>
+    </>
+  );
+}
+
 // ─── Main page ─────────────────────────────────────────────────────────────────
 
 export default function ClientProfile() {
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  // Avatar state (client-side, localStorage)
+  const [avatar, setAvatar] = useState(loadAvatar);
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
+
+  const handleSaveAvatar = (url) => {
+    saveAvatarStorage(url);
+    setAvatar(url);
+    setShowAvatarModal(false);
+  };
 
   const overviewQuery = useQuery({
     queryKey: ["client", "overview"],
@@ -120,8 +222,8 @@ export default function ClientProfile() {
   });
 
   const activePackage = overviewQuery.data?.activePackage;
-  const sessions = workoutQuery.data?.sessions || [];
-  const messages = messagesQuery.data?.messages || [];
+  const sessions = useMemo(() => workoutQuery.data?.sessions ?? [], [workoutQuery.data]);
+  const messages = useMemo(() => messagesQuery.data?.messages ?? [], [messagesQuery.data]);
 
   const totalSessions = sessions.length;
   const xp = totalSessions * XP_PER_SESSION;
@@ -149,15 +251,42 @@ export default function ClientProfile() {
         initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
         className="flex items-center gap-4"
       >
-        <div className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-full"
-          style={{ background: "rgba(57,255,20,0.1)", border: "2px solid rgba(57,255,20,0.4)" }}>
-          <span className="font-display text-xl font-black" style={{ color: "#39FF14" }}>{initials}</span>
+        {/* Tappable avatar */}
+        <button
+          onClick={() => setShowAvatarModal(true)}
+          className="group relative shrink-0"
+          aria-label="Modifica foto profilo"
+        >
+          <div
+            className="flex h-16 w-16 overflow-hidden rounded-full"
+            style={{ background: "rgba(57,255,20,0.1)", border: "2px solid rgba(57,255,20,0.4)" }}
+          >
+            {avatar ? (
+              <img
+                src={avatar}
+                alt="Avatar"
+                className="h-full w-full object-cover"
+                onError={() => { saveAvatarStorage(""); setAvatar(""); }}
+              />
+            ) : (
+              <span className="m-auto font-display text-xl font-black" style={{ color: "#39FF14" }}>
+                {initials}
+              </span>
+            )}
+          </div>
+          {/* Camera overlay */}
+          <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 transition-opacity group-hover:opacity-100 group-focus:opacity-100">
+            <Camera size={18} className="text-white" />
+          </div>
           {/* Level badge */}
-          <span className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full text-xs"
-            style={{ background: "#0a0a0a", border: "1.5px solid #1e1e1e" }}>
+          <span
+            className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full text-xs"
+            style={{ background: "#0a0a0a", border: "1.5px solid #1e1e1e" }}
+          >
             {currentLevel.emoji}
           </span>
-        </div>
+        </button>
+
         <div className="min-w-0 flex-1">
           <h2 className="font-display text-xl font-black uppercase leading-tight text-white">
             {user?.fullName || "Atleta"}
@@ -165,6 +294,12 @@ export default function ClientProfile() {
           <p className="text-sm font-semibold" style={{ color: currentLevel.color }}>
             Livello {LEVELS.indexOf(currentLevel) + 1} — {currentLevel.label} {currentLevel.emoji}
           </p>
+          <button
+            onClick={() => setShowAvatarModal(true)}
+            className="mt-0.5 flex items-center gap-1 text-[11px] text-text-muted hover:text-text"
+          >
+            <Camera size={11} /> Modifica foto
+          </button>
         </div>
       </motion.div>
 
@@ -174,12 +309,10 @@ export default function ClientProfile() {
         className="space-y-1.5"
       >
         <div className="flex items-center justify-between text-[11px]">
-          <span className="font-semibold uppercase tracking-wide text-text-muted">
-            {xp} XP
-          </span>
+          <span className="font-semibold uppercase tracking-wide text-text-muted">{xp} XP</span>
           {nextLevel ? (
             <span className="text-text-muted">
-              prossimo livello: <span className="font-semibold text-white">{nextLevel.label}</span> a {currentLevel.nextMin} XP
+              → <span className="font-semibold text-white">{nextLevel.label}</span> a {currentLevel.nextMin} XP
             </span>
           ) : (
             <span style={{ color: "#39FF14" }}>Livello massimo 🏆</span>
@@ -199,7 +332,7 @@ export default function ClientProfile() {
         </div>
       </motion.div>
 
-      {/* ── Stats grid ── */}
+      {/* ── Stats ── */}
       <motion.div
         initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
         className="flex gap-2"
@@ -225,7 +358,7 @@ export default function ClientProfile() {
         </div>
       </motion.div>
 
-      {/* ── Motivational insight ── */}
+      {/* ── Insight ── */}
       {totalSessions > 0 && (
         <motion.div
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }}
@@ -237,7 +370,7 @@ export default function ClientProfile() {
             <p className="text-sm font-semibold text-white">
               {thisMonth > 0
                 ? `${thisMonth} ${thisMonth === 1 ? "sessione" : "sessioni"} questo mese — continua così!`
-                : "Nessuna sessione questo mese ancora — oggi è il giorno giusto!"}
+                : "Nessuna sessione questo mese — oggi è il momento giusto!"}
             </p>
           </div>
           {totalSessions >= 3 && (
@@ -256,27 +389,15 @@ export default function ClientProfile() {
         className="space-y-2"
       >
         <h2 className="font-display text-sm font-bold uppercase text-text-muted">Azioni rapide</h2>
-        <QuickAction
-          icon={Dumbbell}
-          label="Vai all'allenamento"
-          sublabel="Apri la scheda di oggi"
-          onClick={() => navigate("/area-cliente/allenamento")}
-        />
-        <QuickAction
-          icon={Video}
-          label="Sessioni Live"
-          sublabel="Prenota una sessione con Gianluigi"
-          onClick={() => navigate("/area-cliente/live")}
-        />
-        <QuickAction
-          icon={TrendingUp}
-          label="I tuoi progressi"
-          sublabel="Storico allenamenti e misure"
-          onClick={() => navigate("/area-cliente/storico")}
-        />
+        <QuickAction icon={Dumbbell} label="Vai all'allenamento" sublabel="Apri la scheda di oggi"
+          onClick={() => navigate("/area-cliente/allenamento")} />
+        <QuickAction icon={Video} label="Sessioni Live" sublabel="Prenota con Gianluigi"
+          onClick={() => navigate("/area-cliente/live")} />
+        <QuickAction icon={TrendingUp} label="I tuoi progressi" sublabel="Storico e misure"
+          onClick={() => navigate("/area-cliente/storico")} />
       </motion.div>
 
-      {/* ── Package summary ── */}
+      {/* ── Package ── */}
       {activePackage && (
         <motion.div
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35 }}
@@ -304,18 +425,15 @@ export default function ClientProfile() {
         </motion.div>
       )}
 
-      {/* ── Link to support ── */}
-      <motion.div
-        initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
-      >
+      {/* ── Settings link ── */}
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>
         <button
           onClick={() => navigate("/area-cliente/supporto")}
           className="flex w-full items-center justify-between rounded-2xl p-4 text-left transition-colors hover:brightness-110"
           style={{ background: "#111", border: "1px solid #1e1e1e" }}
         >
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl"
-              style={{ background: "#1a1a1a" }}>
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: "#1a1a1a" }}>
               <Settings size={18} className="text-text-muted" />
             </div>
             <div>
@@ -326,6 +444,17 @@ export default function ClientProfile() {
           <ChevronRight size={16} className="text-text-muted" />
         </button>
       </motion.div>
+
+      {/* ── Avatar modal ── */}
+      <AnimatePresence>
+        {showAvatarModal && (
+          <AvatarModal
+            current={avatar}
+            onSave={handleSaveAvatar}
+            onClose={() => setShowAvatarModal(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

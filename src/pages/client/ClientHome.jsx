@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Dumbbell,
   Flame,
+  ListChecks,
   TrendingUp,
   Video,
   Zap,
@@ -230,21 +231,26 @@ export default function ClientHome() {
 
               <div className="min-w-0 flex-1">
                 <p className="text-[10px] font-semibold uppercase tracking-widest text-accent">
-                  Allenamento oggi
+                  {trainedToday ? "Completato oggi 🎉" : "Allenamento oggi"}
                 </p>
                 <h2 className="mt-0.5 font-display text-lg font-extrabold uppercase leading-tight">
                   {firstDay?.label ?? workout.title}
                 </h2>
-                <p className="mt-1 text-sm text-text-muted line-clamp-1">{workout.title}</p>
+                <p className="mt-1 text-sm text-text-muted line-clamp-1">
+                  {trainedToday ? "Ottimo lavoro! Guarda il riepilogo." : workout.title}
+                </p>
               </div>
             </div>
 
             <Button
               className="mt-4 w-full"
-              onClick={() => navigate("/area-cliente/allenamento")}
+              onClick={() => navigate(trainedToday ? "/area-cliente/storico" : "/area-cliente/allenamento")}
             >
-              <Zap size={18} />
-              {trainedToday ? "Riprendi allenamento" : "Inizia allenamento"}
+              {trainedToday ? (
+                <><ListChecks size={18} /> Riepilogo di oggi</>
+              ) : (
+                <><Zap size={18} /> Inizia allenamento</>
+              )}
             </Button>
           </Card>
         </motion.div>
