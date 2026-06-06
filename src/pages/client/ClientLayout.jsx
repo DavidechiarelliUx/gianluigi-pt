@@ -1,7 +1,6 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Dumbbell, History, Video, User } from "lucide-react";
 import { BottomTabBar } from "../../components/app/BottomTabBar";
-import { FullscreenButton } from "../../components/app/FullscreenButton";
 
 const TABS = [
   { label: "Allenamento", icon: Dumbbell, href: "/area-cliente" },
@@ -17,9 +16,6 @@ export function ClientLayout() {
   return (
     <div className="min-h-screen bg-bg pb-20 text-text">
       <main className="mx-auto max-w-md px-4 py-6">
-        <div className="mb-5">
-          <FullscreenButton />
-        </div>
         <Outlet />
       </main>
       <BottomTabBar tabs={TABS} activeHref={location.pathname} onNavigate={(href) => navigate(href)} />
