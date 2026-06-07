@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -28,6 +28,44 @@ import {
 import { useToast } from "../../hooks/useToast";
 import { apiFetch } from "../../lib/api";
 import { useClientLayout } from "./ClientLayoutContext";
+
+// ─── sessionStorage helpers — sopravvivono alla navigazione ──────────────────
+
+const WP_KEY = (wid, did) => `wp-${wid}-${did}`;
+
+function readProgress(wid, did) {
+  try { return JSON.parse(sessionStorage.getItem(WP_KEY(wid, did)) ?? "null"); }
+  catch { return null; }
+}
+function writeProgress(wid, did, data) {
+  try { sessionStorage.setItem(WP_KEY(wid, did), JSON.stringify(data)); }
+  catch { /* quota exceeded o private browsing — non bloccante */ }
+}
+function clearProgress(wid, did) {
+  try { sessionStorage.removeItem(WP_KEY(wid, did)); }
+  catch { /* non bloccante */ }
+}
+
+// ─── Session reducer — logs + feedbackNotes + phase in un unico stato ─────────
+
+const SESSION_INIT = { logs: {}, feedbackNotes: "", phase: "path" };
+
+function sessionReducer(state, action) {
+  switch (action.type) {
+    case "RESTORE":
+      return { ...SESSION_INIT, ...action.payload };
+    case "PATCH_LOG":
+      return { ...state, logs: { ...state.logs, [action.id]: { ...state.logs[action.id], ...action.patch } } };
+    case "SET_FEEDBACK":
+      return { ...state, feedbackNotes: action.value };
+    case "SET_PHASE":
+      return { ...state, phase: action.value };
+    case "RESET_DAY":
+      return { ...SESSION_INIT };
+    default:
+      return state;
+  }
+}
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -803,12 +841,15 @@ export default function WorkoutPath() {
   const qc       = useQueryClient();
   const { setTabBarHidden } = useClientLayout();
 
-  const [activeDayId, setActiveDayId]   = useState(null);
-  const [logs, setLogs]                 = useState({});
-  const [sheetItem, setSheetItem]       = useState(null);
-  const [restConfig, setRestConfig]     = useState(null);
-  const [feedbackNotes, setFeedbackNotes] = useState("");
-  const [phase, setPhase]               = useState("path"); // "path" | "done"
+  const [activeDayId, setActiveDayId] = useState(null);
+  const [session, dispatchSession]    = useReducer(sessionReducer, SESSION_INIT);
+  const { logs, feedbackNotes, phase } = session;
+
+  const [sheetItem, setSheetItem]   = useState(null);
+  const [restConfig, setRestConfig] = useState(null);
+
+  // syncReady: true dopo aver eseguito il restore da sessionStorage per il giorno corrente
+  const [syncReady, setSyncReady] = useState(false);
 
   const nodeRefs = useRef({});
 
@@ -828,6 +869,24 @@ export default function WorkoutPath() {
     if (!workout?.days?.length) return null;
     return workout.days.find((d) => d.id === activeDayId) || workout.days[0];
   }, [workout, activeDayId]);
+
+  // ── Restore da sessionStorage quando il giorno attivo è disponibile ──────────
+  // Caso legittimo: sincronizzazione one-shot con storage esterno sincrono.
+  // React 18 batcha le chiamate setState in un effect → nessun cascade render.
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (!workout?.id || !activeDay?.id || syncReady) return;
+    const saved = readProgress(workout.id, activeDay.id);
+    if (saved) dispatchSession({ type: "RESTORE", payload: saved });
+    setSyncReady(true);
+  }, [workout?.id, activeDay?.id, syncReady]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  // ── Persist su ogni cambio di stato rilevante (solo dopo il restore) ─────────
+  useEffect(() => {
+    if (!syncReady || !workout?.id || !activeDay?.id) return;
+    writeProgress(workout.id, activeDay.id, { logs, feedbackNotes, phase });
+  }, [syncReady, logs, feedbackNotes, phase, workout?.id, activeDay?.id]);
 
   const items     = useMemo(() => activeDay?.items ?? [], [activeDay]);
   const doneCount = useMemo(
@@ -856,7 +915,7 @@ export default function WorkoutPath() {
   );
 
   const updateLog = useCallback((itemId, patch) => {
-    setLogs((prev) => ({ ...prev, [itemId]: { ...prev[itemId], ...patch } }));
+    dispatchSession({ type: "PATCH_LOG", id: itemId, patch });
   }, []);
 
   const handleSave = useCallback(
@@ -869,7 +928,7 @@ export default function WorkoutPath() {
       const isLast = idx === items.length - 1;
 
       if (isLast) {
-        setTimeout(() => setPhase("done"), 500);
+        setTimeout(() => dispatchSession({ type: "SET_PHASE", value: "done" }), 500);
       } else if (item.restSeconds) {
         const nextItem = items[idx + 1] ?? null;
         setRestConfig({ initialSeconds: item.restSeconds, nextItemId: nextItem?.id ?? null });
@@ -921,6 +980,8 @@ export default function WorkoutPath() {
         },
       }),
     onSuccess: async () => {
+      // Cancella il progresso salvato: sessione completata, non serve più
+      clearProgress(workout.id, activeDay.id);
       await qc.invalidateQueries({ queryKey: ["client", "active-workout"] });
       await qc.invalidateQueries({ queryKey: ["client", "overview"] });
       toast({ type: "success", title: "Sessione salvata! 🏆" });
@@ -987,7 +1048,8 @@ export default function WorkoutPath() {
         <GymBackground />
         <CelebrationScreen
           workout={workout} activeDay={activeDay} items={items} logs={logs}
-          feedbackNotes={feedbackNotes} onFeedbackChange={setFeedbackNotes}
+          feedbackNotes={feedbackNotes}
+        onFeedbackChange={(v) => dispatchSession({ type: "SET_FEEDBACK", value: v })}
           onSave={() => saveSession.mutate()} isSaving={saveSession.isPending}
         />
       </>
@@ -1027,11 +1089,11 @@ export default function WorkoutPath() {
             days={workout.days}
             activeId={activeDay?.id}
             onChange={(id) => {
+              // Resetta syncReady → il restore effect caricherà il progresso del nuovo giorno
+              setSyncReady(false);
               setActiveDayId(id);
-              setLogs({});
+              dispatchSession({ type: "RESET_DAY" });
               setRestConfig(null);
-              setPhase("path");
-              setFeedbackNotes("");
             }}
           />
         )}
@@ -1098,7 +1160,7 @@ export default function WorkoutPath() {
                 Tutti gli esercizi completati!
               </p>
             </div>
-            <Button className="w-full" onClick={() => setPhase("done")}>
+            <Button className="w-full" onClick={() => dispatchSession({ type: "SET_PHASE", value: "done" })}>
               <Sparkles size={18} /> Vedi il riepilogo
             </Button>
           </motion.div>
