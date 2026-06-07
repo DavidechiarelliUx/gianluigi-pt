@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Dumbbell,
   ImagePlus,
+  LogOut,
   Settings,
   TrendingUp,
   Video,
@@ -273,7 +274,7 @@ function AvatarModal({ current, onSave, onClose }) {
 // ─── Main page ─────────────────────────────────────────────────────────────────
 
 export default function ClientProfile() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   // Avatar state (client-side, localStorage)
@@ -284,6 +285,11 @@ export default function ClientProfile() {
     saveAvatarStorage(url);
     setAvatar(url);
     setShowAvatarModal(false);
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login", { replace: true });
   };
 
   const overviewQuery = useQuery({
@@ -473,6 +479,8 @@ export default function ClientProfile() {
           onClick={() => navigate("/area-cliente/live")} />
         <QuickAction icon={TrendingUp} label="I tuoi progressi" sublabel="Storico e misure"
           onClick={() => navigate("/area-cliente/storico")} />
+        <QuickAction icon={LogOut} label="Esci dall'app" sublabel="Logout dal tuo account"
+          onClick={handleLogout} />
       </motion.div>
 
       {/* ── Package ── */}
