@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Camera,
   ChevronRight,
   Dumbbell,
+  ImagePlus,
   Settings,
   TrendingUp,
   Video,
@@ -54,6 +55,33 @@ function buildBadges({ totalSessions, messages, activePackage }) {
     { id: "feedback",emoji: "💬", label: "Feedback al coach",   earned: messages.length > 0 },
     { id: "package", emoji: "⭐", label: "Pacchetto attivo",    earned: !!activePackage },
   ];
+}
+
+// ─── Image resize via Canvas ───────────────────────────────────────────────────
+
+/** Resize a File to max `maxDim` px on the longest side, returns base64 JPEG. */
+function resizeImage(file, maxDim = 400) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = (evt) => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", 0.82));
+      };
+      img.src = evt.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 // ─── Avatar storage helpers ────────────────────────────────────────────────────
@@ -122,7 +150,34 @@ function QuickAction({ icon: Icon, label, sublabel, onClick }) {
 // ─── Avatar edit modal ─────────────────────────────────────────────────────────
 
 function AvatarModal({ current, onSave, onClose }) {
-  const [url, setUrl] = useState(current);
+  const fileInputRef = useRef(null);
+  const [preview, setPreview] = useState(current);
+  const [urlInput, setUrlInput] = useState("");
+  const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { setError("Seleziona un file immagine."); return; }
+    setError("");
+    setProcessing(true);
+    try {
+      const resized = await resizeImage(file, 400);
+      setPreview(resized);
+      setUrlInput("");
+    } catch {
+      setError("Errore nell'elaborazione dell'immagine. Riprova.");
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleUrlChange = (e) => {
+    setUrlInput(e.target.value);
+    setPreview(e.target.value);
+    setError("");
+  };
 
   return (
     <>
@@ -138,7 +193,7 @@ function AvatarModal({ current, onSave, onClose }) {
         style={{ background: "#111" }}
       >
         <div className="mx-auto mb-5 h-1 w-10 rounded-full" style={{ background: "#333" }} />
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-5 flex items-center justify-between">
           <h3 className="font-display text-lg font-black uppercase text-white">Foto profilo</h3>
           <button onClick={onClose} className="rounded-full p-1 text-text-muted hover:text-text">
             <X size={20} />
@@ -146,41 +201,64 @@ function AvatarModal({ current, onSave, onClose }) {
         </div>
 
         {/* Preview */}
-        {url && (
-          <div className="mb-4 flex justify-center">
-            <div className="h-20 w-20 overflow-hidden rounded-full"
-              style={{ border: "2px solid rgba(57,255,20,0.4)" }}>
-              <img
-                src={url}
-                alt="Anteprima avatar"
-                className="h-full w-full object-cover"
-                onError={() => {}}
-              />
-            </div>
+        <div className="mb-5 flex justify-center">
+          <div
+            className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full"
+            style={{ background: "rgba(57,255,20,0.08)", border: "2px solid rgba(57,255,20,0.35)" }}
+          >
+            {preview ? (
+              <img src={preview} alt="Anteprima" className="h-full w-full object-cover"
+                onError={() => setPreview("")} />
+            ) : (
+              <Camera size={28} style={{ color: "#39FF14", opacity: 0.5 }} />
+            )}
           </div>
-        )}
+        </div>
 
-        <label className="block">
-          <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide"
-            style={{ color: "#888" }}>
-            URL immagine
-          </span>
+        {/* Hidden native file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleFileChange}
+        />
+
+        {/* Primary CTA — device picker */}
+        <button
+          onClick={() => { setError(""); fileInputRef.current?.click(); }}
+          disabled={processing}
+          className="flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold transition-opacity disabled:opacity-60"
+          style={{ background: "#39FF14", color: "#0a0a0a" }}
+        >
+          <ImagePlus size={18} />
+          {processing ? "Elaborazione…" : "Scegli dalla galleria / Scatta foto"}
+        </button>
+
+        {error && <p className="mt-2 text-center text-xs" style={{ color: "#ff6b6b" }}>{error}</p>}
+
+        {/* Secondary — URL fallback */}
+        <div className="mt-4 space-y-1.5">
+          <p className="text-[11px] text-text-muted">Oppure incolla un URL immagine</p>
           <Input
             placeholder="https://..."
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
+            value={urlInput}
+            onChange={handleUrlChange}
             inputMode="url"
           />
-        </label>
-        <p className="mt-1.5 text-[11px] text-text-muted">
-          Incolla l'URL di una tua foto (Imgur, GitHub, Google Drive, ecc.)
-        </p>
+        </div>
 
         <div className="mt-5 space-y-2">
-          <Button className="w-full" onClick={() => onSave(url)}>Salva foto</Button>
+          <Button
+            className="w-full"
+            onClick={() => onSave(preview)}
+            disabled={!preview || processing}
+          >
+            Salva foto
+          </Button>
           {current && (
             <button
-              onClick={() => onSave("")}
+              onClick={() => { setPreview(""); onSave(""); }}
               className="w-full text-center text-sm text-text-muted hover:text-text"
             >
               Rimuovi foto
