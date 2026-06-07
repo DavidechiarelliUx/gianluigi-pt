@@ -29,6 +29,10 @@ const ClientHistory = lazy(() => import("./pages/client/ClientHistory.jsx"));
 const ClientProfile = lazy(() => import("./pages/client/ClientProfile.jsx"));
 const ClientLive = lazy(() => import("./pages/client/ClientLive.jsx"));
 const ClientSupport = lazy(() => import("./pages/client/ClientSupport.jsx"));
+const ClientInstallApp = lazy(() => import("./pages/client/ClientInstallApp.jsx"));
+const ClientContact = lazy(() => import("./pages/client/ClientContact.jsx"));
+const ClientPrivacy = lazy(() => import("./pages/client/ClientPrivacy.jsx"));
+const ClientPackages = lazy(() => import("./pages/client/ClientPackages.jsx"));
 
 import { RoleRoute } from "./components/RouteGuards.jsx";
 
@@ -80,6 +84,10 @@ export const router = createBrowserRouter([
       { path: "profilo", element: wrap(<ClientProfile />) },
       { path: "live", element: wrap(<ClientLive />) },
       { path: "supporto", element: wrap(<ClientSupport />) },
+      { path: "installa-app", element: wrap(<ClientInstallApp />) },
+      { path: "contatta", element: wrap(<ClientContact />) },
+      { path: "privacy", element: wrap(<ClientPrivacy />) },
+      { path: "abbonamenti", element: wrap(<ClientPackages />) },
     ],
   },
   { path: "*", element: <Navigate to="/" replace /> },

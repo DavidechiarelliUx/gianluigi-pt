@@ -275,6 +275,8 @@ async function checkout(req, res) {
   const customerName = String(body.fullName || "").trim();
   const customerPhone = body.phone ? String(body.phone).trim() : null;
   const requestedQty = Math.max(1, Math.min(20, Number(body.quantity) || 1));
+  // returnTo:'app' → success/cancel puntano all'area cliente invece che alle pagine pubbliche
+  const returnToApp = body.returnTo === "app";
 
   if (!productId || !isEmail(customerEmail) || customerName.length < 2) {
     return res.status(400).json({ ok: false, error: "Prodotto, nome ed email sono obbligatori" });
@@ -305,11 +307,26 @@ async function checkout(req, res) {
     });
 
     const baseUrl = appUrl();
+
+    // Lookup stripeCustomerId per pre-compilare i metodi di pagamento salvati
+    let stripeCustomerId;
+    try {
+      const existingUser = await prisma.user.findUnique({
+        where: { email: customerEmail },
+        select: { stripeCustomerId: true },
+      });
+      if (existingUser?.stripeCustomerId) stripeCustomerId = existingUser.stripeCustomerId;
+    } catch { /* non bloccante */ }
+
     const commonParams = {
-      customer_email: customerEmail,
+      ...(stripeCustomerId ? { customer: stripeCustomerId } : { customer_email: customerEmail }),
       client_reference_id: order.id,
-      success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/pacchetti?checkout=cancelled`,
+      success_url: returnToApp
+        ? `${baseUrl}/area-cliente?checkout=success&session_id={CHECKOUT_SESSION_ID}`
+        : `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: returnToApp
+        ? `${baseUrl}/area-cliente/abbonamenti?checkout=cancelled`
+        : `${baseUrl}/pacchetti?checkout=cancelled`,
       metadata: {
         orderId: order.id,
         productId: product.id,

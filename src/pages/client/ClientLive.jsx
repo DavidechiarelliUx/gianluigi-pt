@@ -280,7 +280,7 @@ function LockedScreen({
       </div>
 
       <div className="w-full space-y-3">
-        <Button className="w-full" onClick={() => navigate("/pacchetti")}>
+        <Button className="w-full" onClick={() => navigate("/area-cliente/abbonamenti")}>
           <CreditCard size={18} /> {ctaLabel}
         </Button>
         <p className="text-xs text-text-muted">Puoi cambiare abbonamento in qualsiasi momento</p>

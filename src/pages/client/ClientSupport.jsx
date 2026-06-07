@@ -193,7 +193,7 @@ export default function ClientSupport() {
           <div className="rounded-2xl p-4" style={{ background: "rgba(255,59,59,0.06)", border: "1px solid rgba(255,59,59,0.25)" }}>
             <p className="text-sm font-semibold" style={{ color: "#ff6b6b" }}>Nessun abbonamento attivo</p>
             <p className="mt-1 text-xs text-text-muted">Acquista un abbonamento per accedere alle schede e alle live.</p>
-            <Button className="mt-3 w-full" onClick={() => navigate("/pacchetti")}>
+            <Button className="mt-3 w-full" onClick={() => navigate("/area-cliente/abbonamenti")}>
               Vedi abbonamenti
             </Button>
           </div>
@@ -208,7 +208,7 @@ export default function ClientSupport() {
             icon={Smartphone}
             label="Aggiungi alla schermata Home"
             value="Usa l'app direttamente dal telefono"
-            href="/installa-app"
+            onClick={() => navigate("/area-cliente/installa-app")}
           />
         </SectionCard>
       </div>
@@ -220,15 +220,15 @@ export default function ClientSupport() {
           <SectionRow
             icon={Mail}
             label="Contatta Gianluigi"
-            value="Supporto via sito"
-            href="/contatti"
+            value="Scrivi un messaggio o WhatsApp"
+            onClick={() => navigate("/area-cliente/contatta")}
           />
           <Divider />
           <SectionRow
             icon={Shield}
             label="Privacy & sicurezza"
             value="Trattamento dati"
-            href="/privacy"
+            onClick={() => navigate("/area-cliente/privacy")}
           />
         </SectionCard>
       </div>
@@ -250,7 +250,7 @@ export default function ClientSupport() {
         <div className="rounded-2xl p-4" style={{ background: "rgba(57,255,20,0.06)", border: "1px solid rgba(57,255,20,0.2)" }}>
           <p className="text-sm font-semibold text-white">Nessun pacchetto attivo</p>
           <p className="mt-1 text-xs text-text-muted">Acquista un pacchetto per sbloccare la scheda e le sessioni live.</p>
-          <Button className="mt-3 w-full" onClick={() => navigate("/pacchetti")}>
+          <Button className="mt-3 w-full" onClick={() => navigate("/area-cliente/abbonamenti")}>
             Vedi i pacchetti
           </Button>
         </div>

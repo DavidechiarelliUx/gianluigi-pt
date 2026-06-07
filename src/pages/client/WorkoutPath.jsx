@@ -1022,7 +1022,7 @@ export default function WorkoutPath() {
               Per accedere alle schede è necessario un abbonamento attivo.
             </p>
           </div>
-          <Button className="w-full" onClick={() => navigate("/pacchetti")}>
+          <Button className="w-full" onClick={() => navigate("/area-cliente/abbonamenti")}>
             Vedi abbonamenti
           </Button>
         </motion.div>

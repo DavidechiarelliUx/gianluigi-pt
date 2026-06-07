@@ -3,26 +3,21 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   CalendarCheck,
   CheckCircle2,
-  Circle,
+  Clock3,
   Dumbbell,
   History,
   User,
   Video,
+  X,
 } from "lucide-react";
 
 // ─── Dati mock ────────────────────────────────────────────────────────────────
 
-const WORKOUT = {
-  name: "Forza & Ipertrofia",
-  days: ["Giorno A", "Giorno B", "Giorno C"],
-  activeDay: "Giorno A",
-  items: [
-    { name: "Squat", detail: "4 × 8  ·  rec 90s", done: true, load: "80kg", rpe: "7" },
-    { name: "Stacco da terra", detail: "4 × 6  ·  rec 120s", done: true, load: "100kg", rpe: "8" },
-    { name: "Leg press", detail: "3 × 12  ·  rec 60s", done: false },
-    { name: "Leg curl", detail: "3 × 12  ·  rec 45s", done: false },
-  ],
-};
+const PATH_NODES = [
+  { id: 1, name: "Curl bicipiti", detail: "3 × 8-10 · rec 90s", tag: "Bicipiti", x: 26, y: 25, state: "done" },
+  { id: 2, name: "Curl con bilanciere", detail: "3 × 8-10 · rec 90s", tag: "Bicipiti", x: 67, y: 42, state: "active" },
+  { id: 3, name: "Hammer curl", detail: "3 × 8-10 · rec 90s", tag: "Bicipiti", x: 31, y: 63, state: "locked" },
+];
 
 const LIVE_SESSIONS = [
   {
@@ -50,93 +45,147 @@ const HISTORY = [
   { id: 3, date: "31 mag 2026", day: "Giorno A · Gambe", done: 4, total: 4, rpe: 9 },
 ];
 
-const SCREENS = ["workout", "live", "storico"];
+const SCREENS = ["path", "live", "storico"];
 
 // ─── Schermate ────────────────────────────────────────────────────────────────
 
-function ScreenWorkout() {
-  const done = WORKOUT.items.filter((i) => i.done).length;
-  const pct = Math.round((done / WORKOUT.items.length) * 100);
+function PathNode({ node }) {
+  const isDone = node.state === "done";
+  const isActive = node.state === "active";
+  const isLocked = node.state === "locked";
+
   return (
-    <div className="flex h-full flex-col">
-      {/* Header scheda */}
-      <div className="px-4 pb-1 pt-3">
-        <p className="font-display text-sm font-bold uppercase text-white">{WORKOUT.name}</p>
+    <div
+      className="absolute flex items-center gap-2.5"
+      style={{
+        left: `${node.x}%`,
+        top: `${node.y}%`,
+        opacity: isLocked ? 0.22 : 1,
+        transform: "translate(-50%, -50%)",
+      }}
+    >
+      <div
+        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full"
+        style={{
+          background: isDone ? "#178f0d" : "#070707",
+          border: isActive ? "2px solid #39FF14" : "1.5px solid rgba(57,255,20,0.45)",
+          boxShadow: isDone || isActive ? "0 0 22px rgba(57,255,20,0.5)" : "none",
+        }}
+      >
+        {isDone ? (
+          <CheckCircle2 size={19} className="text-black" />
+        ) : isLocked ? (
+          <Dumbbell size={17} style={{ color: "#222" }} />
+        ) : (
+          <Dumbbell size={18} style={{ color: "#39FF14" }} />
+        )}
       </div>
-
-      {/* Tab giorni — stile reale app (underline) */}
-      <div className="flex gap-0 overflow-x-auto border-b px-4 [scrollbar-width:none]" style={{ borderColor: "#222" }}>
-        {WORKOUT.days.map((day) => {
-          const active = day === WORKOUT.activeDay;
-          return (
-            <div
-              key={day}
-              className="relative shrink-0 px-3 py-1.5 text-[9px] font-medium"
-              style={{ color: active ? "#39FF14" : "#555" }}
-            >
-              {day}
-              {active && (
-                <div className="absolute inset-x-1 bottom-0 h-0.5 rounded-full" style={{ background: "#39FF14" }} />
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Progress bar */}
-      <div className="px-4 py-1.5">
-        <div className="mb-0.5 flex justify-between text-[7.5px] uppercase tracking-wide" style={{ color: "#555" }}>
-          <span>Completamento</span>
-          <span style={{ color: "#39FF14" }}>{pct}%</span>
+      {isActive && (
+        <div className="w-[86px]">
+          <p className="font-display text-[8px] font-black uppercase leading-tight" style={{ color: "#39FF14" }}>
+            {node.name}
+          </p>
+          <p className="mt-0.5 text-[6px]" style={{ color: "#575757" }}>{node.detail}</p>
+          <span className="mt-1 inline-flex rounded-full px-2 py-0.5 text-[5.5px] font-black uppercase" style={{ background: "rgba(57,255,20,0.08)", color: "#39FF14" }}>
+            {node.tag}
+          </span>
         </div>
-        <div className="h-1 overflow-hidden rounded-full" style={{ background: "#1e1e1e" }}>
-          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: "linear-gradient(90deg,#39FF14,#00FF87)" }} />
-        </div>
-      </div>
+      )}
+    </div>
+  );
+}
 
-      {/* Esercizi — stile ExerciseCard reale */}
-      <div className="flex-1 space-y-1.5 overflow-hidden px-3 pb-2">
-        {WORKOUT.items.map((item) => (
-          <div
-            key={item.name}
-            className="rounded-lg p-2.5"
-            style={{
-              background: item.done ? "rgba(57,255,20,0.05)" : "#141414",
-              border: `1px solid ${item.done ? "rgba(57,255,20,0.3)" : "#222"}`,
-              boxShadow: item.done ? "0 0 5px rgba(57,255,20,0.1)" : "none",
-            }}
-          >
-            <div className="flex items-start gap-2">
-              {/* Toggle grande come nel vero ExerciseCard */}
-              {item.done ? (
-                <CheckCircle2 size={20} style={{ color: "#39FF14", flexShrink: 0, marginTop: 1 }} />
-              ) : (
-                <Circle size={20} style={{ color: "#444", flexShrink: 0, marginTop: 1 }} />
-              )}
-              <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-bold uppercase text-white">{item.name}</p>
-                <p className="text-[8.5px]" style={{ color: "#777" }}>{item.detail}</p>
-                {/* Campi tracking per esercizi completati */}
-                {item.done && (
-                  <div className="mt-1 flex gap-1.5">
-                    <div className="flex-1 rounded px-1.5 py-0.5 text-[8px]" style={{ background: "#1a1a1a", border: "1px solid #2a2a2a", color: "#39FF14" }}>
-                      {item.load}
-                    </div>
-                    <div className="rounded px-1.5 py-0.5 text-[8px]" style={{ background: "#1a1a1a", border: "1px solid #2a2a2a", color: "#39FF14" }}>
-                      RPE {item.rpe}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
+function ScreenWorkoutPath() {
+  return (
+    <div className="relative h-full overflow-hidden">
+      <div className="px-4 pb-2 pt-3">
+        <div className="mb-2 flex rounded-full border border-border/80 bg-black/60 p-0.5">
+          <span className="flex-1 rounded-full py-1 text-center text-[7px] font-black uppercase" style={{ background: "#39FF14", color: "#050505" }}>
+            Percorso
+          </span>
+          <span className="flex-1 py-1 text-center text-[7px] font-black uppercase text-text-muted">Lista</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-display text-[11px] font-black uppercase text-white">Upper focus</p>
+            <p className="text-[7px] uppercase tracking-wide text-text-muted">Giorno B · 20%</p>
           </div>
-        ))}
+          <span className="font-display text-[11px] font-black" style={{ color: "#39FF14" }}>20%</span>
+        </div>
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-border/70">
+          <div className="h-full w-1/5 rounded-full" style={{ background: "#178f0d", boxShadow: "0 0 10px rgba(57,255,20,0.45)" }} />
+        </div>
       </div>
 
-      {/* StickyActionBar */}
-      <div className="border-t px-3 pb-2 pt-2" style={{ borderColor: "#1a1a1a", background: "rgba(13,13,13,0.9)" }}>
-        <div className="rounded-lg py-2 text-center text-[10px] font-bold uppercase tracking-wide" style={{ background: "#39FF14", color: "#0a0a0a" }}>
-          Termina e salva
+      <div
+        aria-hidden
+        className="absolute inset-x-0 top-16 h-[250px]"
+        style={{
+          background:
+            "radial-gradient(circle at 28% 20%, rgba(57,255,20,0.18), transparent 18%), radial-gradient(circle at 78% 38%, rgba(57,255,20,0.16), transparent 18%), linear-gradient(180deg, transparent, rgba(0,0,0,0.55))",
+        }}
+      />
+
+      <svg aria-hidden className="absolute inset-x-0 top-[105px] h-[170px] w-full opacity-70" viewBox="0 0 224 170">
+        <path d="M64 28 C92 46, 128 56, 162 71" stroke="rgba(57,255,20,0.32)" strokeWidth="2" fill="none" />
+        <path d="M162 88 C127 105, 93 123, 63 142" stroke="rgba(57,255,20,0.08)" strokeWidth="2" strokeDasharray="5 6" fill="none" />
+      </svg>
+
+      {PATH_NODES.map((node) => <PathNode key={node.id} node={node} />)}
+
+      <div
+        className="absolute inset-x-0 bottom-0 h-[235px] overflow-hidden rounded-t-[24px] px-4 pb-3 pt-2.5"
+        style={{
+          background: "linear-gradient(180deg, #121212 0%, #090909 100%)",
+          borderTop: "1px solid #1f1f1f",
+          boxShadow: "0 -20px 45px rgba(0,0,0,0.72)",
+        }}
+      >
+        <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-border" />
+        <div className="flex items-start justify-between gap-3">
+          <span className="rounded-full px-2 py-0.5 text-[7px] font-black uppercase" style={{ background: "rgba(57,255,20,0.12)", color: "#39FF14" }}>
+            Bicipiti
+          </span>
+          <X size={14} className="text-text-muted" />
+        </div>
+        <h3 className="mt-1.5 font-display text-[14px] font-black uppercase leading-none text-white">
+          Curl con bilanciere
+        </h3>
+        <p className="mt-1 text-[8.5px] text-text-muted">3 serie × 8-10 rip · rec 90s</p>
+
+        <div className="mt-2.5 flex items-center gap-2">
+          {[1, 2].map((n) => (
+            <span key={n} className="flex h-6 w-6 items-center justify-center rounded-full" style={{ background: "#39FF14" }}>
+              <CheckCircle2 size={12} className="text-black" />
+            </span>
+          ))}
+          <span className="flex h-6 w-6 items-center justify-center rounded-full border text-[9px] font-black" style={{ borderColor: "#39FF14", color: "#39FF14" }}>
+            3
+          </span>
+        </div>
+
+        <p className="mt-2 text-[6.5px] font-black uppercase tracking-wider" style={{ color: "#39FF14" }}>Serie 3 di 3</p>
+        <p className="font-display text-[13px] font-black text-white">8-10 ripetizioni</p>
+
+        <div className="mt-2 rounded-xl border border-border bg-black/30 px-3 py-2">
+          <div className="mb-1.5 flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-[7px] font-bold text-text-muted">
+              <Clock3 size={10} /> Recupero tra serie
+            </div>
+            <span className="text-[10px] font-black" style={{ color: "#39FF14" }}>90s</span>
+          </div>
+          <div className="relative h-1.5 rounded-full bg-border">
+            <div className="absolute inset-y-0 left-0 w-[82%] rounded-full" style={{ background: "#39FF14", boxShadow: "0 0 8px rgba(57,255,20,0.55)" }} />
+            <span className="absolute -top-1.5 left-[82%] h-4 w-4 rounded-full border-2 border-text-muted bg-black" />
+          </div>
+          <p className="mt-1 text-[6.5px] text-text-muted">Salta recupero</p>
+        </div>
+
+        <div className="mt-2">
+          <p className="mb-1 text-[7px] font-black uppercase tracking-wider text-text-muted">Carico · serie 3</p>
+          <div className="rounded-lg border border-border bg-surface px-3 py-1.5 text-[9px] text-text-muted">
+            es. 60kg · elastico · corpo libero
+          </div>
         </div>
       </div>
     </div>
@@ -257,7 +306,7 @@ function ScreenStorico() {
 // ─── Tab bar ──────────────────────────────────────────────────────────────────
 
 const TABS = [
-  { id: "workout", icon: Dumbbell, label: "Scheda" },
+  { id: "path", icon: Dumbbell, label: "Scheda" },
   { id: "storico", icon: History, label: "Storico" },
   { id: "live", icon: CalendarCheck, label: "Live" },
   { id: "profilo", icon: User, label: "Profilo" },
@@ -359,7 +408,7 @@ export function AppPreview() {
               transition={{ duration: 0.25, ease: [0.32, 0, 0.67, 0] }}
               className="absolute inset-0"
             >
-              {active === "workout" && <ScreenWorkout />}
+              {active === "path" && <ScreenWorkoutPath />}
               {active === "live" && <ScreenLive />}
               {active === "storico" && <ScreenStorico />}
             </motion.div>

@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   AlertCircle,
@@ -116,7 +116,17 @@ function ProgressRing({ pct = 0, size = 120, stroke = 10 }) {
 export default function ClientHome() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const firstName = user?.fullName?.split(" ")[0] || "Atleta";
+
+  // Checkout success banner (dopo ritorno da Stripe in-app)
+  const checkoutSuccess = searchParams.get("checkout") === "success";
+  const dismissCheckoutBanner = () => {
+    const p = new URLSearchParams(searchParams);
+    p.delete("checkout");
+    p.delete("session_id");
+    setSearchParams(p, { replace: true });
+  };
 
   const overviewQuery = useQuery({
     queryKey: ["client", "overview"],
@@ -184,6 +194,29 @@ export default function ClientHome() {
 
   return (
     <div className="space-y-5 pb-8">
+      {/* ── Checkout success banner ── */}
+      {checkoutSuccess && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+          className="relative rounded-xl px-4 py-3 pr-10"
+          style={{ background: "rgba(57,255,20,0.08)", border: "1px solid rgba(57,255,20,0.3)" }}
+        >
+          <p className="flex items-center gap-2 text-sm font-semibold" style={{ color: "#39FF14" }}>
+            🎉 Abbonamento attivato!
+          </p>
+          <p className="mt-0.5 text-xs text-text-muted">
+            Il tuo accesso è ora attivo. Se la scheda non appare ancora, attendi qualche secondo e ricarica.
+          </p>
+          <button
+            onClick={dismissCheckoutBanner}
+            className="absolute right-3 top-3 text-text-muted hover:text-text"
+            aria-label="Chiudi"
+          >
+            ×
+          </button>
+        </motion.div>
+      )}
+
       {/* ── Greeting ── */}
       <motion.div variants={fadeUp} initial="hidden" animate="show" custom={0}>
         <p className="text-sm text-text-muted">{greeting()},</p>
@@ -280,7 +313,7 @@ export default function ClientHome() {
               Acquista un abbonamento per accedere alle schede e all'area allenamenti.
             </p>
             <button
-              onClick={() => navigate("/pacchetti")}
+              onClick={() => navigate("/area-cliente/abbonamenti")}
               className="mt-3 rounded-xl px-4 py-2 text-xs font-bold"
               style={{ background: "#39FF14", color: "#0a0a0a" }}
             >
