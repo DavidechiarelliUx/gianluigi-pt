@@ -3,11 +3,13 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
+  AlertCircle,
   CalendarCheck,
   ChevronRight,
   Dumbbell,
   Flame,
   ListChecks,
+  RefreshCw,
   TrendingUp,
   Video,
   Zap,
@@ -116,6 +118,10 @@ export default function ClientHome() {
   const navigate = useNavigate();
   const firstName = user?.fullName?.split(" ")[0] || "Atleta";
 
+  const overviewQuery = useQuery({
+    queryKey: ["client", "overview"],
+    queryFn: () => apiFetch("/api/client/overview"),
+  });
   const workoutQuery = useQuery({
     queryKey: ["client", "active-workout"],
     queryFn: () => apiFetch("/api/client/active-workout"),
@@ -126,6 +132,8 @@ export default function ClientHome() {
     retry: false,
   });
 
+  const subscription = overviewQuery.data?.subscription;
+  const hasAppAccess = overviewQuery.data?.hasAppAccess ?? true; // default true per backward compat
   const workout = workoutQuery.data?.workout;
   const sessions = useMemo(
     () => workoutQuery.data?.sessions || [],
@@ -205,6 +213,82 @@ export default function ClientHome() {
           </div>
         ))}
       </motion.div>
+
+      {/* ── Subscription status card ── */}
+      {subscription && subscription.status !== "none" && (
+        <motion.div variants={fadeUp} initial="hidden" animate="show" custom={1.5}>
+          {subscription.status === "active" || subscription.status === "trialing" ? (
+            <div
+              className="flex items-center justify-between gap-3 rounded-xl px-4 py-3"
+              style={{ background: "#111", border: "1px solid #1e1e1e" }}
+            >
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: "#39FF14" }}>
+                  Il tuo abbonamento
+                </p>
+                <p className="mt-0.5 font-display text-sm font-bold uppercase text-white">
+                  {subscription.productName}
+                </p>
+                {subscription.renewsAt && !subscription.cancelAtPeriodEnd && (
+                  <p className="flex items-center gap-1 text-xs text-text-muted">
+                    <RefreshCw size={11} className="text-accent" />
+                    Si rinnova il {new Date(subscription.renewsAt).toLocaleDateString("it-IT", { day: "2-digit", month: "long" })}
+                  </p>
+                )}
+                {subscription.cancelAtPeriodEnd && subscription.validUntil && (
+                  <p className="flex items-center gap-1 text-xs" style={{ color: "#FFA500" }}>
+                    <AlertCircle size={11} />
+                    Valido fino al {new Date(subscription.validUntil).toLocaleDateString("it-IT", { day: "2-digit", month: "long" })}
+                  </p>
+                )}
+              </div>
+              <span className="shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase"
+                style={{ background: "rgba(57,255,20,0.12)", color: "#39FF14" }}>
+                Attivo
+              </span>
+            </div>
+          ) : subscription.status === "past_due" ? (
+            <div
+              className="flex items-center justify-between gap-3 rounded-xl px-4 py-3"
+              style={{ background: "rgba(255,165,0,0.08)", border: "1px solid rgba(255,165,0,0.35)" }}
+            >
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: "#FFA500" }}>
+                  Pagamento in sospeso
+                </p>
+                <p className="text-xs text-text-muted">
+                  Aggiorna il metodo di pagamento per mantenere l'accesso.
+                </p>
+              </div>
+              <AlertCircle size={20} style={{ color: "#FFA500", flexShrink: 0 }} />
+            </div>
+          ) : null}
+        </motion.div>
+      )}
+
+      {/* ── No access banner ── */}
+      {!hasAppAccess && !overviewQuery.isLoading && (
+        <motion.div variants={fadeUp} initial="hidden" animate="show" custom={2}>
+          <div
+            className="rounded-xl p-4"
+            style={{ background: "rgba(255,59,59,0.07)", border: "1px solid rgba(255,59,59,0.3)" }}
+          >
+            <p className="font-display text-sm font-bold uppercase" style={{ color: "#ff6b6b" }}>
+              Abbonamento non attivo
+            </p>
+            <p className="mt-1 text-xs text-text-muted">
+              Acquista un abbonamento per accedere alle schede e all'area allenamenti.
+            </p>
+            <button
+              onClick={() => navigate("/pacchetti")}
+              className="mt-3 rounded-xl px-4 py-2 text-xs font-bold"
+              style={{ background: "#39FF14", color: "#0a0a0a" }}
+            >
+              Vedi abbonamenti
+            </button>
+          </div>
+        </motion.div>
+      )}
 
       {/* ── Today's workout card ── */}
       {workout ? (

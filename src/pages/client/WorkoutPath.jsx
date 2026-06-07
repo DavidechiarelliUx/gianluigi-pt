@@ -767,6 +767,36 @@ export default function WorkoutPath() {
 
   if (workoutQuery.isLoading) return <EmptyState icon={Dumbbell} title="Carico la scheda…" />;
 
+  // Accesso negato — abbonamento non attivo o piano insufficiente
+  if (workoutQuery.data?.access === "upgrade_required") {
+    return (
+      <div className="space-y-6">
+        <button onClick={() => navigate("/area-cliente")} className="flex items-center gap-2 text-text-muted hover:text-text">
+          <ChevronLeft size={20} /> Home
+        </button>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col items-center space-y-5 rounded-2xl p-6 text-center"
+          style={{ background: "#111", border: "1px solid rgba(255,59,59,0.25)" }}
+        >
+          <div className="flex h-16 w-16 items-center justify-center rounded-full"
+            style={{ background: "rgba(255,59,59,0.08)", border: "1px solid rgba(255,59,59,0.3)" }}>
+            <Lock size={26} style={{ color: "#ff6b6b" }} />
+          </div>
+          <div>
+            <p className="font-display text-xl font-black uppercase text-white">Abbonamento non attivo</p>
+            <p className="mt-2 text-sm text-text-muted">
+              Per accedere alle schede di allenamento è necessario un abbonamento attivo.
+            </p>
+          </div>
+          <Button className="w-full" onClick={() => navigate("/pacchetti")}>
+            Vedi abbonamenti
+          </Button>
+        </motion.div>
+      </div>
+    );
+  }
+
   if (!workout) {
     return (
       <div className="space-y-6">

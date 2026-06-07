@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { ChevronLeft, ExternalLink, LogOut, Mail, Shield, Smartphone, User } from "lucide-react";
+import { AlertCircle, ChevronLeft, ExternalLink, LogOut, Mail, RefreshCw, Shield, Smartphone, User, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/Button";
 import { useAuth } from "../../hooks/useAuth";
@@ -50,6 +50,7 @@ export default function ClientSupport() {
   });
 
   const activePackage = overviewQuery.data?.activePackage;
+  const subscription = overviewQuery.data?.subscription;
 
   // Logout: navigate to /login (auth state cleared by login page or token expiry)
   const handleLogout = () => {
@@ -84,18 +85,89 @@ export default function ClientSupport() {
         </SectionCard>
       </div>
 
-      {/* Package */}
-      {activePackage && (
-        <div>
-          <p className="mb-2 px-1 text-[11px] font-bold uppercase tracking-widest text-text-muted">Pacchetto</p>
+      {/* Subscription / Abbonamento */}
+      <div>
+        <p className="mb-2 px-1 text-[11px] font-bold uppercase tracking-widest text-text-muted">Il tuo abbonamento</p>
+        {subscription && subscription.status !== "none" ? (
+          <SectionCard>
+            <div className="px-4 py-3.5">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-display text-base font-bold uppercase text-white">{subscription.productName}</p>
+                  {/* Status label */}
+                  {(subscription.status === "active" || subscription.status === "trialing") && (
+                    <p className="mt-0.5 flex items-center gap-1 text-xs" style={{ color: "#39FF14" }}>
+                      <Zap size={11} /> Abbonamento attivo
+                    </p>
+                  )}
+                  {subscription.status === "past_due" && (
+                    <p className="mt-0.5 flex items-center gap-1 text-xs" style={{ color: "#FFA500" }}>
+                      <AlertCircle size={11} /> Pagamento in sospeso
+                    </p>
+                  )}
+                  {subscription.status === "canceled" && (
+                    <p className="mt-0.5 flex items-center gap-1 text-xs" style={{ color: "#ff6b6b" }}>
+                      <AlertCircle size={11} /> Abbonamento cancellato
+                    </p>
+                  )}
+                </div>
+                <span className="shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase"
+                  style={{
+                    background: subscription.status === "active"
+                      ? "rgba(57,255,20,0.12)"
+                      : subscription.status === "past_due"
+                      ? "rgba(255,165,0,0.12)"
+                      : "rgba(255,59,59,0.12)",
+                    color: subscription.status === "active"
+                      ? "#39FF14"
+                      : subscription.status === "past_due"
+                      ? "#FFA500"
+                      : "#ff6b6b",
+                  }}>
+                  {subscription.status === "active" ? "Attivo"
+                    : subscription.status === "past_due" ? "Sospeso"
+                    : "Cancellato"}
+                </span>
+              </div>
+
+              {/* Rinnovo / scadenza */}
+              {subscription.renewsAt && !subscription.cancelAtPeriodEnd && (
+                <p className="mt-2 flex items-center gap-1.5 text-xs text-text-muted">
+                  <RefreshCw size={11} className="text-accent" />
+                  Si rinnova il {new Date(subscription.renewsAt).toLocaleDateString("it-IT", { day: "2-digit", month: "long", year: "numeric" })}
+                </p>
+              )}
+              {subscription.cancelAtPeriodEnd && subscription.validUntil && (
+                <p className="mt-2 flex items-center gap-1.5 text-xs" style={{ color: "#FFA500" }}>
+                  <AlertCircle size={11} />
+                  Accesso valido fino al {new Date(subscription.validUntil).toLocaleDateString("it-IT", { day: "2-digit", month: "long", year: "numeric" })}
+                </p>
+              )}
+              {subscription.validUntil && subscription.status === "canceled" && (
+                <p className="mt-2 flex items-center gap-1.5 text-xs" style={{ color: "#ff6b6b" }}>
+                  <AlertCircle size={11} />
+                  Accesso scaduto il {new Date(subscription.validUntil).toLocaleDateString("it-IT", { day: "2-digit", month: "long", year: "numeric" })}
+                </p>
+              )}
+
+              {/* Access level badge */}
+              <div className="mt-3 flex items-center gap-2">
+                <span className="text-[10px] uppercase tracking-widest text-text-muted">Include:</span>
+                {subscription.accessLevel === "app" && <span className="text-xs text-white">App + Schede</span>}
+                {subscription.accessLevel === "app_live" && <span className="text-xs text-white">App + Schede + Live</span>}
+                {subscription.accessLevel === "live" && <span className="text-xs text-white">Solo Live</span>}
+                {subscription.accessLevel === "premium" && <span className="text-xs text-white">App + Live + 1:1 Premium</span>}
+              </div>
+            </div>
+          </SectionCard>
+        ) : activePackage ? (
+          /* Fallback: ordine legacy */
           <SectionCard>
             <div className="px-4 py-3.5">
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <p className="font-display text-base font-bold uppercase text-white">{activePackage.productName}</p>
-                  <p className="text-sm text-text-muted">
-                    {money(activePackage.amountCents, activePackage.currency)}
-                  </p>
+                  <p className="text-sm text-text-muted">{money(activePackage.amountCents, activePackage.currency)}</p>
                 </div>
                 <span className="rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase"
                   style={{ background: "rgba(57,255,20,0.12)", color: "#39FF14" }}>
@@ -109,19 +181,24 @@ export default function ClientSupport() {
                     <span>{activePackage.usedSessions}/{activePackage.sessionsQty}</span>
                   </div>
                   <div className="h-1.5 overflow-hidden rounded-full" style={{ background: "#1a1a1a" }}>
-                    <div className="h-full rounded-full" style={{
-                      background: "#39FF14",
-                      width: `${(activePackage.usedSessions / activePackage.sessionsQty) * 100}%`,
-                    }} />
+                    <div className="h-full rounded-full" style={{ background: "#39FF14", width: `${(activePackage.usedSessions / activePackage.sessionsQty) * 100}%` }} />
                   </div>
                 </div>
               ) : (
-                <p className="mt-1 text-xs text-text-muted">Accesso piattaforma illimitato</p>
+                <p className="mt-1 text-xs text-text-muted">Accesso piattaforma attivo</p>
               )}
             </div>
           </SectionCard>
-        </div>
-      )}
+        ) : (
+          <div className="rounded-2xl p-4" style={{ background: "rgba(255,59,59,0.06)", border: "1px solid rgba(255,59,59,0.25)" }}>
+            <p className="text-sm font-semibold" style={{ color: "#ff6b6b" }}>Nessun abbonamento attivo</p>
+            <p className="mt-1 text-xs text-text-muted">Acquista un abbonamento per accedere alle schede e alle live.</p>
+            <Button className="mt-3 w-full" onClick={() => navigate("/pacchetti")}>
+              Vedi abbonamenti
+            </Button>
+          </div>
+        )}
+      </div>
 
       {/* App */}
       <div>

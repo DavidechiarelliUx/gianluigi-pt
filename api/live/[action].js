@@ -1,6 +1,7 @@
 import { prisma } from "../../server/lib/prisma.js";
 import { requireAuth, requireAdmin, getAuth } from "../../server/lib/guards.js";
 import { parseJsonBody, methodNotAllowed } from "../../server/lib/body.js";
+import { getClientEntitlements, canAccess } from "../../server/lib/access.js";
 
 // ─────────────────────────────────────────
 // Helper
@@ -25,14 +26,15 @@ async function sessions(req, res) {
   if (req.method === "GET") {
     try {
       if (auth.role === "client") {
-        const paidOrder = await prisma.order.findFirst({
-          where: { userId: auth.userId, status: "paid" },
-          select: { id: true },
-        });
-        if (!paidOrder) {
+        const entitlements = await getClientEntitlements(auth.userId);
+        if (!entitlements.hasAccess) {
+          return res.status(200).json({ ok: true, access: "payment_required", sessions: [] });
+        }
+        if (!canAccess(entitlements, "live")) {
           return res.status(200).json({
             ok: true,
-            access: "payment_required",
+            access: "upgrade_required",
+            accessLevel: entitlements.accessLevel,
             sessions: [],
           });
         }
@@ -206,12 +208,12 @@ async function bookings(req, res) {
 
     try {
       if (auth.role === "client") {
-        const paidOrder = await prisma.order.findFirst({
-          where: { userId: auth.userId, status: "paid" },
-          select: { id: true },
-        });
-        if (!paidOrder) {
-          return res.status(402).json({ ok: false, error: "Acquista un pacchetto per prenotare le live" });
+        const entitlements = await getClientEntitlements(auth.userId);
+        if (!canAccess(entitlements, "live")) {
+          const msg = entitlements.hasAccess
+            ? "Il tuo abbonamento non include le sessioni live. Passa ad App + Live o Premium."
+            : "Acquista un abbonamento per prenotare le sessioni live.";
+          return res.status(402).json({ ok: false, error: msg, accessLevel: entitlements.accessLevel });
         }
       }
 

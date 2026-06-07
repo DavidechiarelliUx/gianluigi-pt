@@ -1,6 +1,7 @@
 import { prisma } from "../../server/lib/prisma.js";
 import { requireAuth } from "../../server/lib/guards.js";
 import { parseJsonBody, methodNotAllowed } from "../../server/lib/body.js";
+import { getClientEntitlements, publicEntitlements, canAccess } from "../../server/lib/access.js";
 
 function clientOnly(auth, res) {
   if (auth.role !== "client" || !auth.clientId) {
@@ -22,8 +23,9 @@ function parseLoad(value) {
   return match ? Number(match[1]) : null;
 }
 
+/** Mappa un ordine nel formato legacy `activePackage` (backward compat). */
 function orderAccess(order) {
-  const bookedCount = order.bookings?.filter((booking) => booking.status === "confirmed").length || 0;
+  const bookedCount = order.bookings?.filter((b) => b.status === "confirmed").length || 0;
   const sessionsQty = order.sessionsQty ?? null;
   return {
     id: order.id,
@@ -39,26 +41,50 @@ function orderAccess(order) {
   };
 }
 
-/** GET /api/client/overview — pacchetto attivo + accesso live/pagamenti. */
+// ─── GET /api/client/overview ─────────────────────────────────────────────────
+
+/** Panoramica cliente: abbonamento attivo, accesso, ordini. */
 async function overview(req, res, auth) {
   if (req.method !== "GET") return methodNotAllowed(res, ["GET"]);
   if (!clientOnly(auth, res)) return;
 
   try {
-    const orders = await prisma.order.findMany({
-      where: { userId: auth.userId, status: "paid" },
-      orderBy: { createdAt: "desc" },
-      include: {
-        product: true,
-        bookings: { where: { status: "confirmed" }, select: { id: true } },
-      },
-    });
+    const [entitlements, orders] = await Promise.all([
+      getClientEntitlements(auth.userId),
+      prisma.order.findMany({
+        where: { userId: auth.userId, status: "paid" },
+        orderBy: { createdAt: "desc" },
+        include: {
+          product: true,
+          bookings: { where: { status: "confirmed" }, select: { id: true } },
+        },
+      }),
+    ]);
+
     const activeOrder = orders[0] || null;
+    const pub = publicEntitlements(entitlements);
+
     return res.status(200).json({
       ok: true,
+      // ── Nuovi campi abbonamento (Fase 4) ──────────────────────────────────
+      subscription: {
+        status:            pub.status,
+        accessLevel:       pub.accessLevel,
+        productName:       pub.productName,
+        renewsAt:          pub.renewsAt,
+        validUntil:        pub.validUntil,
+        cancelAtPeriodEnd: pub.cancelAtPeriodEnd,
+        isPastDue:         pub.isPastDue,
+        source:            pub.source,
+      },
+      hasAccess:        pub.hasAccess,
+      hasAppAccess:     pub.hasAppAccess,
+      hasLiveAccess:    pub.hasLiveAccess,
+      hasPremiumAccess: pub.hasPremiumAccess,
+      // ── Backward compat ───────────────────────────────────────────────────
       activePackage: activeOrder ? orderAccess(activeOrder) : null,
       orders: orders.map(orderAccess),
-      hasPaidAccess: orders.length > 0,
+      hasPaidAccess: orders.length > 0 || entitlements.hasAccess,
     });
   } catch (err) {
     console.error("GET /api/client/overview:", err);
@@ -66,7 +92,8 @@ async function overview(req, res, auth) {
   }
 }
 
-/** GET /api/client/progress — trend esercizi derivato dalle sessioni salvate. */
+// ─── GET /api/client/progress ─────────────────────────────────────────────────
+
 async function progress(req, res, auth) {
   if (req.method !== "GET") return methodNotAllowed(res, ["GET"]);
   if (!clientOnly(auth, res)) return;
@@ -77,44 +104,25 @@ async function progress(req, res, auth) {
       orderBy: { date: "asc" },
       include: {
         itemLogs: true,
-        workout: {
-          include: {
-            days: {
-              include: {
-                items: {
-                  include: { exercise: true },
-                },
-              },
-            },
-          },
-        },
+        workout: { include: { days: { include: { items: { include: { exercise: true } } } } } },
       },
     });
 
     const itemById = new Map();
-    for (const session of sessions) {
-      for (const day of session.workout.days) {
-        for (const item of day.items) {
-          itemById.set(item.id, item);
-        }
+    for (const s of sessions) {
+      for (const day of s.workout.days) {
+        for (const item of day.items) itemById.set(item.id, item);
       }
     }
 
     const byExercise = new Map();
-    for (const session of sessions) {
-      for (const log of session.itemLogs) {
+    for (const s of sessions) {
+      for (const log of s.itemLogs) {
         const item = itemById.get(log.workoutItemId);
         if (!item) continue;
         const name = item.exercise.name;
         if (!byExercise.has(name)) {
-          byExercise.set(name, {
-            name,
-            muscleGroup: item.exercise.muscleGroup,
-            bestLoad: null,
-            latestLoad: null,
-            completedSessions: 0,
-            history: [],
-          });
+          byExercise.set(name, { name, muscleGroup: item.exercise.muscleGroup, bestLoad: null, latestLoad: null, completedSessions: 0, history: [] });
         }
         const entry = byExercise.get(name);
         const loadNumber = parseLoad(log.loadUsed);
@@ -123,25 +131,17 @@ async function progress(req, res, auth) {
           entry.latestLoad = loadNumber;
           entry.bestLoad = entry.bestLoad == null ? loadNumber : Math.max(entry.bestLoad, loadNumber);
         }
-        entry.history.push({
-          date: session.date,
-          completed: log.completed,
-          loadUsed: log.loadUsed,
-          loadNumber,
-          repsDone: log.repsDone,
-          rpe: log.perceivedDifficulty,
-        });
+        entry.history.push({ date: s.date, completed: log.completed, loadUsed: log.loadUsed, loadNumber, repsDone: log.repsDone, rpe: log.perceivedDifficulty });
       }
     }
 
     const exercises = [...byExercise.values()]
-      .map((item) => ({
-        ...item,
-        improvement:
-          item.history.filter((point) => point.loadNumber != null).length >= 2
-            ? item.history.filter((point) => point.loadNumber != null).at(-1).loadNumber -
-              item.history.filter((point) => point.loadNumber != null)[0].loadNumber
-            : null,
+      .map((e) => ({
+        ...e,
+        improvement: e.history.filter((h) => h.loadNumber != null).length >= 2
+          ? e.history.filter((h) => h.loadNumber != null).at(-1).loadNumber -
+            e.history.filter((h) => h.loadNumber != null)[0].loadNumber
+          : null,
       }))
       .sort((a, b) => (b.bestLoad || 0) - (a.bestLoad || 0))
       .slice(0, 8);
@@ -153,7 +153,8 @@ async function progress(req, res, auth) {
   }
 }
 
-/** GET/POST /api/client/metrics — misure, peso e foto URL. */
+// ─── GET|POST /api/client/metrics ─────────────────────────────────────────────
+
 async function metrics(req, res, auth) {
   if (!clientOnly(auth, res)) return;
 
@@ -174,7 +175,6 @@ async function metrics(req, res, auth) {
   if (req.method === "POST") {
     const body = parseJsonBody(req);
     if (!body) return res.status(400).json({ ok: false, error: "Body non valido" });
-
     try {
       const metric = await prisma.clientMetric.create({
         data: {
@@ -198,7 +198,8 @@ async function metrics(req, res, auth) {
   return methodNotAllowed(res, ["GET", "POST"]);
 }
 
-/** GET/POST /api/client/messages — richieste al coach. */
+// ─── GET|POST /api/client/messages ────────────────────────────────────────────
+
 async function messages(req, res, auth) {
   if (!clientOnly(auth, res)) return;
 
@@ -219,17 +220,13 @@ async function messages(req, res, auth) {
   if (req.method === "POST") {
     const body = parseJsonBody(req);
     if (!body) return res.status(400).json({ ok: false, error: "Body non valido" });
-
     const subject = body.subject?.trim();
     const message = body.message?.trim();
     if (!subject || !message || subject.length < 3 || message.length < 8) {
       return res.status(400).json({ ok: false, error: "Oggetto e messaggio sono obbligatori" });
     }
-
     try {
-      const created = await prisma.coachMessage.create({
-        data: { clientId: auth.clientId, subject, message },
-      });
+      const created = await prisma.coachMessage.create({ data: { clientId: auth.clientId, subject, message } });
       return res.status(201).json({ ok: true, message: created });
     } catch (err) {
       console.error("POST /api/client/messages:", err);
@@ -240,10 +237,24 @@ async function messages(req, res, auth) {
   return methodNotAllowed(res, ["GET", "POST"]);
 }
 
-/** GET /api/client/active-workout — scheda attiva + ultime sessioni del cliente. */
+// ─── GET /api/client/active-workout ───────────────────────────────────────────
+
 async function activeWorkout(req, res, auth) {
   if (req.method !== "GET") return methodNotAllowed(res, ["GET"]);
   if (!clientOnly(auth, res)) return;
+
+  // Controlla accesso alla scheda
+  const entitlements = await getClientEntitlements(auth.userId);
+  if (!canAccess(entitlements, "app")) {
+    return res.status(200).json({
+      ok: true,
+      workout: null,
+      sessions: [],
+      access: "upgrade_required",
+      accessLevel: entitlements.accessLevel,
+      message: "Abbonamento non attivo o non include l'accesso alle schede.",
+    });
+  }
 
   try {
     const workout = await prisma.workout.findFirst({
@@ -261,17 +272,24 @@ async function activeWorkout(req, res, auth) {
       take: 8,
       include: { itemLogs: true },
     });
-    return res.status(200).json({ ok: true, workout, sessions });
+    return res.status(200).json({ ok: true, workout, sessions, access: "granted" });
   } catch (err) {
     console.error("GET /api/client/active-workout:", err);
     return res.status(500).json({ ok: false, error: "Errore interno" });
   }
 }
 
-/** POST /api/client/sessions — salva una sessione di allenamento completata. */
+// ─── POST /api/client/sessions ────────────────────────────────────────────────
+
 async function sessions(req, res, auth) {
   if (req.method !== "POST") return methodNotAllowed(res, ["POST"]);
   if (!clientOnly(auth, res)) return;
+
+  // Controlla accesso alla scheda
+  const entitlements = await getClientEntitlements(auth.userId);
+  if (!canAccess(entitlements, "app")) {
+    return res.status(403).json({ ok: false, error: "Abbonamento non attivo o non include l'accesso alle schede." });
+  }
 
   const body = parseJsonBody(req);
   if (!body) return res.status(400).json({ ok: false, error: "Body non valido" });
@@ -288,7 +306,7 @@ async function sessions(req, res, auth) {
     });
     if (!workout) return res.status(404).json({ ok: false, error: "Scheda attiva non trovata" });
 
-    const itemIds = new Set(workout.days.flatMap((day) => day.items.map((item) => item.id)));
+    const itemIds = new Set(workout.days.flatMap((d) => d.items.map((i) => i.id)));
     const safeLogs = logs.filter((log) => itemIds.has(log.workoutItemId));
 
     const session = await prisma.workoutSession.create({
@@ -319,16 +337,18 @@ async function sessions(req, res, auth) {
   }
 }
 
+// ─── Router ───────────────────────────────────────────────────────────────────
+
 export default function handler(req, res) {
   const auth = requireAuth(req, res);
   if (!auth) return;
 
   const { action } = req.query;
-  if (action === "overview") return overview(req, res, auth);
+  if (action === "overview")       return overview(req, res, auth);
   if (action === "active-workout") return activeWorkout(req, res, auth);
-  if (action === "progress") return progress(req, res, auth);
-  if (action === "metrics") return metrics(req, res, auth);
-  if (action === "messages") return messages(req, res, auth);
-  if (action === "sessions") return sessions(req, res, auth);
+  if (action === "progress")       return progress(req, res, auth);
+  if (action === "metrics")        return metrics(req, res, auth);
+  if (action === "messages")       return messages(req, res, auth);
+  if (action === "sessions")       return sessions(req, res, auth);
   return res.status(404).json({ ok: false, error: "Endpoint non trovato" });
 }

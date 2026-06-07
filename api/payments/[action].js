@@ -11,6 +11,8 @@ export const config = {
   },
 };
 
+// ─── Prodotti default ─────────────────────────────────────────────────────────
+
 const DEFAULT_PRODUCTS = [
   {
     name: "Start Check",
@@ -18,6 +20,8 @@ const DEFAULT_PRODUCTS = [
     priceCents: 1700,
     type: "package",
     sessionsQty: 0,
+    accessLevel: "app",
+    billingInterval: "one_time",
   },
   {
     name: "App Starter",
@@ -25,6 +29,8 @@ const DEFAULT_PRODUCTS = [
     priceCents: 2900,
     type: "package",
     sessionsQty: 0,
+    accessLevel: "app",
+    billingInterval: "one_time",
   },
   {
     name: "App Mensile",
@@ -32,6 +38,8 @@ const DEFAULT_PRODUCTS = [
     priceCents: 5900,
     type: "package",
     sessionsQty: 0,
+    accessLevel: "app",
+    billingInterval: "month",
   },
   {
     name: "App + Live",
@@ -39,6 +47,8 @@ const DEFAULT_PRODUCTS = [
     priceCents: 9700,
     type: "package",
     sessionsQty: 4,
+    accessLevel: "app_live",
+    billingInterval: "month",
   },
   {
     name: "Premium 1:1",
@@ -46,6 +56,8 @@ const DEFAULT_PRODUCTS = [
     priceCents: 14900,
     type: "package",
     sessionsQty: 1,
+    accessLevel: "premium",
+    billingInterval: "month",
   },
 ];
 
@@ -54,6 +66,8 @@ const LAUNCH_CAPACITY = {
   "App + Live": 8,
   "Premium 1:1": 4,
 };
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function stripeClient() {
   const key = process.env.STRIPE_SECRET_KEY?.trim();
@@ -83,6 +97,9 @@ function publicProduct(product, paidQuantity = 0) {
     currency: product.currency,
     type: product.type,
     sessionsQty: product.sessionsQty,
+    accessLevel: product.accessLevel || "app",
+    billingInterval: product.billingInterval || "one_time",
+    isSubscription: (product.billingInterval || "one_time") !== "one_time",
     launchCapacity,
     remainingSeats,
   };
@@ -97,7 +114,7 @@ async function ensureDefaultProducts() {
     });
   }
   await prisma.product.updateMany({
-    where: { name: { notIn: DEFAULT_PRODUCTS.map((product) => product.name) } },
+    where: { name: { notIn: DEFAULT_PRODUCTS.map((p) => p.name) } },
     data: { active: false },
   });
 }
@@ -108,7 +125,6 @@ async function readRawBody(req) {
   if (Buffer.isBuffer(req.body)) return req.body;
   if (typeof req.body === "string") return Buffer.from(req.body);
   if (req.body && typeof req.body === "object") return Buffer.from(JSON.stringify(req.body));
-
   const chunks = [];
   for await (const chunk of req) {
     chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
@@ -118,20 +134,13 @@ async function readRawBody(req) {
 
 async function readJsonBody(req) {
   if (req.body) return parseJsonBody(req);
-  try {
-    return JSON.parse((await readRawBody(req)).toString("utf8"));
-  } catch {
-    return null;
-  }
+  try { return JSON.parse((await readRawBody(req)).toString("utf8")); } catch { return null; }
 }
 
 async function createInviteForUser(tx, userId) {
   const token = crypto.randomBytes(32).toString("hex");
   const expires = new Date(Date.now() + 48 * 60 * 60 * 1000);
-  await tx.user.update({
-    where: { id: userId },
-    data: { inviteToken: token, inviteExpires: expires },
-  });
+  await tx.user.update({ where: { id: userId }, data: { inviteToken: token, inviteExpires: expires } });
   return token;
 }
 
@@ -177,18 +186,61 @@ async function ensureClientFromPaidOrder(order) {
       inviteToken = await createInviteForUser(tx, user.id);
     }
 
-    await tx.order.update({
-      where: { id: order.id },
-      data: { userId: user.id, status: "paid" },
-    });
+    await tx.order.update({ where: { id: order.id }, data: { userId: user.id, status: "paid" } });
 
     return { user: { ...user, client }, client, inviteToken };
   });
 }
 
+// ─── Gestione Stripe Subscription nel DB ─────────────────────────────────────
+
+/** Crea o aggiorna un record Subscription dal payload Stripe. */
+async function upsertSubscription(stripeSub, userId, productId, accessLevel) {
+  const level = accessLevel || "app";
+  try {
+    await prisma.subscription.upsert({
+      where: { stripeSubscriptionId: stripeSub.id },
+      update: {
+        status: stripeSub.status,
+        stripePriceId: stripeSub.items?.data?.[0]?.price?.id || null,
+        stripeCustomerId: typeof stripeSub.customer === "string" ? stripeSub.customer : null,
+        accessLevel: level,
+        currentPeriodStart: stripeSub.current_period_start
+          ? new Date(stripeSub.current_period_start * 1000)
+          : null,
+        currentPeriodEnd: stripeSub.current_period_end
+          ? new Date(stripeSub.current_period_end * 1000)
+          : null,
+        cancelAtPeriodEnd: !!stripeSub.cancel_at_period_end,
+        updatedAt: new Date(),
+      },
+      create: {
+        userId,
+        productId: productId || null,
+        stripeSubscriptionId: stripeSub.id,
+        stripePriceId: stripeSub.items?.data?.[0]?.price?.id || null,
+        stripeCustomerId: typeof stripeSub.customer === "string" ? stripeSub.customer : null,
+        status: stripeSub.status,
+        accessLevel: level,
+        currentPeriodStart: stripeSub.current_period_start
+          ? new Date(stripeSub.current_period_start * 1000)
+          : null,
+        currentPeriodEnd: stripeSub.current_period_end
+          ? new Date(stripeSub.current_period_end * 1000)
+          : null,
+        cancelAtPeriodEnd: !!stripeSub.cancel_at_period_end,
+      },
+    });
+  } catch (err) {
+    // Se la tabella non esiste ancora (pre-migration), logga e vai avanti
+    console.warn("upsertSubscription: impossibile salvare (tabella mancante?)", err.message);
+  }
+}
+
+// ─── GET /api/payments/products ───────────────────────────────────────────────
+
 async function products(req, res) {
   if (req.method !== "GET") return methodNotAllowed(res, ["GET"]);
-
   try {
     await ensureDefaultProducts();
     const list = await prisma.product.findMany({
@@ -197,19 +249,13 @@ async function products(req, res) {
     });
     const paidByProduct = await prisma.order.groupBy({
       by: ["productId"],
-      where: {
-        status: "paid",
-        productId: { in: list.map((product) => product.id) },
-      },
+      where: { status: "paid", productId: { in: list.map((p) => p.id) } },
       _sum: { quantity: true },
     });
-    const paidQuantityByProductId = new Map(
-      paidByProduct.map((row) => [row.productId, row._sum.quantity || 0])
-    );
-
+    const paidQtyMap = new Map(paidByProduct.map((row) => [row.productId, row._sum.quantity || 0]));
     return res.status(200).json({
       ok: true,
-      products: list.map((product) => publicProduct(product, paidQuantityByProductId.get(product.id) || 0)),
+      products: list.map((p) => publicProduct(p, paidQtyMap.get(p.id) || 0)),
     });
   } catch (err) {
     console.error("GET /api/payments/products:", err);
@@ -217,9 +263,10 @@ async function products(req, res) {
   }
 }
 
+// ─── POST /api/payments/checkout ─────────────────────────────────────────────
+
 async function checkout(req, res) {
   if (req.method !== "POST") return methodNotAllowed(res, ["POST"]);
-
   const body = await readJsonBody(req);
   if (!body) return res.status(400).json({ ok: false, error: "Body non valido" });
 
@@ -227,7 +274,7 @@ async function checkout(req, res) {
   const customerEmail = String(body.email || "").trim().toLowerCase();
   const customerName = String(body.fullName || "").trim();
   const customerPhone = body.phone ? String(body.phone).trim() : null;
-  const requestedQuantity = Math.max(1, Math.min(20, Number(body.quantity) || 1));
+  const requestedQty = Math.max(1, Math.min(20, Number(body.quantity) || 1));
 
   if (!productId || !isEmail(customerEmail) || customerName.length < 2) {
     return res.status(400).json({ ok: false, error: "Prodotto, nome ed email sono obbligatori" });
@@ -236,8 +283,10 @@ async function checkout(req, res) {
   try {
     const stripe = stripeClient();
     const product = await prisma.product.findFirst({ where: { id: productId, active: true } });
-    if (!product) return res.status(404).json({ ok: false, error: "Pacchetto non trovato" });
-    const quantity = product.type === "session_solo" ? requestedQuantity : 1;
+    if (!product) return res.status(404).json({ ok: false, error: "Prodotto non trovato" });
+
+    const isSubscription = (product.billingInterval || "one_time") !== "one_time";
+    const quantity = product.type === "session_solo" ? requestedQty : 1;
     const sessionsQty = product.sessionsQty != null ? product.sessionsQty * quantity : null;
     const amountCents = product.priceCents * quantity;
 
@@ -256,8 +305,7 @@ async function checkout(req, res) {
     });
 
     const baseUrl = appUrl();
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
+    const commonParams = {
       customer_email: customerEmail,
       client_reference_id: order.id,
       success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
@@ -268,32 +316,72 @@ async function checkout(req, res) {
         customerEmail,
         quantity: String(quantity),
       },
-      payment_intent_data: {
-        metadata: {
-          orderId: order.id,
-          productId: product.id,
-          customerEmail,
-          quantity: String(quantity),
-        },
-      },
-      line_items: [
-        {
-          quantity,
-          price_data: {
-            currency: product.currency,
-            unit_amount: product.priceCents,
-            product_data: {
-              name: product.name,
-              description: product.description || undefined,
-            },
+    };
+
+    let session;
+
+    if (isSubscription) {
+      // ── Abbonamento ricorrente ─────────────────────────────────────────────
+      session = await stripe.checkout.sessions.create({
+        ...commonParams,
+        mode: "subscription",
+        subscription_data: {
+          metadata: {
+            orderId: order.id,
+            productId: product.id,
+            customerEmail,
           },
         },
-      ],
-    });
+        line_items: [
+          {
+            quantity: 1,
+            price_data: {
+              currency: product.currency,
+              unit_amount: product.priceCents,
+              recurring: { interval: product.billingInterval }, // "month" o "year"
+              product_data: {
+                name: product.name,
+                description: product.description || undefined,
+              },
+            },
+          },
+        ],
+      });
+    } else {
+      // ── Pagamento singolo ─────────────────────────────────────────────────
+      session = await stripe.checkout.sessions.create({
+        ...commonParams,
+        mode: "payment",
+        payment_intent_data: {
+          metadata: {
+            orderId: order.id,
+            productId: product.id,
+            customerEmail,
+            quantity: String(quantity),
+          },
+        },
+        line_items: [
+          {
+            quantity,
+            price_data: {
+              currency: product.currency,
+              unit_amount: product.priceCents,
+              product_data: {
+                name: product.name,
+                description: product.description || undefined,
+              },
+            },
+          },
+        ],
+      });
+    }
 
     await prisma.order.update({
       where: { id: order.id },
-      data: { stripeSessionId: session.id, stripeCustomerId: session.customer || null },
+      data: {
+        stripeSessionId: session.id,
+        stripeCustomerId: session.customer || null,
+      },
     });
 
     return res.status(200).json({ ok: true, url: session.url });
@@ -305,6 +393,8 @@ async function checkout(req, res) {
     return res.status(500).json({ ok: false, error: "Checkout non riuscito" });
   }
 }
+
+// ─── Webhook handler: checkout.session.completed ─────────────────────────────
 
 async function handleCheckoutCompleted(session) {
   const orderId = session.metadata?.orderId;
@@ -335,6 +425,33 @@ async function handleCheckoutCompleted(session) {
 
   const { user, inviteToken } = await ensureClientFromPaidOrder(updatedOrder);
 
+  // Aggiorna stripeCustomerId sul User
+  if (session.customer && typeof session.customer === "string") {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { stripeCustomerId: session.customer },
+    }).catch(() => {});
+  }
+
+  // Crea/aggiorna Subscription se è un abbonamento
+  if (session.mode === "subscription" && session.subscription) {
+    let stripeSub;
+    try {
+      const stripe = stripeClient();
+      stripeSub = await stripe.subscriptions.retrieve(
+        typeof session.subscription === "string" ? session.subscription : session.subscription.id
+      );
+    } catch (err) {
+      console.error("Errore recupero subscription Stripe:", err);
+    }
+
+    if (stripeSub) {
+      const accessLevel = updatedOrder.product?.accessLevel || "app";
+      await upsertSubscription(stripeSub, user.id, updatedOrder.productId, accessLevel);
+    }
+  }
+
+  // Email post-pagamento
   let emailSent = false;
   let emailAlreadySent = !!updatedOrder.inviteSentAt;
   let emailError = null;
@@ -344,14 +461,11 @@ async function handleCheckoutCompleted(session) {
       fullName: user.fullName,
       productName: updatedOrder.product?.name,
       sessionsQty: updatedOrder.sessionsQty,
+      isSubscription: session.mode === "subscription",
     };
     try {
       if (inviteToken) {
-        await sendClientInviteEmail({
-          ...emailPayload,
-          token: inviteToken,
-          context: "payment",
-        });
+        await sendClientInviteEmail({ ...emailPayload, token: inviteToken, context: "payment" });
       } else {
         await sendExistingClientPaymentEmail(emailPayload);
       }
@@ -363,14 +477,72 @@ async function handleCheckoutCompleted(session) {
     }
   }
 
-  return {
-    orderId: updatedOrder.id,
-    userEmail: user.email,
-    emailSent,
-    emailAlreadySent,
-    emailError,
-  };
+  return { orderId: updatedOrder.id, userEmail: user.email, emailSent, emailAlreadySent, emailError };
 }
+
+// ─── Webhook handler: subscription events ────────────────────────────────────
+
+async function handleSubscriptionUpdated(stripeSub) {
+  // Trova l'utente tramite stripeCustomerId
+  const customerId = typeof stripeSub.customer === "string" ? stripeSub.customer : null;
+  if (!customerId) return;
+
+  const user = await prisma.user.findFirst({ where: { stripeCustomerId: customerId } });
+  if (!user) {
+    console.warn(`handleSubscriptionUpdated: user non trovato per customer ${customerId}`);
+    return;
+  }
+
+  // Trova il prodotto tramite metadata o price
+  let productId = stripeSub.metadata?.productId || null;
+  let accessLevel = "app";
+  if (!productId) {
+    const priceId = stripeSub.items?.data?.[0]?.price?.id;
+    if (priceId) {
+      const product = await prisma.product.findFirst({ where: { stripePriceId: priceId } });
+      if (product) { productId = product.id; accessLevel = product.accessLevel || "app"; }
+    }
+  } else {
+    const product = await prisma.product.findFirst({ where: { id: productId } });
+    if (product) accessLevel = product.accessLevel || "app";
+  }
+
+  await upsertSubscription(stripeSub, user.id, productId, accessLevel);
+}
+
+async function handleSubscriptionDeleted(stripeSub) {
+  try {
+    await prisma.subscription.updateMany({
+      where: { stripeSubscriptionId: stripeSub.id },
+      data: { status: "canceled", updatedAt: new Date() },
+    });
+  } catch { /* tabella non ancora presente */ }
+}
+
+async function handleInvoiceSucceeded(invoice) {
+  const subId = typeof invoice.subscription === "string" ? invoice.subscription : null;
+  if (!subId) return;
+  const stripe = stripeClient();
+  try {
+    const stripeSub = await stripe.subscriptions.retrieve(subId);
+    await handleSubscriptionUpdated(stripeSub);
+  } catch (err) {
+    console.error("handleInvoiceSucceeded: errore aggiornamento:", err);
+  }
+}
+
+async function handleInvoiceFailed(invoice) {
+  const subId = typeof invoice.subscription === "string" ? invoice.subscription : null;
+  if (!subId) return;
+  try {
+    await prisma.subscription.updateMany({
+      where: { stripeSubscriptionId: subId },
+      data: { status: "past_due", updatedAt: new Date() },
+    });
+  } catch { /* tabella non ancora presente */ }
+}
+
+// ─── GET /api/payments/verify-session ────────────────────────────────────────
 
 async function verifySession(req, res) {
   if (req.method !== "GET") return methodNotAllowed(res, ["GET"]);
@@ -382,9 +554,8 @@ async function verifySession(req, res) {
   try {
     const stripe = stripeClient();
     const session = await stripe.checkout.sessions.retrieve(sessionId);
-    if (session.payment_status !== "paid" && session.status !== "complete") {
-      return res.status(200).json({ ok: true, status: "pending" });
-    }
+    const isPaid = session.payment_status === "paid" || session.status === "complete";
+    if (!isPaid) return res.status(200).json({ ok: true, status: "pending" });
 
     const result = await handleCheckoutCompleted(session);
     return res.status(200).json({
@@ -399,6 +570,8 @@ async function verifySession(req, res) {
     return res.status(500).json({ ok: false, error: "Verifica pagamento non riuscita" });
   }
 }
+
+// ─── POST /api/payments/webhook ───────────────────────────────────────────────
 
 async function webhook(req, res) {
   if (req.method !== "POST") return methodNotAllowed(res, ["POST"]);
@@ -416,16 +589,30 @@ async function webhook(req, res) {
       event = JSON.parse(rawBody.toString("utf8"));
     }
 
-    if (event.type === "checkout.session.completed") {
-      await handleCheckoutCompleted(event.data.object);
-    }
-
-    if (event.type === "checkout.session.expired") {
-      const session = event.data.object;
-      await prisma.order.updateMany({
-        where: { stripeSessionId: session.id, status: "pending" },
-        data: { status: "failed" },
-      });
+    switch (event.type) {
+      case "checkout.session.completed":
+        await handleCheckoutCompleted(event.data.object);
+        break;
+      case "checkout.session.expired":
+        await prisma.order.updateMany({
+          where: { stripeSessionId: event.data.object.id, status: "pending" },
+          data: { status: "failed" },
+        });
+        break;
+      case "customer.subscription.updated":
+        await handleSubscriptionUpdated(event.data.object);
+        break;
+      case "customer.subscription.deleted":
+        await handleSubscriptionDeleted(event.data.object);
+        break;
+      case "invoice.payment_succeeded":
+        await handleInvoiceSucceeded(event.data.object);
+        break;
+      case "invoice.payment_failed":
+        await handleInvoiceFailed(event.data.object);
+        break;
+      default:
+        break; // altri eventi ignorati
     }
 
     return res.status(200).json({ received: true });
@@ -434,6 +621,8 @@ async function webhook(req, res) {
     return res.status(400).json({ ok: false, error: "Webhook non valido" });
   }
 }
+
+// ─── GET /api/payments/orders ─────────────────────────────────────────────────
 
 async function orders(req, res) {
   const auth = requireAuth(req, res);
@@ -447,22 +636,7 @@ async function orders(req, res) {
       include: {
         product: true,
         ...(auth.role === "admin"
-          ? {
-              user: {
-                select: {
-                  id: true,
-                  email: true,
-                  fullName: true,
-                  client: {
-                    select: {
-                      id: true,
-                      phone: true,
-                      goal: true,
-                    },
-                  },
-                },
-              },
-            }
+          ? { user: { select: { id: true, email: true, fullName: true, client: { select: { id: true, phone: true, goal: true } } } } }
           : {}),
       },
       orderBy: { createdAt: "desc" },
@@ -475,12 +649,14 @@ async function orders(req, res) {
   }
 }
 
+// ─── Router ───────────────────────────────────────────────────────────────────
+
 export default function handler(req, res) {
   const { action } = req.query;
-  if (action === "products") return products(req, res);
-  if (action === "checkout") return checkout(req, res);
-  if (action === "webhook") return webhook(req, res);
+  if (action === "products")       return products(req, res);
+  if (action === "checkout")       return checkout(req, res);
+  if (action === "webhook")        return webhook(req, res);
   if (action === "verify-session") return verifySession(req, res);
-  if (action === "orders") return orders(req, res);
+  if (action === "orders")         return orders(req, res);
   return res.status(404).json({ ok: false, error: "Endpoint pagamenti non trovato" });
 }

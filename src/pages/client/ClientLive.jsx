@@ -237,12 +237,16 @@ function AvailableCard({ session, now, onBook, isBooking }) {
 
 // ─── Payment required ──────────────────────────────────────────────────────────
 
-function LockedScreen() {
+function LockedScreen({
+  title = "Sessioni Live Premium",
+  description = "Le live sono incluse negli abbonamenti App+Live e Premium.",
+  ctaLabel = "Sblocca le Live",
+}) {
   const navigate = useNavigate();
 
   const features = [
     "Sessioni 1:1 con Gianluigi",
-    "Live di gruppo illimitate",
+    "Live di gruppo incluse",
     "Accesso al link della sessione",
     "Prenotazione con un tap",
   ];
@@ -259,14 +263,10 @@ function LockedScreen() {
 
       <div>
         <p className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: "#39FF14" }}>
-          Premium
+          Upgrade richiesto
         </p>
-        <h2 className="mt-1 font-display text-2xl font-black uppercase">Sessioni Live</h2>
-        <p className="mt-2 text-sm text-text-muted">
-          Le live sono incluse nei pacchetti{" "}
-          <span className="font-semibold text-white">App+Live</span> e{" "}
-          <span className="font-semibold text-white">Premium</span>, o acquistabili singolarmente.
-        </p>
+        <h2 className="mt-1 font-display text-2xl font-black uppercase">{title}</h2>
+        <p className="mt-2 text-sm text-text-muted">{description}</p>
       </div>
 
       <div className="w-full space-y-2">
@@ -281,9 +281,9 @@ function LockedScreen() {
 
       <div className="w-full space-y-3">
         <Button className="w-full" onClick={() => navigate("/pacchetti")}>
-          <CreditCard size={18} /> Sblocca le Live
+          <CreditCard size={18} /> {ctaLabel}
         </Button>
-        <p className="text-xs text-text-muted">Puoi cancellare o cambiare pacchetto in qualsiasi momento</p>
+        <p className="text-xs text-text-muted">Puoi cambiare abbonamento in qualsiasi momento</p>
       </div>
     </motion.div>
   );
@@ -309,6 +309,7 @@ export default function ClientLive() {
 
   const sessions = data?.sessions || [];
   const paymentRequired = data?.access === "payment_required";
+  const upgradeRequired = data?.access === "upgrade_required"; // ha app ma non live
 
   const book = useMutation({
     mutationFn: (liveSessionId) =>
@@ -340,6 +341,22 @@ export default function ClientLive() {
           <p className="text-sm text-text-muted">Con Gianluigi, in diretta.</p>
         </div>
         <LockedScreen />
+      </div>
+    );
+  }
+
+  if (upgradeRequired) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="font-display text-2xl font-extrabold uppercase">Sessioni Live</h1>
+          <p className="text-sm text-text-muted">Con Gianluigi, in diretta.</p>
+        </div>
+        <LockedScreen
+          title="Passa ad App + Live"
+          description="Il tuo abbonamento attuale include solo la scheda. Per accedere alle live, passa ad App + Live o Premium."
+          ctaLabel="Vedi upgrade"
+        />
       </div>
     );
   }

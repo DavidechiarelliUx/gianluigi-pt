@@ -1,5 +1,6 @@
 // Schema Prisma — Gianluigi PT
 // Fase 2: app allenamenti · Fase 3: business online (live, pagamenti)
+// Fase 4: abbonamenti ricorrenti Stripe
 
 generator client {
   provider = "prisma-client-js"
@@ -65,21 +66,43 @@ enum BookingStatus {
 }
 
 // ─────────────────────────────────────────
+// ENUMS — Fase 4: abbonamenti
+// ─────────────────────────────────────────
+
+/// Livello di accesso concesso da un prodotto o abbonamento.
+enum AccessLevel {
+  none     // nessun accesso
+  app      // app + schede
+  live     // solo live
+  app_live // app + schede + live
+  premium  // tutto (app + live + 1:1)
+}
+
+/// Intervallo di fatturazione del prodotto.
+enum BillingInterval {
+  one_time // pagamento singolo
+  month    // abbonamento mensile
+  year     // abbonamento annuale
+}
+
+// ─────────────────────────────────────────
 // MODELLI — Fase 2
 // ─────────────────────────────────────────
 
 model User {
-  id            String    @id @default(uuid())
-  email         String    @unique
-  passwordHash  String?   // null finché il cliente non imposta la password
-  role          Role      @default(client)
-  fullName      String
-  inviteToken   String?   @unique // token monouso "imposta password"
-  inviteExpires DateTime?
-  client        Client?
-  orders        Order[]   // Fase 3
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id               String         @id @default(uuid())
+  email            String         @unique
+  passwordHash     String?        // null finché il cliente non imposta la password
+  role             Role           @default(client)
+  fullName         String
+  inviteToken      String?        @unique // token monouso "imposta password"
+  inviteExpires    DateTime?
+  stripeCustomerId String?        // Stripe Customer ID (fase 4)
+  client           Client?
+  orders           Order[]        // Fase 3
+  subscriptions    Subscription[] // Fase 4
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
 }
 
 model Client {
@@ -179,48 +202,76 @@ model WorkoutItemLog {
 // MODELLI — Fase 3
 // ─────────────────────────────────────────
 
-/// Prodotto/pacchetto acquistabile (sessione singola, pacchetto N sessioni).
+/// Prodotto/pacchetto acquistabile.
 model Product {
-  id          String      @id @default(uuid())
-  name        String      @unique
-  description String?
-  priceCents  Int         // prezzo in centesimi (es. 5000 = €50,00)
-  currency    String      @default("eur")
-  type        ProductType
-  sessionsQty Int?        // per pacchetti: quante sessioni include
-  active      Boolean     @default(true)
-  orders      Order[]
-  liveSessions LiveSession[]
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id              String          @id @default(uuid())
+  name            String          @unique
+  description     String?
+  priceCents      Int             // prezzo in centesimi (es. 5000 = €50,00)
+  currency        String          @default("eur")
+  type            ProductType
+  sessionsQty     Int?            // per pacchetti: quante sessioni include
+  active          Boolean         @default(true)
+  // Fase 4 — abbonamenti
+  accessLevel     AccessLevel     @default(app)
+  billingInterval BillingInterval @default(one_time)
+  stripePriceId   String?         // Stripe Price ID (opzionale, per riutilizzo)
+  orders          Order[]
+  liveSessions    LiveSession[]
+  subscriptions   Subscription[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 }
 
 /// Ordine di acquisto — creato al checkout, aggiornato dal webhook Stripe.
 model Order {
-  id              String      @id @default(uuid())
-  user            User?       @relation(fields: [userId], references: [id])
-  userId          String?
-  product         Product     @relation(fields: [productId], references: [id])
-  productId       String
-  status          OrderStatus @default(pending)
-  amountCents     Int         // copia del prezzo al momento dell'acquisto
-  currency        String      @default("eur")
-  quantity        Int         @default(1)
-  sessionsQty     Int?
-  customerEmail   String
-  customerName    String
-  customerPhone   String?
+  id               String      @id @default(uuid())
+  user             User?       @relation(fields: [userId], references: [id])
+  userId           String?
+  product          Product     @relation(fields: [productId], references: [id])
+  productId        String
+  status           OrderStatus @default(pending)
+  amountCents      Int         // copia del prezzo al momento dell'acquisto
+  currency         String      @default("eur")
+  quantity         Int         @default(1)
+  sessionsQty      Int?
+  customerEmail    String
+  customerName     String
+  customerPhone    String?
   stripeCustomerId String?
-  stripeSessionId String?     @unique // Stripe Checkout Session ID
-  stripePaymentId String?     // Stripe PaymentIntent ID (valorizzato post-webhook)
-  inviteSentAt    DateTime?
-  bookings        Booking[]
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  stripeSessionId  String?     @unique // Stripe Checkout Session ID
+  stripePaymentId  String?     // Stripe PaymentIntent ID (one-time)
+  inviteSentAt     DateTime?
+  bookings         Booking[]
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
 
   @@index([userId, status])
   @@index([customerEmail])
   @@index([stripeSessionId])
+}
+
+/// Abbonamento ricorrente Stripe — creato/aggiornato dai webhook subscription.
+model Subscription {
+  id                   String      @id @default(uuid())
+  user                 User        @relation(fields: [userId], references: [id])
+  userId               String
+  product              Product?    @relation(fields: [productId], references: [id])
+  productId            String?
+  stripeSubscriptionId String      @unique
+  stripePriceId        String?
+  stripeCustomerId     String?
+  /// Stato Stripe: active | trialing | past_due | unpaid | canceled | incomplete
+  status               String
+  accessLevel          AccessLevel @default(app)
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean     @default(false)
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+
+  @@index([userId, status])
+  @@index([stripeSubscriptionId])
 }
 
 /// Sessione live (1:1 o gruppo) creata dall'admin.
