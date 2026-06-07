@@ -3,6 +3,7 @@ import { CheckCircle2, Circle, Clock3, PlayCircle, RotateCcw } from "lucide-reac
 import { Input } from "../ui/Input";
 import { Button } from "../ui/Button";
 import { ExerciseIllustration } from "../exercises";
+import { getMuscleGroupColor } from "../exercises/exercise-data";
 import { cn } from "../../lib/utils";
 
 /**
@@ -55,8 +56,19 @@ export function ExerciseCard({ exercise, value = {}, onToggle, onChange, classNa
         </button>
 
         <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <h3 className="font-display text-base font-bold uppercase">{exercise.name}</h3>
+            {exercise.muscleGroup && (() => {
+              const { bg, color } = getMuscleGroupColor(exercise.muscleGroup);
+              return (
+                <span
+                  className="shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase"
+                  style={{ background: bg, color }}
+                >
+                  {exercise.muscleGroup}
+                </span>
+              );
+            })()}
             {exercise.videoUrl && (
               <a
                 href={exercise.videoUrl}
@@ -69,6 +81,7 @@ export function ExerciseCard({ exercise, value = {}, onToggle, onChange, classNa
               </a>
             )}
           </div>
+          {/* closing the flex-wrap row: no change needed */}
           <p className="mt-0.5 text-sm text-text-muted">
             {exercise.setsReps}
             {exercise.rest ? ` · rec ${exercise.rest}` : ""}

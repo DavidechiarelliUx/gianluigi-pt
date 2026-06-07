@@ -310,7 +310,8 @@ function SubscriptionCard({ sub, onSendReminder, sendingId, sentIds }) {
 
 export function SubscriptionTimeline({ subscriptions, onSendReminder, sendingId, sentIds }) {
   const [filter, setFilter] = useState(30);
-  const now = Date.now();
+  // useState lazy initializer: Date.now is called once outside the render hot path
+  const [now] = useState(Date.now);
 
   const enriched = useMemo(
     () => subscriptions.map((sub) => ({ ...sub, ...subBarInfo(sub, now) })),

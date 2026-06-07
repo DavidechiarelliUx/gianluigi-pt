@@ -35,41 +35,41 @@ import kettlebellSwingImage from "../../assets/exercises/kettlebell-swing.webp";
 import bicycleCrunchImage from "../../assets/exercises/bicycle-crunch.webp";
 
 export const EXERCISE_ILLUSTRATIONS = [
-  { id: "push-up", label: "Piegamenti", image: pushUpImage },
-  { id: "squat", label: "Squat", image: squatImage },
-  { id: "plank", label: "Plank", image: plankImage },
-  { id: "crunch", label: "Crunch", image: crunchImage },
-  { id: "lunge", label: "Affondi", image: lungeImage },
-  { id: "shoulder-press", label: "Shoulder press", image: shoulderPressImage },
-  { id: "biceps-curl", label: "Curl bicipiti", image: bicepsCurlImage },
-  { id: "mountain-climber", label: "Mountain climber", image: mountainClimberImage },
-  { id: "burpee", label: "Burpee", image: burpeeImage },
-  { id: "jumping-jack", label: "Jumping jack", image: jumpingJackImage },
-  { id: "dumbbell-bench-press", label: "Panca manubri", image: dumbbellBenchPressImage },
-  { id: "dumbbell-row", label: "Rematore manubrio", image: dumbbellRowImage },
-  { id: "glute-bridge", label: "Glute bridge", image: gluteBridgeImage },
-  { id: "triceps-dip", label: "Dip tricipiti", image: tricepsDipImage },
-  { id: "side-plank", label: "Side plank", image: sidePlankImage },
-  { id: "deadlift", label: "Stacco da terra", image: deadliftImage },
-  { id: "lat-machine-assisted-pull-up", label: "Lat machine / trazioni assistite", image: latMachineAssistedPullUpImage },
-  { id: "leg-press", label: "Leg press", image: legPressImage },
-  { id: "leg-curl", label: "Leg curl", image: legCurlImage },
-  { id: "calf-raise", label: "Calf raise", image: calfRaiseImage },
-  { id: "russian-twist", label: "Russian twist", image: russianTwistImage },
-  { id: "sit-up", label: "Sit-up", image: sitUpImage },
-  { id: "hip-thrust", label: "Hip thrust", image: hipThrustImage },
-  { id: "lateral-raise", label: "Alzate laterali", image: lateralRaiseImage },
-  { id: "military-press-push-press", label: "Military press / push press", image: militaryPressPushPressImage },
-  { id: "pull-up", label: "Pull-up / trazione sbarra", image: pullUpImage },
-  { id: "cable-row", label: "Cable row / pulley basso", image: cableRowImage },
-  { id: "dumbbell-chest-fly", label: "Croci manubri", image: dumbbellChestFlyImage },
-  { id: "triceps-pushdown", label: "Triceps pushdown", image: tricepsPushdownImage },
-  { id: "hammer-curl", label: "Hammer curl", image: hammerCurlImage },
-  { id: "leg-extension", label: "Leg extension", image: legExtensionImage },
-  { id: "bulgarian-split-squat", label: "Bulgarian split squat", image: bulgarianSplitSquatImage },
-  { id: "step-up-box", label: "Step-up box", image: stepUpBoxImage },
-  { id: "kettlebell-swing", label: "Kettlebell swing", image: kettlebellSwingImage },
-  { id: "bicycle-crunch", label: "Bicycle crunch", image: bicycleCrunchImage },
+  { id: "push-up",                     label: "Piegamenti",                        muscleGroup: "Petto",      image: pushUpImage },
+  { id: "squat",                        label: "Squat",                              muscleGroup: "Gambe",      image: squatImage },
+  { id: "plank",                        label: "Plank",                              muscleGroup: "Core",       image: plankImage },
+  { id: "crunch",                       label: "Crunch",                             muscleGroup: "Core",       image: crunchImage },
+  { id: "lunge",                        label: "Affondi",                            muscleGroup: "Gambe",      image: lungeImage },
+  { id: "shoulder-press",               label: "Shoulder press",                     muscleGroup: "Spalle",     image: shoulderPressImage },
+  { id: "biceps-curl",                  label: "Curl bicipiti",                      muscleGroup: "Bicipiti",   image: bicepsCurlImage },
+  { id: "mountain-climber",             label: "Mountain climber",                   muscleGroup: "Core",       image: mountainClimberImage },
+  { id: "burpee",                       label: "Burpee",                             muscleGroup: "Full body",  image: burpeeImage },
+  { id: "jumping-jack",                 label: "Jumping jack",                       muscleGroup: "Cardio",     image: jumpingJackImage },
+  { id: "dumbbell-bench-press",         label: "Panca manubri",                      muscleGroup: "Petto",      image: dumbbellBenchPressImage },
+  { id: "dumbbell-row",                 label: "Rematore manubrio",                  muscleGroup: "Dorso",      image: dumbbellRowImage },
+  { id: "glute-bridge",                 label: "Glute bridge",                       muscleGroup: "Glutei",     image: gluteBridgeImage },
+  { id: "triceps-dip",                  label: "Dip tricipiti",                      muscleGroup: "Tricipiti",  image: tricepsDipImage },
+  { id: "side-plank",                   label: "Side plank",                         muscleGroup: "Core",       image: sidePlankImage },
+  { id: "deadlift",                     label: "Stacco da terra",                    muscleGroup: "Gambe",      image: deadliftImage },
+  { id: "lat-machine-assisted-pull-up", label: "Lat machine / trazioni assistite",   muscleGroup: "Dorso",      image: latMachineAssistedPullUpImage },
+  { id: "leg-press",                    label: "Leg press",                          muscleGroup: "Gambe",      image: legPressImage },
+  { id: "leg-curl",                     label: "Leg curl",                           muscleGroup: "Gambe",      image: legCurlImage },
+  { id: "calf-raise",                   label: "Calf raise",                         muscleGroup: "Polpacci",   image: calfRaiseImage },
+  { id: "russian-twist",                label: "Russian twist",                      muscleGroup: "Core",       image: russianTwistImage },
+  { id: "sit-up",                       label: "Sit-up",                             muscleGroup: "Core",       image: sitUpImage },
+  { id: "hip-thrust",                   label: "Hip thrust",                         muscleGroup: "Glutei",     image: hipThrustImage },
+  { id: "lateral-raise",                label: "Alzate laterali",                    muscleGroup: "Spalle",     image: lateralRaiseImage },
+  { id: "military-press-push-press",    label: "Military press / push press",        muscleGroup: "Spalle",     image: militaryPressPushPressImage },
+  { id: "pull-up",                      label: "Pull-up / trazione sbarra",          muscleGroup: "Dorso",      image: pullUpImage },
+  { id: "cable-row",                    label: "Cable row / pulley basso",           muscleGroup: "Dorso",      image: cableRowImage },
+  { id: "dumbbell-chest-fly",           label: "Croci manubri",                      muscleGroup: "Petto",      image: dumbbellChestFlyImage },
+  { id: "triceps-pushdown",             label: "Triceps pushdown",                   muscleGroup: "Tricipiti",  image: tricepsPushdownImage },
+  { id: "hammer-curl",                  label: "Hammer curl",                        muscleGroup: "Bicipiti",   image: hammerCurlImage },
+  { id: "leg-extension",                label: "Leg extension",                      muscleGroup: "Gambe",      image: legExtensionImage },
+  { id: "bulgarian-split-squat",        label: "Bulgarian split squat",              muscleGroup: "Gambe",      image: bulgarianSplitSquatImage },
+  { id: "step-up-box",                  label: "Step-up box",                        muscleGroup: "Gambe",      image: stepUpBoxImage },
+  { id: "kettlebell-swing",             label: "Kettlebell swing",                   muscleGroup: "Full body",  image: kettlebellSwingImage },
+  { id: "bicycle-crunch",               label: "Bicycle crunch",                     muscleGroup: "Core",       image: bicycleCrunchImage },
 ];
 
 export const EXERCISE_ILLUSTRATION_MAP = new Map(
@@ -91,4 +91,43 @@ const EXERCISE_ID_BY_LABEL = new Map(
 export function getExerciseIllustrationId(name) {
   if (!name) return null;
   return EXERCISE_ID_BY_LABEL.get(normalize(name)) || null;
+}
+
+/** Returns the muscleGroup for an exercise given its display name. */
+export function getExerciseMuscleGroup(name) {
+  if (!name) return null;
+  const id = getExerciseIllustrationId(name);
+  if (id) return EXERCISE_ILLUSTRATION_MAP.get(id)?.muscleGroup ?? null;
+  // Keyword fallback for exercises not in the illustration catalog
+  const n = normalize(name);
+  if (n.includes("squat") || n.includes("leg") || n.includes("stacco") || n.includes("affondo") || n.includes("calf")) return "Gambe";
+  if (n.includes("panca") || n.includes("push") || n.includes("petto") || n.includes("croci") || n.includes("fly")) return "Petto";
+  if (n.includes("pull") || n.includes("lat") || n.includes("remator") || n.includes("row") || n.includes("dorso")) return "Dorso";
+  if (n.includes("shoulder") || n.includes("spalle") || n.includes("lateral") || n.includes("military") || n.includes("press")) return "Spalle";
+  if (n.includes("curl") || n.includes("bicep") || n.includes("hammer")) return "Bicipiti";
+  if (n.includes("tricep") || n.includes("dip") || n.includes("french")) return "Tricipiti";
+  if (n.includes("plank") || n.includes("crunch") || n.includes("core") || n.includes("russian") || n.includes("sit")) return "Core";
+  if (n.includes("hip") || n.includes("glute")) return "Glutei";
+  if (n.includes("burpee") || n.includes("jump") || n.includes("mountain") || n.includes("cardio")) return "Cardio";
+  return null;
+}
+
+/** Category badge colors (background, text). */
+export const MUSCLE_GROUP_COLORS = {
+  "Gambe":      { bg: "rgba(57,255,20,0.1)",   color: "#39FF14" },
+  "Petto":      { bg: "rgba(0,149,255,0.1)",    color: "#0095ff" },
+  "Dorso":      { bg: "rgba(147,51,234,0.1)",   color: "#a855f7" },
+  "Spalle":     { bg: "rgba(255,165,0,0.1)",    color: "#FFA500" },
+  "Bicipiti":   { bg: "rgba(0,255,135,0.1)",    color: "#00FF87" },
+  "Tricipiti":  { bg: "rgba(255,100,0,0.1)",    color: "#ff6400" },
+  "Core":       { bg: "rgba(255,59,59,0.1)",    color: "#ff6b6b" },
+  "Glutei":     { bg: "rgba(255,20,147,0.1)",   color: "#ff69b4" },
+  "Cardio":     { bg: "rgba(255,255,0,0.1)",    color: "#ffe500" },
+  "Full body":  { bg: "rgba(57,255,20,0.08)",   color: "#39FF14" },
+  "Polpacci":   { bg: "rgba(100,200,100,0.1)",  color: "#64c864" },
+};
+
+/** Returns badge style object {background, color} for a muscleGroup label. */
+export function getMuscleGroupColor(muscleGroup) {
+  return MUSCLE_GROUP_COLORS[muscleGroup] ?? { bg: "rgba(255,255,255,0.06)", color: "#888" };
 }

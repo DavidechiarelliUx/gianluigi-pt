@@ -5,7 +5,7 @@ import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { Textarea } from "../../components/ui/Textarea";
 import { EmptyState, ExerciseCard, ProgressBar, StickyActionBar, Tabs } from "../../components/app";
-import { getExerciseIllustrationId } from "../../components/exercises/exercise-data";
+import { getExerciseIllustrationId, getExerciseMuscleGroup } from "../../components/exercises/exercise-data";
 import { useAuth } from "../../hooks/useAuth";
 import { useToast } from "../../hooks/useToast";
 import { apiFetch } from "../../lib/api";
@@ -18,6 +18,7 @@ function itemToExercise(item) {
     restSeconds: item.restSeconds || 0,
     videoUrl: item.exercise.videoUrl,
     illustration: item.exercise.defaultNotes || getExerciseIllustrationId(item.exercise.name),
+    muscleGroup: item.exercise.muscleGroup || getExerciseMuscleGroup(item.exercise.name) || null,
   };
 }
 

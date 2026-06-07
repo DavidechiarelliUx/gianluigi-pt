@@ -1,7 +1,6 @@
 import {
   Activity,
   AlertCircle,
-  CalendarDays,
   ClipboardList,
   CreditCard,
   ExternalLink,
