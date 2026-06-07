@@ -108,6 +108,56 @@ export async function sendClientInviteEmail({ to, fullName, token, context = "ma
   });
 }
 
+export async function sendRenewalReminderEmail({ to, fullName, productName, expiresAt, cancelAtPeriodEnd }) {
+  const { user } = smtpConfig();
+  const firstName = fullName?.split(" ")[0] || "ciao";
+  const baseUrl = appUrl();
+  const dateStr = expiresAt
+    ? new Date(expiresAt).toLocaleDateString("it-IT", { day: "2-digit", month: "long", year: "numeric" })
+    : null;
+
+  const isCancel = !!cancelAtPeriodEnd;
+  const subject = isCancel
+    ? `Il tuo accesso Gianluigi PT scade il ${dateStr || "presto"}`
+    : `Il tuo abbonamento Gianluigi PT si rinnova il ${dateStr || "presto"}`;
+
+  const intro = isCancel
+    ? `Il tuo accesso a <strong>${productName}</strong> sarà attivo fino al <strong>${dateStr}</strong>. Dopo quella data le schede e l'area allenamenti non saranno più disponibili.`
+    : `Il tuo abbonamento <strong>${productName}</strong> si rinnova automaticamente il <strong>${dateStr}</strong>. Tutto è in regola e puoi continuare ad allenarti senza interruzioni.`;
+
+  const extraHtml = `
+    <div style="margin-top:18px;padding:14px;border-radius:12px;background:#111610;border:1px solid rgba(57,255,20,.22);">
+      <strong style="color:#39FF14;">Piano attivo:</strong> ${productName}
+      ${dateStr ? `<br><strong style="color:#39FF14;">${isCancel ? "Valido fino al" : "Prossimo rinnovo"}:</strong> ${dateStr}` : ""}
+    </div>
+  `;
+
+  const ctaHref = isCancel ? `${baseUrl}/pacchetti` : `${baseUrl}/area-cliente`;
+  const ctaLabel = isCancel ? "Rinnova il tuo accesso" : "Vai all'area allenamenti";
+
+  await createTransporter().sendMail({
+    from: `"Gianluigi PT" <${user}>`,
+    to,
+    subject,
+    html: emailShell({
+      firstName,
+      intro,
+      ctaHref,
+      ctaLabel,
+      extraHtml,
+      footer: "Se hai domande, rispondi a questa email o contatta Gianluigi.",
+    }),
+    text: [
+      `Ciao ${firstName}!`,
+      "",
+      isCancel
+        ? `Il tuo accesso a ${productName} scade il ${dateStr}.`
+        : `Il tuo abbonamento ${productName} si rinnova il ${dateStr}.`,
+      isCancel ? `Rinnova qui: ${baseUrl}/pacchetti` : `Accedi alla tua area: ${baseUrl}/area-cliente`,
+    ].filter(Boolean).join("\n"),
+  });
+}
+
 export async function sendExistingClientPaymentEmail({ to, fullName, productName, sessionsQty }) {
   const { user } = smtpConfig();
   const firstName = fullName?.split(" ")[0] || "ciao";

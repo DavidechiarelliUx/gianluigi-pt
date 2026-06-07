@@ -5,8 +5,19 @@
 
 -- ─── Nuovi enum ──────────────────────────────────────────────────────────────
 
-CREATE TYPE "AccessLevel" AS ENUM ('none', 'app', 'live', 'app_live', 'premium');
-CREATE TYPE "BillingInterval" AS ENUM ('one_time', 'month', 'year');
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'AccessLevel') THEN
+    CREATE TYPE "AccessLevel" AS ENUM ('none', 'app', 'live', 'app_live', 'premium');
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'BillingInterval') THEN
+    CREATE TYPE "BillingInterval" AS ENUM ('one_time', 'month', 'year');
+  END IF;
+END $$;
 
 -- ─── User: aggiungi stripeCustomerId ──────────────────────────────────────────
 
@@ -53,12 +64,26 @@ CREATE INDEX IF NOT EXISTS "Subscription_userId_status_idx"
 CREATE INDEX IF NOT EXISTS "Subscription_stripeSubscriptionId_idx"
   ON "Subscription"("stripeSubscriptionId");
 
-ALTER TABLE "Subscription"
-  ADD CONSTRAINT IF NOT EXISTS "Subscription_userId_fkey"
-  FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'Subscription_userId_fkey'
+  ) THEN
+    ALTER TABLE "Subscription"
+      ADD CONSTRAINT "Subscription_userId_fkey"
+      FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+  END IF;
+END $$;
 
-ALTER TABLE "Subscription"
-  ADD CONSTRAINT IF NOT EXISTS "Subscription_productId_fkey"
-  FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'Subscription_productId_fkey'
+  ) THEN
+    ALTER TABLE "Subscription"
+      ADD CONSTRAINT "Subscription_productId_fkey"
+      FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- Nota: eseguire "npx prisma generate" dopo la migration per aggiornare il client.
