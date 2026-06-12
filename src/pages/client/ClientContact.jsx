@@ -11,13 +11,7 @@ import { apiFetch } from "../../lib/api";
 
 const WHATSAPP = "https://wa.me/393000000000?text=Ciao%20Gianluigi%2C%20ti%20scrivo%20dall%27app.";
 
-const SUBJECTS = [
-  "Domanda sulla scheda",
-  "Problema tecnico",
-  "Modifica esercizi",
-  "Abbonamento / pagamento",
-  "Altro",
-];
+const SUBJECTS = ["Domanda sulla scheda", "Problema tecnico", "Modifica esercizi", "Abbonamento / pagamento", "Altro"];
 
 export default function ClientContact() {
   const navigate = useNavigate();
@@ -46,16 +40,11 @@ export default function ClientContact() {
     <div className="space-y-6 pb-8">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <button
-          onClick={() => navigate(-1)}
-          className="rounded-full p-1.5 text-text-muted transition-colors hover:bg-surface-2 hover:text-text"
-        >
+        <button onClick={() => navigate(-1)} className="rounded-full p-1.5 text-text-muted transition-colors hover:bg-surface-2 hover:text-text">
           <ChevronLeft size={20} />
         </button>
         <div>
-          <h1 className="font-display text-xl font-black uppercase leading-none">
-            Contatta Gianluigi
-          </h1>
+          <h1 className="font-display text-xl font-black uppercase leading-none">Contatta Gianluigi</h1>
           <p className="text-xs text-text-muted">Scrivi direttamente a lui</p>
         </div>
       </div>
@@ -69,8 +58,7 @@ export default function ClientContact() {
           className="flex flex-col items-center gap-2 rounded-xl border p-4 text-center transition-colors"
           style={{ background: "#111", borderColor: "#1e1e1e" }}
         >
-          <div className="flex h-10 w-10 items-center justify-center rounded-full"
-            style={{ background: "rgba(37,211,102,0.12)" }}>
+          <div className="flex h-10 w-10 items-center justify-center rounded-full" style={{ background: "rgba(37,211,102,0.12)" }}>
             <MessageCircle size={20} style={{ color: "#25D366" }} />
           </div>
           <p className="text-sm font-semibold text-white">WhatsApp</p>
@@ -82,8 +70,7 @@ export default function ClientContact() {
           className="flex flex-col items-center gap-2 rounded-xl border p-4 text-center transition-colors"
           style={{ background: "#111", borderColor: "#1e1e1e" }}
         >
-          <div className="flex h-10 w-10 items-center justify-center rounded-full"
-            style={{ background: "rgba(57,255,20,0.1)" }}>
+          <div className="flex h-10 w-10 items-center justify-center rounded-full" style={{ background: "rgba(57,255,20,0.1)" }}>
             <Mail size={20} className="text-accent" />
           </div>
           <p className="text-sm font-semibold text-white">Email</p>
@@ -104,25 +91,24 @@ export default function ClientContact() {
             <CheckCircle2 size={40} className="text-accent" />
             <div>
               <p className="font-display text-lg font-bold uppercase">Messaggio inviato!</p>
-              <p className="mt-1 text-sm text-text-muted">
-                Gianluigi risponderà appena possibile.
-              </p>
+              <p className="mt-1 text-sm text-text-muted">Gianluigi ti contatterà per email il prima possibile.</p>
             </div>
-            <Button variant="secondary" onClick={() => { setSent(false); setMessage(""); setSubject(""); }}>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setSent(false);
+                setMessage("");
+                setSubject("");
+              }}
+            >
               Scrivi un altro messaggio
             </Button>
           </motion.div>
         ) : (
-          <motion.div
-            key="form"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
+          <motion.div key="form" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
             <div className="rounded-2xl overflow-hidden" style={{ background: "#111", border: "1px solid #1e1e1e" }}>
               <div className="border-b px-4 py-3" style={{ borderColor: "#1e1e1e" }}>
-                <p className="text-[11px] font-bold uppercase tracking-widest text-text-muted">
-                  Messaggio in-app
-                </p>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-text-muted">Messaggio in-app</p>
                 <p className="text-xs text-text-muted">
                   Da: <span className="font-semibold text-text">{user?.fullName || user?.email}</span>
                 </p>
@@ -131,9 +117,7 @@ export default function ClientContact() {
               <form onSubmit={handleSubmit} className="space-y-4 p-4">
                 {/* Subject chips */}
                 <div>
-                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
-                    Argomento
-                  </p>
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-text-muted">Argomento</p>
                   <div className="flex flex-wrap gap-1.5">
                     {SUBJECTS.map((s) => (
                       <button
@@ -152,19 +136,12 @@ export default function ClientContact() {
                     ))}
                   </div>
                   {!SUBJECTS.includes(subject) && subject && (
-                    <Input
-                      className="mt-2"
-                      value={subject}
-                      onChange={(e) => setSubject(e.target.value)}
-                      placeholder="Argomento personalizzato"
-                    />
+                    <Input className="mt-2" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Argomento personalizzato" />
                   )}
                 </div>
 
                 <label className="block">
-                  <span className="mb-2 block text-[11px] font-semibold uppercase tracking-wide text-text-muted">
-                    Il tuo messaggio
-                  </span>
+                  <span className="mb-2 block text-[11px] font-semibold uppercase tracking-wide text-text-muted">Il tuo messaggio</span>
                   <Textarea
                     rows={4}
                     value={message}
@@ -180,15 +157,15 @@ export default function ClientContact() {
                   </p>
                 )}
 
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={sendMsg.isPending || !message.trim()}
-                >
+                <Button type="submit" className="w-full" disabled={sendMsg.isPending || !message.trim()}>
                   {sendMsg.isPending ? (
-                    <><Loader2 size={16} className="animate-spin" /> Invio…</>
+                    <>
+                      <Loader2 size={16} className="animate-spin" /> Invio…
+                    </>
                   ) : (
-                    <><Send size={16} /> Invia messaggio</>
+                    <>
+                      <Send size={16} /> Invia messaggio
+                    </>
                   )}
                 </Button>
               </form>

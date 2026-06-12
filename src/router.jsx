@@ -19,6 +19,7 @@ const Dashboard = lazy(() => import("./pages/dashboard/Dashboard.jsx"));
 const Clients = lazy(() => import("./pages/dashboard/Clients.jsx"));
 const Workouts = lazy(() => import("./pages/dashboard/Workouts.jsx"));
 const Live = lazy(() => import("./pages/dashboard/Live.jsx"));
+const Subscriptions = lazy(() => import("./pages/dashboard/Subscriptions.jsx"));
 const ClientLayout = lazy(() =>
   import("./pages/client/ClientLayout.jsx").then((m) => ({ default: m.ClientLayout }))
 );
@@ -67,6 +68,7 @@ export const router = createBrowserRouter([
       { path: "clienti", element: wrap(<Clients />) },
       { path: "schede", element: wrap(<Workouts />) },
       { path: "live", element: wrap(<Live />) },
+      { path: "abbonamenti", element: wrap(<Subscriptions />) },
     ],
   },
   {

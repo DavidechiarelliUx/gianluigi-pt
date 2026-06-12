@@ -5,8 +5,7 @@ import { Button } from "../../components/ui/Button";
 import { useAuth } from "../../hooks/useAuth";
 import { apiFetch } from "../../lib/api";
 
-const money = (cents = 0, currency = "eur") =>
-  new Intl.NumberFormat("it-IT", { style: "currency", currency }).format(cents / 100);
+const money = (cents = 0, currency = "eur") => new Intl.NumberFormat("it-IT", { style: "currency", currency }).format(cents / 100);
 
 function SectionCard({ children }) {
   return (
@@ -19,8 +18,7 @@ function SectionCard({ children }) {
 function SectionRow({ icon: Icon, label, value, href, onClick, danger }) {
   const inner = (
     <div className={`flex items-center gap-3 px-4 py-3.5 ${onClick || href ? "hover:bg-white/5 transition-colors" : ""}`}>
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
-        style={{ background: danger ? "rgba(255,59,59,0.1)" : "#1a1a1a" }}>
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ background: danger ? "rgba(255,59,59,0.1)" : "#1a1a1a" }}>
         <Icon size={17} style={{ color: danger ? "#ff6b6b" : "#888" }} />
       </div>
       <div className="min-w-0 flex-1">
@@ -31,8 +29,18 @@ function SectionRow({ icon: Icon, label, value, href, onClick, danger }) {
     </div>
   );
 
-  if (href) return <a href={href} target="_blank" rel="noopener noreferrer" className="block">{inner}</a>;
-  if (onClick) return <button onClick={onClick} className="block w-full text-left">{inner}</button>;
+  if (href)
+    return (
+      <a href={href} target="_blank" rel="noopener noreferrer" className="block">
+        {inner}
+      </a>
+    );
+  if (onClick)
+    return (
+      <button onClick={onClick} className="block w-full text-left">
+        {inner}
+      </button>
+    );
   return <div>{inner}</div>;
 }
 
@@ -55,7 +63,11 @@ export default function ClientSupport() {
   // Logout: navigate to /login (auth state cleared by login page or token expiry)
   const handleLogout = () => {
     // Clear any local auth tokens if stored
-    try { localStorage.removeItem("auth-token"); } catch { /* noop */ }
+    try {
+      localStorage.removeItem("auth-token");
+    } catch {
+      /* noop */
+    }
     navigate("/login", { replace: true });
   };
 
@@ -111,22 +123,19 @@ export default function ClientSupport() {
                     </p>
                   )}
                 </div>
-                <span className="shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase"
+                <span
+                  className="shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase"
                   style={{
-                    background: subscription.status === "active"
-                      ? "rgba(57,255,20,0.12)"
-                      : subscription.status === "past_due"
-                      ? "rgba(255,165,0,0.12)"
-                      : "rgba(255,59,59,0.12)",
-                    color: subscription.status === "active"
-                      ? "#39FF14"
-                      : subscription.status === "past_due"
-                      ? "#FFA500"
-                      : "#ff6b6b",
-                  }}>
-                  {subscription.status === "active" ? "Attivo"
-                    : subscription.status === "past_due" ? "Sospeso"
-                    : "Cancellato"}
+                    background:
+                      subscription.status === "active"
+                        ? "rgba(57,255,20,0.12)"
+                        : subscription.status === "past_due"
+                          ? "rgba(255,165,0,0.12)"
+                          : "rgba(255,59,59,0.12)",
+                    color: subscription.status === "active" ? "#39FF14" : subscription.status === "past_due" ? "#FFA500" : "#ff6b6b",
+                  }}
+                >
+                  {subscription.status === "active" ? "Attivo" : subscription.status === "past_due" ? "Sospeso" : "Cancellato"}
                 </span>
               </div>
 
@@ -169,8 +178,7 @@ export default function ClientSupport() {
                   <p className="font-display text-base font-bold uppercase text-white">{activePackage.productName}</p>
                   <p className="text-sm text-text-muted">{money(activePackage.amountCents, activePackage.currency)}</p>
                 </div>
-                <span className="rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase"
-                  style={{ background: "rgba(57,255,20,0.12)", color: "#39FF14" }}>
+                <span className="rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase" style={{ background: "rgba(57,255,20,0.12)", color: "#39FF14" }}>
                   Attivo
                 </span>
               </div>
@@ -178,10 +186,15 @@ export default function ClientSupport() {
                 <div className="mt-3">
                   <div className="mb-1 flex justify-between text-xs text-text-muted">
                     <span>{activePackage.remainingSessions} sessioni residue</span>
-                    <span>{activePackage.usedSessions}/{activePackage.sessionsQty}</span>
+                    <span>
+                      {activePackage.usedSessions}/{activePackage.sessionsQty}
+                    </span>
                   </div>
                   <div className="h-1.5 overflow-hidden rounded-full" style={{ background: "#1a1a1a" }}>
-                    <div className="h-full rounded-full" style={{ background: "#39FF14", width: `${(activePackage.usedSessions / activePackage.sessionsQty) * 100}%` }} />
+                    <div
+                      className="h-full rounded-full"
+                      style={{ background: "#39FF14", width: `${(activePackage.usedSessions / activePackage.sessionsQty) * 100}%` }}
+                    />
                   </div>
                 </div>
               ) : (
@@ -191,7 +204,9 @@ export default function ClientSupport() {
           </SectionCard>
         ) : (
           <div className="rounded-2xl p-4" style={{ background: "rgba(255,59,59,0.06)", border: "1px solid rgba(255,59,59,0.25)" }}>
-            <p className="text-sm font-semibold" style={{ color: "#ff6b6b" }}>Nessun abbonamento attivo</p>
+            <p className="text-sm font-semibold" style={{ color: "#ff6b6b" }}>
+              Nessun abbonamento attivo
+            </p>
             <p className="mt-1 text-xs text-text-muted">Acquista un abbonamento per accedere alle schede e alle live.</p>
             <Button className="mt-3 w-full" onClick={() => navigate("/area-cliente/abbonamenti")}>
               Vedi abbonamenti
@@ -217,34 +232,11 @@ export default function ClientSupport() {
       <div>
         <p className="mb-2 px-1 text-[11px] font-bold uppercase tracking-widest text-text-muted">Supporto</p>
         <SectionCard>
-          <SectionRow
-            icon={Mail}
-            label="Contatta Gianluigi"
-            value="Scrivi un messaggio o WhatsApp"
-            onClick={() => navigate("/area-cliente/contatta")}
-          />
+          <SectionRow icon={Mail} label="Contatta Gianluigi" value="Scrivi un messaggio o WhatsApp" onClick={() => navigate("/area-cliente/contatta")} />
           <Divider />
-          <SectionRow
-            icon={Shield}
-            label="Privacy & sicurezza"
-            value="Trattamento dati"
-            onClick={() => navigate("/area-cliente/privacy")}
-          />
+          <SectionRow icon={Shield} label="Privacy & sicurezza" value="Trattamento dati" onClick={() => navigate("/area-cliente/privacy")} />
         </SectionCard>
       </div>
-
-      {/* Logout */}
-      <div>
-        <SectionCard>
-          <SectionRow
-            icon={LogOut}
-            label="Esci dall'account"
-            onClick={handleLogout}
-            danger
-          />
-        </SectionCard>
-      </div>
-
       {/* Upgrade CTA if no package */}
       {!activePackage && (
         <div className="rounded-2xl p-4" style={{ background: "rgba(57,255,20,0.06)", border: "1px solid rgba(57,255,20,0.2)" }}>

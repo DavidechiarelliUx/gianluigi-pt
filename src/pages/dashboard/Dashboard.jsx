@@ -191,59 +191,25 @@ export default function Dashboard() {
         sentIds={sentReminders}
       />
 
-      {/* ── Clienti paganti + Live ── */}
+      {/* ── Abbonamenti + Live ── */}
       <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
         <Card className="space-y-4">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h3 className="font-display text-lg font-bold uppercase">Clienti paganti</h3>
-              <p className="text-sm text-text-muted">Ordini confermati — contatti rapidi.</p>
+              <h3 className="font-display text-lg font-bold uppercase">Abbonamenti &amp; pagamenti</h3>
+              <p className="text-sm text-text-muted">Gestisci abbonamenti e ordini dei clienti.</p>
             </div>
             <StatusBadge status="success">{payingClients.length}</StatusBadge>
           </div>
-
-          <div className="space-y-3">
-            {payingClients.length ? (
-              payingClients.map((client) => {
-                const wa = whatsappHref(client.phone);
-                return (
-                  <article key={client.email} className="rounded-lg border border-border bg-surface-2 p-4">
-                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                      <div className="min-w-0">
-                        <h4 className="truncate font-display text-sm font-bold uppercase">{client.name}</h4>
-                        <p className="truncate text-sm text-text-muted">{client.email}</p>
-                        <p className="mt-1 text-xs uppercase tracking-wide text-accent">
-                          {client.latestOrder.product?.name || "Pacchetto"} ·{" "}
-                          {money(client.latestOrder.amountCents, client.latestOrder.currency)}
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {client.email && (
-                          <Button as="a" size="sm" variant="secondary" href={`mailto:${client.email}`}>
-                            <Mail size={15} /> Email
-                          </Button>
-                        )}
-                        {wa && (
-                          <Button as="a" size="sm" variant="secondary" href={wa} target="_blank" rel="noreferrer">
-                            <MessageCircle size={15} /> WhatsApp
-                          </Button>
-                        )}
-                        {client.id && (
-                          <Button size="sm" onClick={() => { window.location.href = `/dashboard/schede?clientId=${client.id}`; }}>
-                            Scheda
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </article>
-                );
-              })
-            ) : (
-              <p className="rounded-lg border border-border bg-surface-2 p-4 text-sm text-text-muted">
-                Nessun ordine pagato ancora registrato.
-              </p>
-            )}
-          </div>
+          <p className="text-sm text-text-muted">
+            {summary?.subscriptionsActive ?? 0} abbonamenti attivi · {payingClients.length} clienti paganti
+          </p>
+          <p className="text-xs text-text-muted">
+            Se un pagamento Stripe va in errore, qui puoi correggere manualmente stato, accesso e scadenza.
+          </p>
+          <Button onClick={() => { window.location.href = "/dashboard/abbonamenti"; }}>
+            <CreditCard size={16} /> Gestisci abbonamenti
+          </Button>
         </Card>
 
         <Card className="space-y-4">

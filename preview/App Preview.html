@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gianluigi PT — App Preview</title>
+    <link rel="stylesheet" href="colors_and_type.css" />
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html,
+      body {
+        height: 100%;
+        background: var(--bg);
+        font-family: var(--font-body);
+        color: var(--text);
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .stage {
+        position: relative;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        padding: 48px 24px;
+      }
+
+      /* ---- ambient neon glow blobs behind the phone ---- */
+      .glow {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(90px);
+        pointer-events: none;
+        z-index: 0;
+      }
+      .glow.a {
+        width: 520px;
+        height: 520px;
+        background: radial-gradient(circle, rgba(57, 255, 20, 0.22), transparent 70%);
+        animation: breathe 6s ease-in-out infinite;
+      }
+      .glow.b {
+        width: 360px;
+        height: 360px;
+        background: radial-gradient(circle, rgba(0, 255, 135, 0.12), transparent 70%);
+        transform: translate(160px, -120px);
+        animation: breathe 7.5s ease-in-out infinite reverse;
+      }
+      @keyframes breathe {
+        0%,
+        100% {
+          opacity: 0.7;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1.08);
+        }
+      }
+      .glow.b {
+        animation-name: breatheB;
+      }
+      @keyframes breatheB {
+        0%,
+        100% {
+          opacity: 0.6;
+          transform: translate(160px, -120px) scale(1);
+        }
+        50% {
+          opacity: 0.9;
+          transform: translate(160px, -120px) scale(1.1);
+        }
+      }
+
+      /* ---- phone ---- */
+      .phone {
+        position: relative;
+        z-index: 1;
+        width: 322px;
+        height: 590px;
+        aspect-ratio: 910 / 1610;
+        border-radius: 46px;
+        padding: 12px;
+        background: linear-gradient(155deg, #2b2f2b, #0c0d0c 60%);
+        box-shadow:
+          0 0 0 1.5px rgba(57, 255, 20, 0.18),
+          0 30px 80px rgba(0, 0, 0, 0.65),
+          0 0 50px rgba(57, 255, 20, 0.12);
+      }
+
+      .screen {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        border-radius: 28px;
+        overflow: hidden;
+        background: #000;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+      }
+
+      /* sliding track */
+      .track {
+        display: flex;
+        height: 100%;
+        width: 100%;
+        transition: transform 700ms var(--ease-out);
+        will-change: transform;
+      }
+      .slide {
+        flex: 0 0 100%;
+        width: 100%;
+        height: 100%;
+      }
+      .slide img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: top center;
+        display: block;
+      }
+
+      /* dynamic island */
+
+      /* side buttons */
+      .btn-side {
+        position: absolute;
+        width: 3px;
+        background: #1a1c1a;
+        border-radius: 2px;
+      }
+      .btn-side.power {
+        right: -3px;
+        top: 150px;
+        height: 64px;
+      }
+      .btn-side.vol-1 {
+        left: -3px;
+        top: 120px;
+        height: 40px;
+      }
+      .btn-side.vol-2 {
+        left: -3px;
+        top: 170px;
+        height: 40px;
+      }
+
+      /* ---- dot indicators ---- */
+      .dots {
+        position: absolute;
+        z-index: 2;
+        bottom: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 10px;
+      }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.22);
+        transition: all 350ms var(--ease-out);
+        cursor: pointer;
+        border: none;
+        padding: 0;
+      }
+      .dot.active {
+        width: 26px;
+        border-radius: 5px;
+        background: var(--accent);
+        box-shadow: 0 0 12px rgba(57, 255, 20, 0.6);
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .glow {
+          animation: none !important;
+        }
+        .track {
+          transition: none;
+        }
+      }
+    </style>
+  </head>
+  <body class="ds-body">
+    <div class="stage">
+      <div class="glow a"></div>
+      <div class="glow b"></div>
+
+      <div class="phone">
+        <div class="btn-side power"></div>
+        <div class="btn-side vol-1"></div>
+        <div class="btn-side vol-2"></div>
+        <div class="screen">
+          <div class="track" id="track">
+            <div class="slide"><img src="assets/screen-home.png" alt="Home — Buonasera Valerio" /></div>
+            <div class="slide"><img src="assets/screen-allenamento.png" alt="Allenamento — Scheda 2" /></div>
+            <div class="slide"><img src="assets/screen-live.png" alt="Sessioni Live" /></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dots" id="dots"></div>
+    </div>
+
+    <script>
+      const SLIDES = 3;
+      const INTERVAL = 3200;
+      const track = document.getElementById("track");
+      const dotsWrap = document.getElementById("dots");
+      let i = 0;
+      let timer = null;
+
+      const dots = [];
+      for (let n = 0; n < SLIDES; n++) {
+        const b = document.createElement("button");
+        b.className = "dot" + (n === 0 ? " active" : "");
+        b.setAttribute("aria-label", "Schermata " + (n + 1));
+        b.addEventListener("click", () => {
+          go(n);
+          restart();
+        });
+        dotsWrap.appendChild(b);
+        dots.push(b);
+      }
+
+      function go(n) {
+        i = (n + SLIDES) % SLIDES;
+        track.style.transform = "translateX(" + -i * 100 + "%)";
+        dots.forEach((d, k) => d.classList.toggle("active", k === i));
+      }
+      function next() {
+        go(i + 1);
+      }
+      function start() {
+        timer = setInterval(next, INTERVAL);
+      }
+      function restart() {
+        clearInterval(timer);
+        start();
+      }
+
+      start();
+
+      // pause on hover (desktop)
+      const phone = document.querySelector(".phone");
+      phone.addEventListener("mouseenter", () => clearInterval(timer));
+      phone.addEventListener("mouseleave", start);
+    </script>
+  </body>
+</html>
