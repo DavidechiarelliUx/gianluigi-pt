@@ -49,7 +49,7 @@ function Divider() {
 }
 
 export default function ClientSupport() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   const overviewQuery = useQuery({
@@ -60,14 +60,8 @@ export default function ClientSupport() {
   const activePackage = overviewQuery.data?.activePackage;
   const subscription = overviewQuery.data?.subscription;
 
-  // Logout: navigate to /login (auth state cleared by login page or token expiry)
-  const handleLogout = () => {
-    // Clear any local auth tokens if stored
-    try {
-      localStorage.removeItem("auth-token");
-    } catch {
-      /* noop */
-    }
+  const handleLogout = async () => {
+    await logout();
     navigate("/login", { replace: true });
   };
 
@@ -224,6 +218,14 @@ export default function ClientSupport() {
             label="Aggiungi alla schermata Home"
             value="Usa l'app direttamente dal telefono"
             onClick={() => navigate("/area-cliente/installa-app")}
+          />
+          <Divider />
+          <SectionRow
+            icon={LogOut}
+            label="Esci dall'app"
+            value="Logout dal tuo account"
+            onClick={handleLogout}
+            danger
           />
         </SectionCard>
       </div>

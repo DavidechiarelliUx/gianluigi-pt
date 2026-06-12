@@ -4,6 +4,43 @@ import { methodNotAllowed, parseJsonBody } from "../../server/lib/body.js";
 import { EXERCISE_CATALOG, EXERCISE_SLUG_BY_NAME } from "../../server/lib/exercise-catalog.js";
 import { sendRenewalReminderEmail } from "../../server/lib/mailer.js";
 
+const PRODUCT_TYPES = ["session_solo", "session_group", "package"];
+const ACCESS_LEVELS = ["none", "app", "live", "app_live", "premium"];
+const BILLING_INTERVALS = ["one_time", "month", "year"];
+
+function clampInt(value, min, max, fallback = 0) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(min, Math.min(max, Math.round(parsed)));
+}
+
+function normalizeFeatures(value) {
+  if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
+  if (typeof value === "string") {
+    return value.split("\n").map((item) => item.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+function normalizeDiscountTiers(value) {
+  const source = Array.isArray(value) ? value : [];
+  return source
+    .map((tier) => ({
+      minQty: clampInt(tier.minQty, 1, 100, 1),
+      discountPercent: clampInt(tier.discountPercent, 0, 90, 0),
+    }))
+    .filter((tier) => tier.discountPercent > 0)
+    .sort((a, b) => a.minQty - b.minQty);
+}
+
+function publicProduct(product) {
+  return {
+    ...product,
+    features: Array.isArray(product.features) ? product.features : [],
+    discountTiers: Array.isArray(product.discountTiers) ? product.discountTiers : [],
+  };
+}
+
 // ─── GET /api/admin/summary ───────────────────────────────────────────────────
 
 async function summary(req, res) {
@@ -209,6 +246,126 @@ async function sendRenewalReminder(req, res) {
   }
 }
 
+// ─── GET|PUT /api/admin/products ─────────────────────────────────────────────
+
+async function products(req, res) {
+  if (req.method === "GET") {
+    try {
+      const list = await prisma.product.findMany({
+        orderBy: [{ sortOrder: "asc" }, { priceCents: "asc" }],
+      });
+      return res.status(200).json({ ok: true, products: list.map(publicProduct) });
+    } catch (err) {
+      console.error("GET /api/admin/products:", err);
+      return res.status(500).json({ ok: false, error: "Errore interno" });
+    }
+  }
+
+  if (req.method === "PUT") {
+    const body = parseJsonBody(req);
+    if (!body?.id) return res.status(400).json({ ok: false, error: "id prodotto obbligatorio" });
+
+    const data = {};
+    if (body.name !== undefined) {
+      const name = String(body.name).trim();
+      if (name.length < 2) return res.status(400).json({ ok: false, error: "Nome prodotto non valido" });
+      data.name = name;
+    }
+    if (body.description !== undefined) data.description = String(body.description || "").trim() || null;
+    if (body.priceCents !== undefined) data.priceCents = clampInt(body.priceCents, 100, 1000000, 100);
+    if (body.currency !== undefined) data.currency = String(body.currency || "eur").trim().toLowerCase();
+    if (body.type !== undefined) {
+      if (!PRODUCT_TYPES.includes(body.type)) return res.status(400).json({ ok: false, error: "Tipo prodotto non valido" });
+      data.type = body.type;
+    }
+    if (body.sessionsQty !== undefined) data.sessionsQty = clampInt(body.sessionsQty, 0, 100, 0);
+    if (body.discountPercent !== undefined) data.discountPercent = clampInt(body.discountPercent, 0, 90, 0);
+    if (body.discountTiers !== undefined) data.discountTiers = normalizeDiscountTiers(body.discountTiers);
+    if (body.features !== undefined) data.features = normalizeFeatures(body.features);
+    if (body.badgeLabel !== undefined) data.badgeLabel = String(body.badgeLabel || "").trim() || null;
+    if (body.sortOrder !== undefined) data.sortOrder = clampInt(body.sortOrder, 0, 1000, 0);
+    if (body.active !== undefined) data.active = !!body.active;
+    if (body.accessLevel !== undefined) {
+      if (!ACCESS_LEVELS.includes(body.accessLevel)) return res.status(400).json({ ok: false, error: "Accesso non valido" });
+      data.accessLevel = body.accessLevel;
+    }
+    if (body.billingInterval !== undefined) {
+      if (!BILLING_INTERVALS.includes(body.billingInterval)) return res.status(400).json({ ok: false, error: "Intervallo non valido" });
+      data.billingInterval = body.billingInterval;
+    }
+
+    try {
+      const product = await prisma.product.update({
+        where: { id: body.id },
+        data,
+      });
+      return res.status(200).json({ ok: true, product: publicProduct(product) });
+    } catch (err) {
+      console.error("PUT /api/admin/products:", err);
+      if (err.code === "P2025") return res.status(404).json({ ok: false, error: "Prodotto non trovato" });
+      if (err.code === "P2002") return res.status(409).json({ ok: false, error: "Nome prodotto già esistente" });
+      return res.status(500).json({ ok: false, error: "Errore interno" });
+    }
+  }
+
+  return methodNotAllowed(res, ["GET", "PUT"]);
+}
+
+// ─── GET|POST /api/admin/live-credits ────────────────────────────────────────
+
+async function liveCredits(req, res) {
+  if (req.method === "GET") {
+    try {
+      const [clients, balances] = await Promise.all([
+        prisma.client.findMany({
+          where: { deletedAt: null },
+          orderBy: { createdAt: "desc" },
+          include: { user: { select: { id: true, fullName: true, email: true } } },
+        }),
+        prisma.liveCreditLedger.groupBy({
+          by: ["clientId"],
+          _sum: { amount: true },
+        }),
+      ]);
+      const balanceMap = new Map(balances.map((row) => [row.clientId, row._sum.amount || 0]));
+      return res.status(200).json({
+        ok: true,
+        clients: clients.map((client) => ({ ...client, liveCredits: balanceMap.get(client.id) || 0 })),
+      });
+    } catch (err) {
+      console.error("GET /api/admin/live-credits:", err);
+      return res.status(500).json({ ok: false, error: "Errore interno" });
+    }
+  }
+
+  if (req.method === "POST") {
+    const body = parseJsonBody(req);
+    const clientId = String(body?.clientId || "");
+    const amount = clampInt(body?.amount, 1, 100, 1);
+    const note = String(body?.note || "").trim() || "Credito aggiunto da dashboard";
+    if (!clientId) return res.status(400).json({ ok: false, error: "Cliente obbligatorio" });
+
+    try {
+      const client = await prisma.client.findFirst({ where: { id: clientId, deletedAt: null } });
+      if (!client) return res.status(404).json({ ok: false, error: "Cliente non trovato" });
+      const movement = await prisma.liveCreditLedger.create({
+        data: {
+          clientId,
+          amount,
+          reason: "admin_grant",
+          note,
+        },
+      });
+      return res.status(201).json({ ok: true, movement });
+    } catch (err) {
+      console.error("POST /api/admin/live-credits:", err);
+      return res.status(500).json({ ok: false, error: "Errore interno" });
+    }
+  }
+
+  return methodNotAllowed(res, ["GET", "POST"]);
+}
+
 // ─── Router ───────────────────────────────────────────────────────────────────
 
 export default function handler(req, res) {
@@ -221,5 +378,7 @@ export default function handler(req, res) {
   if (action === "messages")              return messages(req, res);
   if (action === "subscription-expiring") return subscriptionExpiring(req, res);
   if (action === "send-renewal-reminder") return sendRenewalReminder(req, res);
+  if (action === "products")              return products(req, res);
+  if (action === "live-credits")          return liveCredits(req, res);
   return res.status(404).json({ ok: false, error: "Endpoint admin non trovato" });
 }

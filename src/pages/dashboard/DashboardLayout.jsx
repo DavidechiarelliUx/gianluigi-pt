@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Users, ClipboardList, Video, CreditCard, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, ClipboardList, Video, CreditCard, LogOut, Package } from "lucide-react";
 import { Sidebar } from "../../components/app/Sidebar";
 import { Topbar } from "../../components/app/Topbar";
 import { Button } from "../../components/ui/Button";
@@ -11,6 +11,7 @@ const NAV = [
   { label: "Clienti", icon: Users, href: "/dashboard/clienti" },
   { label: "Schede", icon: ClipboardList, href: "/dashboard/schede" },
   { label: "Live", icon: Video, href: "/dashboard/live" },
+  { label: "Pacchetti", icon: Package, href: "/dashboard/pacchetti" },
   { label: "Abbonamenti", icon: CreditCard, href: "/dashboard/abbonamenti" },
 ];
 
@@ -19,6 +20,7 @@ const TITLES = {
   "/dashboard/clienti": "Clienti",
   "/dashboard/schede": "Schede",
   "/dashboard/live": "Sessioni Live",
+  "/dashboard/pacchetti": "Pacchetti",
   "/dashboard/abbonamenti": "Abbonamenti",
 };
 

@@ -7,6 +7,7 @@ import {
   Mail,
   MessageCircle,
   MessageSquareText,
+  Package,
   TrendingUp,
   Users,
   Video,
@@ -192,7 +193,7 @@ export default function Dashboard() {
       />
 
       {/* ── Abbonamenti + Live ── */}
-      <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+      <div className="grid gap-6 xl:grid-cols-3">
         <Card className="space-y-4">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -209,6 +210,19 @@ export default function Dashboard() {
           </p>
           <Button onClick={() => { window.location.href = "/dashboard/abbonamenti"; }}>
             <CreditCard size={16} /> Gestisci abbonamenti
+          </Button>
+        </Card>
+
+        <Card className="space-y-4">
+          <div>
+            <h3 className="font-display text-lg font-bold uppercase">Pacchetti</h3>
+            <p className="text-sm text-text-muted">Modifica prezzi, testi, sconti e live incluse.</p>
+          </div>
+          <p className="text-xs text-text-muted">
+            Gli sconti qui cambiano anche il prezzo inviato a Stripe al checkout.
+          </p>
+          <Button onClick={() => { window.location.href = "/dashboard/pacchetti"; }}>
+            <Package size={16} /> Gestisci pacchetti
           </Button>
         </Card>
 

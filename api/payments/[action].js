@@ -15,57 +15,57 @@ export const config = {
 
 const DEFAULT_PRODUCTS = [
   {
-    name: "Start Check",
-    description: "Analisi obiettivo e consiglio personalizzato per capire da dove partire.",
-    priceCents: 1700,
-    type: "package",
-    sessionsQty: 0,
-    accessLevel: "app",
-    billingInterval: "one_time",
-  },
-  {
-    name: "App Starter",
-    description: "Scheda 7 giorni, accesso app e tracking base per provare il metodo.",
+    name: "Start",
+    description: "Scheda personalizzata, app e supporto messaggi per partire con metodo.",
     priceCents: 2900,
     type: "package",
     sessionsQty: 0,
     accessLevel: "app",
-    billingInterval: "one_time",
-  },
-  {
-    name: "App Mensile",
-    description: "Scheda mensile, app, tracking e aggiornamento manuale della scheda.",
-    priceCents: 5900,
-    type: "package",
-    sessionsQty: 0,
-    accessLevel: "app",
     billingInterval: "month",
+    sortOrder: 1,
+    features: ["Scheda personalizzata", "Accesso app", "Supporto messaggi", "Aggiornamento ogni 4 settimane"],
   },
   {
-    name: "App + Live",
-    description: "App Mensile con live di gruppo settimanale inclusa.",
-    priceCents: 9700,
-    type: "package",
-    sessionsQty: 4,
-    accessLevel: "app_live",
-    billingInterval: "month",
-  },
-  {
-    name: "Premium 1:1",
-    description: "App, scheda, feedback e sessione individuale 1:1.",
-    priceCents: 14900,
+    name: "Progress",
+    description: "Percorso seguito con una live inclusa ogni mese.",
+    priceCents: 6900,
     type: "package",
     sessionsQty: 1,
+    accessLevel: "app_live",
+    billingInterval: "month",
+    sortOrder: 2,
+    badgeLabel: "Consigliato",
+    features: ["Tutto Start", "1 live inclusa", "Check-in settimanale", "Adattamenti su carichi e recupero"],
+  },
+  {
+    name: "Complete",
+    description: "Percorso completo con tre live incluse ogni mese.",
+    priceCents: 11900,
+    type: "package",
+    sessionsQty: 3,
     accessLevel: "premium",
     billingInterval: "month",
+    sortOrder: 3,
+    features: ["Tutto Progress", "3 live incluse", "Revisione tecnica esercizi", "Strategia mensile su obiettivo e recupero"],
+  },
+  {
+    name: "Live 1:1 extra",
+    description: "Credito live acquistabile separatamente e usabile dall'area cliente.",
+    priceCents: 2500,
+    type: "session_solo",
+    sessionsQty: 1,
+    accessLevel: "live",
+    billingInterval: "one_time",
+    sortOrder: 20,
+    discountTiers: [
+      { minQty: 4, discountPercent: 10 },
+      { minQty: 8, discountPercent: 20 },
+    ],
+    features: ["Credito live 1:1", "Prenotazione dall'app", "Link video integrato"],
   },
 ];
 
-const LAUNCH_CAPACITY = {
-  "App Mensile": 12,
-  "App + Live": 8,
-  "Premium 1:1": 4,
-};
+const LEGACY_PRODUCT_NAMES = ["Start Check", "App Starter", "App Mensile", "App + Live", "Premium 1:1"];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -83,38 +83,72 @@ function isEmail(value) {
   return typeof value === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
-function publicProduct(product, paidQuantity = 0) {
-  const launchCapacity = LAUNCH_CAPACITY[product.name] || null;
-  const remainingSeats = launchCapacity == null
-    ? null
-    : Math.max(0, launchCapacity - paidQuantity);
+function clampDiscount(value) {
+  const parsed = Number(value) || 0;
+  return Math.max(0, Math.min(90, Math.round(parsed)));
+}
 
+function featuresList(product) {
+  return Array.isArray(product.features) ? product.features : [];
+}
+
+function discountTiers(product) {
+  return Array.isArray(product.discountTiers)
+    ? product.discountTiers
+        .map((tier) => ({
+          minQty: Math.max(1, Number(tier.minQty) || 1),
+          discountPercent: clampDiscount(tier.discountPercent),
+        }))
+        .filter((tier) => tier.discountPercent > 0)
+        .sort((a, b) => a.minQty - b.minQty)
+    : [];
+}
+
+function appliedDiscountPercent(product, quantity = 1) {
+  const baseDiscount = clampDiscount(product.discountPercent);
+  const tierDiscount = discountTiers(product)
+    .filter((tier) => quantity >= tier.minQty)
+    .reduce((max, tier) => Math.max(max, tier.discountPercent), 0);
+  return Math.max(baseDiscount, tierDiscount);
+}
+
+function effectiveUnitAmount(product, quantity = 1) {
+  const discount = appliedDiscountPercent(product, quantity);
+  return Math.max(50, Math.round(product.priceCents * (100 - discount) / 100));
+}
+
+function publicProduct(product) {
   return {
     id: product.id,
     name: product.name,
     description: product.description,
     priceCents: product.priceCents,
+    effectivePriceCents: effectiveUnitAmount(product, 1),
+    discountPercent: appliedDiscountPercent(product, 1),
+    discountTiers: discountTiers(product),
+    features: featuresList(product),
+    badgeLabel: product.badgeLabel,
+    sortOrder: product.sortOrder || 0,
     currency: product.currency,
     type: product.type,
     sessionsQty: product.sessionsQty,
     accessLevel: product.accessLevel || "app",
     billingInterval: product.billingInterval || "one_time",
     isSubscription: (product.billingInterval || "one_time") !== "one_time",
-    launchCapacity,
-    remainingSeats,
+    launchCapacity: null,
+    remainingSeats: null,
   };
 }
 
 async function ensureDefaultProducts() {
   for (const item of DEFAULT_PRODUCTS) {
-    await prisma.product.upsert({
-      where: { name: item.name },
-      update: { ...item, currency: "eur", active: true },
-      create: { ...item, currency: "eur", active: true },
-    });
+    const existing = await prisma.product.findUnique({ where: { name: item.name }, select: { id: true } });
+    if (!existing) {
+      await prisma.product.create({ data: { ...item, currency: "eur", active: true } });
+    }
   }
   await prisma.product.updateMany({
-    where: { name: { notIn: DEFAULT_PRODUCTS.map((p) => p.name) } },
+    where: { name: { in: LEGACY_PRODUCT_NAMES } },
     data: { active: false },
   });
 }
@@ -192,6 +226,68 @@ async function ensureClientFromPaidOrder(order) {
   });
 }
 
+async function grantLiveCreditsForOrder(order, client) {
+  const credits = Number(order.sessionsQty) || 0;
+  if (!client?.id || credits <= 0) return false;
+
+  const existingOrder = await prisma.order.findUnique({
+    where: { id: order.id },
+    select: { liveCreditsGrantedAt: true },
+  });
+  if (existingOrder?.liveCreditsGrantedAt) return false;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.liveCreditLedger.upsert({
+      where: { externalRef: `order:${order.id}` },
+      update: {},
+      create: {
+        clientId: client.id,
+        orderId: order.id,
+        externalRef: `order:${order.id}`,
+        amount: credits,
+        reason: "purchase",
+        note: `Acquisto ${order.product?.name || "pacchetto"}`,
+      },
+    });
+    await tx.order.update({
+      where: { id: order.id },
+      data: { liveCreditsGrantedAt: new Date() },
+    });
+  });
+
+  return true;
+}
+
+async function grantLiveCreditsForInvoice(invoice, stripeSub) {
+  if (invoice.billing_reason !== "subscription_cycle") return false;
+
+  const productId = stripeSub?.metadata?.productId || null;
+  const customerId = typeof stripeSub?.customer === "string" ? stripeSub.customer : null;
+  if (!productId || !customerId || !invoice.id) return false;
+
+  const [product, user] = await Promise.all([
+    prisma.product.findUnique({ where: { id: productId } }),
+    prisma.user.findFirst({ where: { stripeCustomerId: customerId }, include: { client: true } }),
+  ]);
+
+  const credits = Number(product?.sessionsQty) || 0;
+  if (!user?.client?.id || credits <= 0) return false;
+
+  await prisma.liveCreditLedger.upsert({
+    where: { externalRef: `invoice:${invoice.id}` },
+    update: {},
+    create: {
+      clientId: user.client.id,
+      externalRef: `invoice:${invoice.id}`,
+      amount: credits,
+      reason: "purchase",
+      note: `Rinnovo ${product.name}`,
+    },
+  });
+
+  return true;
+}
+
 // ─── Gestione Stripe Subscription nel DB ─────────────────────────────────────
 
 /** Crea o aggiorna un record Subscription dal payload Stripe. */
@@ -247,15 +343,9 @@ async function products(req, res) {
       where: { active: true },
       orderBy: [{ type: "asc" }, { priceCents: "asc" }],
     });
-    const paidByProduct = await prisma.order.groupBy({
-      by: ["productId"],
-      where: { status: "paid", productId: { in: list.map((p) => p.id) } },
-      _sum: { quantity: true },
-    });
-    const paidQtyMap = new Map(paidByProduct.map((row) => [row.productId, row._sum.quantity || 0]));
     return res.status(200).json({
       ok: true,
-      products: list.map((p) => publicProduct(p, paidQtyMap.get(p.id) || 0)),
+      products: list.map((p) => publicProduct(p)),
     });
   } catch (err) {
     console.error("GET /api/payments/products:", err);
@@ -275,6 +365,7 @@ async function checkout(req, res) {
   const customerName = String(body.fullName || "").trim();
   const customerPhone = body.phone ? String(body.phone).trim() : null;
   const requestedQty = Math.max(1, Math.min(20, Number(body.quantity) || 1));
+  const requestedExtraLiveQty = Math.max(0, Math.min(20, Number(body.liveQuantity) || 0));
   // returnTo:'app' → success/cancel puntano all'area cliente invece che alle pagine pubbliche
   const returnToApp = body.returnTo === "app";
 
@@ -289,8 +380,22 @@ async function checkout(req, res) {
 
     const isSubscription = (product.billingInterval || "one_time") !== "one_time";
     const quantity = product.type === "session_solo" ? requestedQty : 1;
-    const sessionsQty = product.sessionsQty != null ? product.sessionsQty * quantity : null;
-    const amountCents = product.priceCents * quantity;
+    const extraLiveQuantity = product.type === "package" ? requestedExtraLiveQty : 0;
+    const liveProduct = extraLiveQuantity > 0
+      ? await prisma.product.findFirst({ where: { active: true, type: "session_solo" }, orderBy: { sortOrder: "asc" } })
+      : null;
+    if (extraLiveQuantity > 0 && !liveProduct) {
+      return res.status(404).json({ ok: false, error: "Prodotto live non configurato" });
+    }
+
+    const productUnitAmount = effectiveUnitAmount(product, quantity);
+    const liveUnitAmount = liveProduct ? effectiveUnitAmount(liveProduct, extraLiveQuantity) : 0;
+    const productLiveCredits = product.sessionsQty != null ? product.sessionsQty * quantity : 0;
+    const extraLiveCredits = liveProduct?.sessionsQty != null
+      ? liveProduct.sessionsQty * extraLiveQuantity
+      : extraLiveQuantity;
+    const sessionsQty = productLiveCredits + extraLiveCredits;
+    const amountCents = productUnitAmount * quantity + liveUnitAmount * extraLiveQuantity;
 
     const order = await prisma.order.create({
       data: {
@@ -332,8 +437,39 @@ async function checkout(req, res) {
         productId: product.id,
         customerEmail,
         quantity: String(quantity),
+        liveQuantity: String(extraLiveQuantity),
+        sessionsQty: String(sessionsQty),
       },
     };
+
+    const primaryLineItem = {
+      quantity,
+      price_data: {
+        currency: product.currency,
+        unit_amount: productUnitAmount,
+        ...(isSubscription ? { recurring: { interval: product.billingInterval } } : {}),
+        product_data: {
+          name: product.name,
+          description: product.description || undefined,
+        },
+      },
+    };
+
+    const extraLiveLineItem = liveProduct && extraLiveQuantity > 0
+      ? {
+          quantity: extraLiveQuantity,
+          price_data: {
+            currency: liveProduct.currency,
+            unit_amount: liveUnitAmount,
+            product_data: {
+              name: liveProduct.name,
+              description: liveProduct.description || undefined,
+            },
+          },
+        }
+      : null;
+
+    const lineItems = [primaryLineItem, extraLiveLineItem].filter(Boolean);
 
     let session;
 
@@ -347,22 +483,10 @@ async function checkout(req, res) {
             orderId: order.id,
             productId: product.id,
             customerEmail,
+            sessionsQty: String(productLiveCredits),
           },
         },
-        line_items: [
-          {
-            quantity: 1,
-            price_data: {
-              currency: product.currency,
-              unit_amount: product.priceCents,
-              recurring: { interval: product.billingInterval }, // "month" o "year"
-              product_data: {
-                name: product.name,
-                description: product.description || undefined,
-              },
-            },
-          },
-        ],
+        line_items: lineItems,
       });
     } else {
       // ── Pagamento singolo ─────────────────────────────────────────────────
@@ -375,21 +499,10 @@ async function checkout(req, res) {
             productId: product.id,
             customerEmail,
             quantity: String(quantity),
+            sessionsQty: String(sessionsQty),
           },
         },
-        line_items: [
-          {
-            quantity,
-            price_data: {
-              currency: product.currency,
-              unit_amount: product.priceCents,
-              product_data: {
-                name: product.name,
-                description: product.description || undefined,
-              },
-            },
-          },
-        ],
+        line_items: lineItems,
       });
     }
 
@@ -440,7 +553,8 @@ async function handleCheckoutCompleted(session) {
     include: { product: true, user: true },
   });
 
-  const { user, inviteToken } = await ensureClientFromPaidOrder(updatedOrder);
+  const { user, client, inviteToken } = await ensureClientFromPaidOrder(updatedOrder);
+  await grantLiveCreditsForOrder(updatedOrder, client);
 
   // Aggiorna stripeCustomerId sul User
   if (session.customer && typeof session.customer === "string") {
@@ -543,6 +657,7 @@ async function handleInvoiceSucceeded(invoice) {
   try {
     const stripeSub = await stripe.subscriptions.retrieve(subId);
     await handleSubscriptionUpdated(stripeSub);
+    await grantLiveCreditsForInvoice(invoice, stripeSub);
   } catch (err) {
     console.error("handleInvoiceSucceeded: errore aggiornamento:", err);
   }

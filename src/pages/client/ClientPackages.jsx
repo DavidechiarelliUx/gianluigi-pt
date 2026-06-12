@@ -6,8 +6,11 @@ import {
   ChevronLeft,
   CreditCard,
   Loader2,
+  Minus,
+  Plus,
   ShieldCheck,
   Sparkles,
+  Star,
   Zap,
 } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -23,16 +26,31 @@ const money = (cents = 0, cur = "eur") =>
 
 const ACCESS_LABEL = {
   app:      "App + Schede",
-  app_live: "App + Schede + Live",
-  live:     "Solo Live",
-  premium:  "App + Live + 1:1",
+  app_live: "App + Schede + Crediti Live",
+  live:     "Crediti Live",
+  premium:  "App + Live + Tecnica",
 };
+
+function discountFor(product, quantity = 1) {
+  const base = Number(product?.discountPercent) || 0;
+  const tier = (product?.discountTiers || [])
+    .filter((item) => quantity >= Number(item.minQty || 0))
+    .reduce((max, item) => Math.max(max, Number(item.discountPercent) || 0), 0);
+  return Math.max(base, tier);
+}
+
+function unitPrice(product, quantity = 1) {
+  const discount = discountFor(product, quantity);
+  return Math.round((product?.priceCents || 0) * (100 - discount) / 100);
+}
 
 // ─── PackageCard ───────────────────────────────────────────────────────────────
 
 function PackageCard({ product, active, onSelect }) {
   const isMonthly = product.billingInterval === "month";
-  const isRecommended = product.name === "App Mensile";
+  const isRecommended = product.badgeLabel || product.name === "Progress";
+  const effective = unitPrice(product, 1);
+  const discount = discountFor(product, 1);
 
   return (
     <motion.button
@@ -55,7 +73,13 @@ function PackageCard({ product, active, onSelect }) {
             {isRecommended && (
               <span className="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase"
                 style={{ background: "#39FF14", color: "#0a0a0a" }}>
-                consigliato
+                {product.badgeLabel || "consigliato"}
+              </span>
+            )}
+            {discount > 0 && (
+              <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase"
+                style={{ background: "#39FF14", color: "#0a0a0a" }}>
+                <Star size={10} fill="currentColor" /> -{discount}%
               </span>
             )}
           </div>
@@ -66,8 +90,13 @@ function PackageCard({ product, active, onSelect }) {
         </div>
 
         <div className="shrink-0 text-right">
+          {discount > 0 && (
+            <div className="text-[10px] text-text-muted line-through">
+              {money(product.priceCents, product.currency)}
+            </div>
+          )}
           <div className="font-display text-lg font-black" style={{ color: active ? "#39FF14" : "#fff" }}>
-            {money(product.priceCents, product.currency)}
+            {money(effective, product.currency)}
           </div>
           {isMonthly && (
             <p className="text-[10px] text-text-muted">/mese</p>
@@ -84,6 +113,30 @@ function PackageCard({ product, active, onSelect }) {
   );
 }
 
+function QuantityControl({ value, onChange }) {
+  return (
+    <div className="flex items-center rounded-full border border-border bg-bg p-1">
+      <button
+        type="button"
+        className="grid h-8 w-8 place-items-center rounded-full text-text-muted hover:bg-surface-2 hover:text-text"
+        onClick={() => onChange(Math.max(0, value - 1))}
+        aria-label="Diminuisci live"
+      >
+        <Minus size={14} />
+      </button>
+      <span className="w-9 text-center font-display font-black">{value}</span>
+      <button
+        type="button"
+        className="grid h-8 w-8 place-items-center rounded-full bg-accent text-bg"
+        onClick={() => onChange(Math.min(20, value + 1))}
+        aria-label="Aumenta live"
+      >
+        <Plus size={14} />
+      </button>
+    </div>
+  );
+}
+
 // ─── Main ──────────────────────────────────────────────────────────────────────
 
 export default function ClientPackages() {
@@ -93,6 +146,7 @@ export default function ClientPackages() {
 
   const [selectedId, setSelectedId] = useState(null);
   const [phone, setPhone] = useState("");
+  const [liveQty, setLiveQty] = useState(0);
   const [status, setStatus] = useState("idle"); // idle | loading | error
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -107,12 +161,20 @@ export default function ClientPackages() {
 
   const products = useMemo(
     () => (productsQuery.data?.products || [])
-      .filter((p) => p.active !== false)
-      .sort((a, b) => a.priceCents - b.priceCents),
+      .filter((p) => p.active !== false && p.type === "package")
+      .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0)),
+    [productsQuery.data?.products]
+  );
+  const liveProduct = useMemo(
+    () => (productsQuery.data?.products || []).find((p) => p.active !== false && p.type === "session_solo") || null,
     [productsQuery.data?.products]
   );
 
   const selected = products.find((p) => p.id === selectedId) || null;
+  const packageTotal = selected ? unitPrice(selected, 1) : 0;
+  const liveUnit = liveProduct ? unitPrice(liveProduct, liveQty) : 0;
+  const liveTotal = liveUnit * liveQty;
+  const liveDiscount = liveProduct ? discountFor(liveProduct, liveQty) : 0;
 
   const handleCheckout = async (e) => {
     e.preventDefault();
@@ -125,6 +187,7 @@ export default function ClientPackages() {
         method: "POST",
         body: {
           productId: selectedId,
+          liveQuantity: liveQty,
           fullName,
           email,
           phone: phone.trim() || undefined,
@@ -211,7 +274,7 @@ export default function ClientPackages() {
                   </div>
                   <div className="text-right">
                     <p className="font-display text-xl font-black" style={{ color: "#39FF14" }}>
-                      {money(selected.priceCents, selected.currency)}
+                      {money(packageTotal + liveTotal, selected.currency)}
                     </p>
                     {selected.billingInterval === "month" && (
                       <p className="text-[10px] text-text-muted">/mese, cancellabile</p>
@@ -238,6 +301,28 @@ export default function ClientPackages() {
                     </p>
                   </div>
                 </div>
+
+                {/* Phone (optional) */}
+                {liveProduct && (
+                  <div
+                    className="rounded-xl p-3"
+                    style={{ background: "#0d0d0d", border: "1px solid #1e1e1e" }}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-white">Aggiungi live extra</p>
+                        <p className="text-xs text-text-muted">Diventano crediti nel tuo account.</p>
+                      </div>
+                      <QuantityControl value={liveQty} onChange={setLiveQty} />
+                    </div>
+                    {liveQty > 0 && (
+                      <p className="mt-2 text-xs text-text-muted">
+                        Extra live: {money(liveTotal, liveProduct.currency)}
+                        {liveDiscount > 0 ? ` · sconto -${liveDiscount}%` : ""}
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 {/* Phone (optional) */}
                 <label className="block">

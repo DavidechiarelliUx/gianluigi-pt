@@ -6,15 +6,16 @@ import {
   CheckCircle2,
   Clock3,
   CreditCard,
-  Lock,
+  Minus,
+  Plus,
   Users,
   Video,
   Zap,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/Button";
 import { EmptyState } from "../../components/app";
+import { useAuth } from "../../hooks/useAuth";
 import { useToast } from "../../hooks/useToast";
 import { apiFetch } from "../../lib/api";
 
@@ -189,7 +190,105 @@ function BookedCard({ session, now, onCancel, isCancelling }) {
 
 // ─── Available session card ────────────────────────────────────────────────────
 
-function AvailableCard({ session, now, onBook, isBooking }) {
+function money(cents = 0, currency = "eur") {
+  return new Intl.NumberFormat("it-IT", {
+    style: "currency",
+    currency: currency.toUpperCase(),
+    maximumFractionDigits: 0,
+  }).format((cents || 0) / 100);
+}
+
+function discountFor(product, quantity = 1) {
+  const base = Number(product?.discountPercent) || 0;
+  const tier = (product?.discountTiers || [])
+    .filter((item) => quantity >= Number(item.minQty || 0))
+    .reduce((max, item) => Math.max(max, Number(item.discountPercent) || 0), 0);
+  return Math.max(base, tier);
+}
+
+function unitPrice(product, quantity = 1) {
+  const discount = discountFor(product, quantity);
+  return Math.round((product?.priceCents || 0) * (100 - discount) / 100);
+}
+
+function QuantityControl({ value, onChange }) {
+  return (
+    <div className="flex items-center rounded-full border border-border bg-bg p-1">
+      <button
+        type="button"
+        className="grid h-9 w-9 place-items-center rounded-full text-text-muted hover:bg-surface-2 hover:text-text"
+        onClick={() => onChange(Math.max(1, value - 1))}
+        aria-label="Diminuisci live"
+      >
+        <Minus size={15} />
+      </button>
+      <span className="w-9 text-center font-display text-lg font-black">{value}</span>
+      <button
+        type="button"
+        className="grid h-9 w-9 place-items-center rounded-full bg-accent text-bg"
+        onClick={() => onChange(Math.min(20, value + 1))}
+        aria-label="Aumenta live"
+      >
+        <Plus size={15} />
+      </button>
+    </div>
+  );
+}
+
+function CreditPanel({ credits, liveProduct, quantity, onQuantityChange, onBuy, isBuying }) {
+  const low = credits < 2;
+  const price = liveProduct ? unitPrice(liveProduct, quantity) * quantity : 0;
+  const discount = liveProduct ? discountFor(liveProduct, quantity) : 0;
+
+  return (
+    <div
+      className="rounded-2xl p-4"
+      style={{
+        background: low ? "rgba(57,255,20,0.07)" : "#111",
+        border: low ? "1px solid rgba(57,255,20,0.28)" : "1px solid #1e1e1e",
+      }}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-text-muted">Crediti live</p>
+          <p className="mt-1 font-display text-3xl font-black text-white">
+            {credits}
+          </p>
+        </div>
+        {low && (
+          <span className="rounded-full px-2.5 py-1 text-[10px] font-bold uppercase" style={{ background: "#39FF14", color: "#0a0a0a" }}>
+            Poche sessioni
+          </span>
+        )}
+      </div>
+      {low && (
+        <p className="mt-2 text-sm text-text-muted">
+          {credits <= 0
+            ? "Non hai sessioni live disponibili. Vuoi acquistarne una?"
+            : "Hai poche sessioni disponibili. Vuoi acquistarne altre?"}
+        </p>
+      )}
+      {liveProduct && low && (
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <QuantityControl value={quantity} onChange={onQuantityChange} />
+          <div>
+            {discount > 0 && (
+              <p className="text-xs text-text-muted line-through">
+                {money(liveProduct.priceCents * quantity, liveProduct.currency)}
+              </p>
+            )}
+            <p className="font-display text-2xl font-black text-accent">{money(price, liveProduct.currency)}</p>
+          </div>
+          <Button onClick={onBuy} disabled={isBuying}>
+            <CreditCard size={16} /> Acquista live
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AvailableCard({ session, now, onBook, onBuy, isBooking, canBook }) {
   const cd = parseCountdown(session.scheduledAt, now);
   const bookedCount = session._count?.bookings ?? 0;
   const full = bookedCount >= session.maxSlots;
@@ -226,66 +325,16 @@ function AvailableCard({ session, now, onBook, isBooking }) {
           )}
         </div>
 
-        <Button size="sm" onClick={() => onBook(session.id)} disabled={isBooking || full}
-          className="w-full">
-          {full ? "Completo" : "Prenota"}
+        <Button
+          size="sm"
+          onClick={() => (canBook ? onBook(session.id) : onBuy())}
+          disabled={isBooking || full}
+          className="w-full"
+        >
+          {full ? "Completo" : canBook ? "Prenota" : "Acquista live"}
         </Button>
       </div>
     </div>
-  );
-}
-
-// ─── Payment required ──────────────────────────────────────────────────────────
-
-function LockedScreen({
-  title = "Sessioni Live Premium",
-  description = "Le live sono incluse negli abbonamenti App+Live e Premium.",
-  ctaLabel = "Sblocca le Live",
-}) {
-  const navigate = useNavigate();
-
-  const features = [
-    "Sessioni 1:1 con Gianluigi",
-    "Live di gruppo incluse",
-    "Accesso al link della sessione",
-    "Prenotazione con un tap",
-  ];
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-      className="flex min-h-[65vh] flex-col items-center justify-center space-y-6 px-2 text-center"
-    >
-      <div className="flex h-20 w-20 items-center justify-center rounded-full"
-        style={{ background: "rgba(57,255,20,0.07)", border: "1px solid rgba(57,255,20,0.25)" }}>
-        <Lock size={30} style={{ color: "#39FF14" }} />
-      </div>
-
-      <div>
-        <p className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: "#39FF14" }}>
-          Upgrade richiesto
-        </p>
-        <h2 className="mt-1 font-display text-2xl font-black uppercase">{title}</h2>
-        <p className="mt-2 text-sm text-text-muted">{description}</p>
-      </div>
-
-      <div className="w-full space-y-2">
-        {features.map((f) => (
-          <div key={f} className="flex items-center gap-2.5 rounded-xl p-3"
-            style={{ background: "#0d0d0d", border: "1px solid #1a1a1a" }}>
-            <CheckCircle2 size={15} style={{ color: "#39FF14" }} />
-            <span className="text-sm text-text-muted">{f}</span>
-          </div>
-        ))}
-      </div>
-
-      <div className="w-full space-y-3">
-        <Button className="w-full" onClick={() => navigate("/area-cliente/abbonamenti")}>
-          <CreditCard size={18} /> {ctaLabel}
-        </Button>
-        <p className="text-xs text-text-muted">Puoi cambiare abbonamento in qualsiasi momento</p>
-      </div>
-    </motion.div>
   );
 }
 
@@ -294,7 +343,10 @@ function LockedScreen({
 export default function ClientLive() {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [now, setNow] = useState(0);
+  const [buyQty, setBuyQty] = useState(1);
+  const [buying, setBuying] = useState(false);
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => setNow(Date.now()));
@@ -307,9 +359,14 @@ export default function ClientLive() {
     queryFn: () => apiFetch("/api/live/sessions"),
   });
 
+  const productsQuery = useQuery({
+    queryKey: ["payments", "products"],
+    queryFn: () => apiFetch("/api/payments/products"),
+  });
+
   const sessions = data?.sessions || [];
-  const paymentRequired = data?.access === "payment_required";
-  const upgradeRequired = data?.access === "upgrade_required"; // ha app ma non live
+  const liveCredits = data?.liveCredits ?? 0;
+  const liveProduct = productsQuery.data?.products?.find((product) => product.type === "session_solo" && product.active !== false);
 
   const book = useMutation({
     mutationFn: (liveSessionId) =>
@@ -331,35 +388,28 @@ export default function ClientLive() {
     onError: (err) => toast({ type: "error", title: "Cancellazione fallita", description: err.message }),
   });
 
+  const buyLive = async () => {
+    if (!liveProduct || !user?.email) return;
+    setBuying(true);
+    try {
+      const res = await apiFetch("/api/payments/checkout", {
+        method: "POST",
+        body: {
+          productId: liveProduct.id,
+          quantity: buyQty,
+          fullName: user.fullName,
+          email: user.email,
+          returnTo: "app",
+        },
+      });
+      window.location.href = res.url;
+    } catch (err) {
+      toast({ type: "error", title: "Checkout non riuscito", description: err.message });
+      setBuying(false);
+    }
+  };
+
   if (isLoading) return <EmptyState icon={CalendarCheck} title="Carico le sessioni…" />;
-
-  if (paymentRequired) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="font-display text-2xl font-extrabold uppercase">Sessioni Live</h1>
-          <p className="text-sm text-text-muted">Con Gianluigi, in diretta.</p>
-        </div>
-        <LockedScreen />
-      </div>
-    );
-  }
-
-  if (upgradeRequired) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="font-display text-2xl font-extrabold uppercase">Sessioni Live</h1>
-          <p className="text-sm text-text-muted">Con Gianluigi, in diretta.</p>
-        </div>
-        <LockedScreen
-          title="Passa ad App + Live"
-          description="Il tuo abbonamento attuale include solo la scheda. Per accedere alle live, passa ad App + Live o Premium."
-          ctaLabel="Vedi upgrade"
-        />
-      </div>
-    );
-  }
 
   // Separate booked and available, attach myBookingId for easy access
   const booked = sessions
@@ -380,6 +430,15 @@ export default function ClientLive() {
         <h1 className="font-display text-2xl font-extrabold uppercase">Sessioni Live</h1>
         <p className="text-sm text-text-muted">Allena con Gianluigi in diretta.</p>
       </div>
+
+      <CreditPanel
+        credits={liveCredits}
+        liveProduct={liveProduct}
+        quantity={buyQty}
+        onQuantityChange={setBuyQty}
+        onBuy={buyLive}
+        isBuying={buying}
+      />
 
       {/* Booked sessions */}
       {booked.length > 0 && (
@@ -408,7 +467,9 @@ export default function ClientLive() {
               session={session}
               now={now}
               onBook={(id) => book.mutate(id)}
+              onBuy={buyLive}
               isBooking={book.isPending}
+              canBook={liveCredits > 0}
             />
           ))}
         </div>

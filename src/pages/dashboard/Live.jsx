@@ -19,6 +19,12 @@ const EMPTY_FORM = {
   notes: "",
 };
 
+const EMPTY_CREDIT_FORM = {
+  clientId: "",
+  amount: 1,
+  note: "",
+};
+
 function sessionStatus(s) {
   if (s === "scheduled") return "active";
   if (s === "live") return "warning";
@@ -46,12 +52,19 @@ export default function Live() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editSession, setEditSession] = useState(null); // sessione selezionata per dettaglio
   const [form, setForm] = useState(EMPTY_FORM);
+  const [creditForm, setCreditForm] = useState(EMPTY_CREDIT_FORM);
 
   const sessionsQuery = useQuery({
     queryKey: ["live", "sessions"],
     queryFn: () => apiFetch("/api/live/sessions"),
   });
   const sessions = useMemo(() => sessionsQuery.data?.sessions || [], [sessionsQuery.data]);
+
+  const creditsQuery = useQuery({
+    queryKey: ["admin", "live-credits"],
+    queryFn: () => apiFetch("/api/admin/live-credits"),
+  });
+  const clients = useMemo(() => creditsQuery.data?.clients || [], [creditsQuery.data]);
 
   const createSession = useMutation({
     mutationFn: (payload) => apiFetch("/api/live/sessions", { method: "POST", body: payload }),
@@ -84,12 +97,31 @@ export default function Live() {
     onError: (err) => toast({ type: "error", title: "Annullamento fallito", description: err.message }),
   });
 
+  const grantCredits = useMutation({
+    mutationFn: (payload) => apiFetch("/api/admin/live-credits", { method: "POST", body: payload }),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["admin", "live-credits"] });
+      setCreditForm(EMPTY_CREDIT_FORM);
+      toast({ type: "success", title: "Crediti live aggiunti" });
+    },
+    onError: (err) => toast({ type: "error", title: "Credito non aggiunto", description: err.message }),
+  });
+
   const submitCreate = (e) => {
     e.preventDefault();
     createSession.mutate({
       ...form,
       durationMin: Number(form.durationMin),
       maxSlots: Number(form.maxSlots),
+    });
+  };
+
+  const submitCredits = (event) => {
+    event.preventDefault();
+    grantCredits.mutate({
+      clientId: creditForm.clientId,
+      amount: Number(creditForm.amount) || 1,
+      note: creditForm.note,
     });
   };
 
@@ -108,6 +140,61 @@ export default function Live() {
           <Plus size={18} /> Nuova sessione
         </Button>
       </div>
+
+      <Card>
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h3 className="font-display text-lg font-bold uppercase">Crediti live cliente</h3>
+            <p className="text-sm text-text-muted">Seleziona un cliente e aggiungi sessioni live al suo account.</p>
+          </div>
+          {creditForm.clientId && (
+            <span className="rounded-full bg-accent/10 px-3 py-1 text-xs font-semibold text-accent">
+              Saldo: {clients.find((client) => client.id === creditForm.clientId)?.liveCredits ?? 0}
+            </span>
+          )}
+        </div>
+        <form className="grid gap-3 md:grid-cols-[1.3fr_0.5fr_1fr_auto]" onSubmit={submitCredits}>
+          <label className="block">
+            <span className="mb-1 block text-xs uppercase text-text-muted">Cliente</span>
+            <select
+              value={creditForm.clientId}
+              onChange={(event) => setCreditForm((value) => ({ ...value, clientId: event.target.value }))}
+              className="h-11 w-full rounded-sm border border-border bg-surface-2 px-3 text-text focus:outline-none focus:ring-2 focus:ring-accent"
+              required
+            >
+              <option value="">Seleziona cliente</option>
+              {clients.map((client) => (
+                <option key={client.id} value={client.id}>
+                  {client.user?.fullName || client.user?.email} · {client.liveCredits} crediti
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs uppercase text-text-muted">Live</span>
+            <Input
+              type="number"
+              min="1"
+              max="100"
+              value={creditForm.amount}
+              onChange={(event) => setCreditForm((value) => ({ ...value, amount: event.target.value }))}
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs uppercase text-text-muted">Nota</span>
+            <Input
+              placeholder="Es. bonus, recupero, acquisto offline"
+              value={creditForm.note}
+              onChange={(event) => setCreditForm((value) => ({ ...value, note: event.target.value }))}
+            />
+          </label>
+          <div className="flex items-end">
+            <Button type="submit" disabled={grantCredits.isPending || creditsQuery.isLoading}>
+              <Plus size={16} /> Aggiungi
+            </Button>
+          </div>
+        </form>
+      </Card>
 
       {sessionsQuery.isLoading ? (
         <EmptyState icon={CalendarCheck} title="Carico le sessioni…" />

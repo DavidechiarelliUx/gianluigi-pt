@@ -115,6 +115,7 @@ model Client {
   workouts        Workout[]
   workoutSessions WorkoutSession[]
   bookings        Booking[]        // Fase 3
+  liveCredits     LiveCreditLedger[]
   metrics         ClientMetric[]
   coachMessages   CoachMessage[]
   createdAt       DateTime         @default(now())
@@ -211,6 +212,11 @@ model Product {
   currency        String          @default("eur")
   type            ProductType
   sessionsQty     Int?            // per pacchetti: quante sessioni include
+  discountPercent Int             @default(0)
+  discountTiers   Json?
+  features        Json?
+  badgeLabel      String?
+  sortOrder       Int             @default(0)
   active          Boolean         @default(true)
   // Fase 4 — abbonamenti
   accessLevel     AccessLevel     @default(app)
@@ -242,6 +248,7 @@ model Order {
   stripeSessionId  String?     @unique // Stripe Checkout Session ID
   stripePaymentId  String?     // Stripe PaymentIntent ID (one-time)
   inviteSentAt     DateTime?
+  liveCreditsGrantedAt DateTime?
   bookings         Booking[]
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
@@ -309,6 +316,24 @@ model Booking {
   @@unique([liveSessionId, clientId]) // un cliente non prenota due volte la stessa sessione
   @@index([clientId])
   @@index([liveSessionId])
+}
+
+/// Movimenti dei crediti live disponibili nell'account cliente.
+model LiveCreditLedger {
+  id        String   @id @default(uuid())
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId  String
+  orderId   String?
+  bookingId String?
+  externalRef String? @unique
+  amount    Int      // positivo = accredito, negativo = consumo
+  reason    String   // purchase | admin_grant | booking | booking_cancelled
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([clientId, createdAt])
+  @@index([orderId])
+  @@index([bookingId])
 }
 
 /// Misure e check-in inseriti dal cliente.

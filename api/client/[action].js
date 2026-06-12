@@ -2,6 +2,7 @@ import { prisma } from "../../server/lib/prisma.js";
 import { requireAuth } from "../../server/lib/guards.js";
 import { parseJsonBody, methodNotAllowed } from "../../server/lib/body.js";
 import { getClientEntitlements, publicEntitlements, canAccess } from "../../server/lib/access.js";
+import { getLiveCreditSummary } from "../../server/lib/live-credits.js";
 
 function clientOnly(auth, res) {
   if (auth.role !== "client" || !auth.clientId) {
@@ -49,7 +50,7 @@ async function overview(req, res, auth) {
   if (!clientOnly(auth, res)) return;
 
   try {
-    const [entitlements, orders] = await Promise.all([
+    const [entitlements, orders, liveCredits] = await Promise.all([
       getClientEntitlements(auth.userId),
       prisma.order.findMany({
         where: { userId: auth.userId, status: "paid" },
@@ -59,6 +60,7 @@ async function overview(req, res, auth) {
           bookings: { where: { status: "confirmed" }, select: { id: true } },
         },
       }),
+      getLiveCreditSummary(auth.clientId),
     ]);
 
     const activeOrder = orders[0] || null;
@@ -84,6 +86,7 @@ async function overview(req, res, auth) {
       // ── Backward compat ───────────────────────────────────────────────────
       activePackage: activeOrder ? orderAccess(activeOrder) : null,
       orders: orders.map(orderAccess),
+      liveCredits,
       hasPaidAccess: orders.length > 0 || entitlements.hasAccess,
     });
   } catch (err) {

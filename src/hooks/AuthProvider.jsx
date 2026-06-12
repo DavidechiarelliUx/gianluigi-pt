@@ -34,6 +34,8 @@ export function AuthProvider({ children }) {
 
   const logout = async () => {
     await apiFetch("/api/auth/logout", { method: "POST" });
+    await qc.cancelQueries();
+    qc.clear();
     qc.setQueryData(ME_KEY, null);
   };
 

@@ -1,7 +1,7 @@
 import { prisma } from "../../server/lib/prisma.js";
 import { requireAuth, requireAdmin, getAuth } from "../../server/lib/guards.js";
 import { parseJsonBody, methodNotAllowed } from "../../server/lib/body.js";
-import { getClientEntitlements, canAccess } from "../../server/lib/access.js";
+import { getLiveCreditBalance } from "../../server/lib/live-credits.js";
 
 // ─────────────────────────────────────────
 // Helper
@@ -26,18 +26,20 @@ async function sessions(req, res) {
   if (req.method === "GET") {
     try {
       if (auth.role === "client") {
-        const entitlements = await getClientEntitlements(auth.userId);
-        if (!entitlements.hasAccess) {
-          return res.status(200).json({ ok: true, access: "payment_required", sessions: [] });
-        }
-        if (!canAccess(entitlements, "live")) {
-          return res.status(200).json({
-            ok: true,
-            access: "upgrade_required",
-            accessLevel: entitlements.accessLevel,
-            sessions: [],
-          });
-        }
+        const liveCredits = await getLiveCreditBalance(auth.clientId);
+        const list = await prisma.liveSession.findMany({
+          where: { status: { in: ["scheduled", "live"] } },
+          orderBy: { scheduledAt: "asc" },
+          include: {
+            _count: { select: { bookings: { where: { status: "confirmed" } } } },
+            bookings: {
+              where: { clientId: auth.clientId },
+              select: { id: true, status: true },
+            },
+          },
+        });
+
+        return res.status(200).json({ ok: true, access: "granted", liveCredits, sessions: list });
       }
 
       const where =
@@ -169,11 +171,36 @@ async function sessionDetail(req, res) {
   /* ---- DELETE (annulla la sessione, non elimina — preserva storico) ---- */
   if (req.method === "DELETE") {
     try {
-      await prisma.liveSession.update({ where: { id }, data: { status: "cancelled" } });
-      // Cancella anche le prenotazioni attive
-      await prisma.booking.updateMany({
-        where: { liveSessionId: id, status: { not: "cancelled" } },
-        data: { status: "cancelled" },
+      await prisma.$transaction(async (tx) => {
+        const bookings = await tx.booking.findMany({
+          where: { liveSessionId: id, status: { not: "cancelled" } },
+          include: { liveSession: true },
+        });
+
+        await tx.liveSession.update({ where: { id }, data: { status: "cancelled" } });
+        await tx.booking.updateMany({
+          where: { liveSessionId: id, status: { not: "cancelled" } },
+          data: { status: "cancelled" },
+        });
+
+        for (const booking of bookings) {
+          const consumedCredit = await tx.liveCreditLedger.findFirst({
+            where: { bookingId: booking.id, amount: { lt: 0 }, reason: "booking" },
+          });
+          if (!consumedCredit) continue;
+          await tx.liveCreditLedger.upsert({
+            where: { externalRef: `booking-cancelled:${booking.id}` },
+            update: {},
+            create: {
+              clientId: booking.clientId,
+              bookingId: booking.id,
+              externalRef: `booking-cancelled:${booking.id}`,
+              amount: Math.abs(consumedCredit.amount),
+              reason: "booking_cancelled",
+              note: booking.liveSession.title,
+            },
+          });
+        }
       });
       return res.status(200).json({ ok: true });
     } catch (err) {
@@ -208,12 +235,13 @@ async function bookings(req, res) {
 
     try {
       if (auth.role === "client") {
-        const entitlements = await getClientEntitlements(auth.userId);
-        if (!canAccess(entitlements, "live")) {
-          const msg = entitlements.hasAccess
-            ? "Il tuo abbonamento non include le sessioni live. Passa ad App + Live o Premium."
-            : "Acquista un abbonamento per prenotare le sessioni live.";
-          return res.status(402).json({ ok: false, error: msg, accessLevel: entitlements.accessLevel });
+        const balance = await getLiveCreditBalance(auth.clientId);
+        if (balance <= 0) {
+          return res.status(402).json({
+            ok: false,
+            error: "Non hai crediti live disponibili. Acquista una live per prenotare.",
+            liveCredits: balance,
+          });
         }
       }
 
@@ -227,8 +255,23 @@ async function bookings(req, res) {
         return res.status(409).json({ ok: false, error: "Sessione al completo" });
       }
 
-      const booking = await prisma.booking.create({
-        data: { liveSessionId, clientId, status: "confirmed" },
+      const booking = await prisma.$transaction(async (tx) => {
+        const created = await tx.booking.create({
+          data: { liveSessionId, clientId, status: "confirmed" },
+        });
+        if (auth.role === "client") {
+          await tx.liveCreditLedger.create({
+            data: {
+              clientId,
+              bookingId: created.id,
+              externalRef: `booking:${created.id}`,
+              amount: -1,
+              reason: "booking",
+              note: session.title,
+            },
+          });
+        }
+        return created;
       });
       return res.status(201).json({ ok: true, booking });
     } catch (err) {
@@ -261,7 +304,26 @@ async function bookings(req, res) {
         return res.status(403).json({ ok: false, error: "Non autorizzato" });
       }
 
-      await prisma.booking.update({ where: { id: bookingId }, data: { status: "cancelled" } });
+      await prisma.$transaction(async (tx) => {
+        await tx.booking.update({ where: { id: bookingId }, data: { status: "cancelled" } });
+        const consumedCredit = await tx.liveCreditLedger.findFirst({
+          where: { bookingId, amount: { lt: 0 }, reason: "booking" },
+        });
+        if (consumedCredit) {
+          await tx.liveCreditLedger.upsert({
+            where: { externalRef: `booking-cancelled:${bookingId}` },
+            update: {},
+            create: {
+              clientId: booking.clientId,
+              bookingId,
+              externalRef: `booking-cancelled:${bookingId}`,
+              amount: Math.abs(consumedCredit.amount),
+              reason: "booking_cancelled",
+              note: booking.liveSession.title,
+            },
+          });
+        }
+      });
       return res.status(200).json({ ok: true });
     } catch (err) {
       console.error("DELETE /api/live/bookings:", err);
