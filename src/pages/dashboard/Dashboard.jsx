@@ -1,20 +1,20 @@
 import {
   Activity,
   AlertCircle,
+  CheckCircle2,
   ClipboardList,
   CreditCard,
   ExternalLink,
+  EyeOff,
   Mail,
   MessageCircle,
   MessageSquareText,
-  Package,
   TrendingUp,
   Users,
   Video,
-  Zap,
 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { StatusBadge } from "../../components/app";
@@ -58,6 +58,7 @@ function whatsappHref(phone) {
 const orderStatusStyle = { paid: "success", pending: "warning", failed: "danger", refunded: "neutral" };
 
 export default function Dashboard() {
+  const qc = useQueryClient();
   const { user } = useAuth();
   const { toast } = useToast();
   const [sentReminders, setSentReminders] = useState(new Set());
@@ -76,6 +77,7 @@ export default function Dashboard() {
   const subscriptions = useMemo(() => expiringQuery.data?.subscriptions || [], [expiringQuery.data?.subscriptions]);
 
   const paidOrders = useMemo(() => orders.filter((o) => o.status === "paid"), [orders]);
+  const pendingOrders = useMemo(() => orders.filter((o) => o.status === "pending"), [orders]);
 
   const upcomingSessions = useMemo(() =>
     sessions.filter((s) => s.status !== "cancelled")
@@ -94,6 +96,22 @@ export default function Dashboard() {
   }, [paidOrders]);
 
   const isLoading = summaryQuery.isLoading || ordersQuery.isLoading || liveQuery.isLoading || messagesQuery.isLoading;
+
+  const updateMessage = useMutation({
+    mutationFn: ({ id, ...payload }) => apiFetch("/api/admin/messages", { method: "PATCH", body: { id, ...payload } }),
+    onSuccess: async (_, payload) => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["admin", "messages"] }),
+        qc.invalidateQueries({ queryKey: ["dashboard", "summary"] }),
+        qc.invalidateQueries({ queryKey: ["clients"] }),
+      ]);
+      toast({
+        type: "success",
+        title: payload.hidden ? "Richiesta nascosta" : "Richiesta aggiornata",
+      });
+    },
+    onError: (err) => toast({ type: "error", title: "Aggiornamento fallito", description: err.message }),
+  });
 
   // Send renewal reminder mutation
   const sendReminder = useMutation({
@@ -127,14 +145,9 @@ export default function Dashboard() {
       color: "text-accent",
     },
     {
-      icon: Zap, label: "Abbonamenti attivi",
-      value: summary?.subscriptionsActive ?? "—",
-      color: "text-accent",
-    },
-    {
-      icon: AlertCircle, label: "In scadenza (7gg)",
-      value: summary?.subscriptionsExpiring7d ?? "—",
-      color: (summary?.subscriptionsExpiring7d ?? 0) > 0 ? "text-yellow-400" : "text-accent",
+      icon: MessageSquareText, label: "Richieste aperte",
+      value: summary?.openMessages ?? messages.length ?? "—",
+      color: (summary?.openMessages ?? messages.length ?? 0) > 0 ? "text-yellow-400" : "text-accent",
     },
     {
       icon: Activity, label: "Sessioni questa settimana",
@@ -147,9 +160,14 @@ export default function Dashboard() {
       color: "text-accent",
     },
     {
-      icon: ClipboardList, label: "Senza scheda attiva",
+      icon: ClipboardList, label: "Schede da creare",
       value: summary?.clientsWithoutWorkout ?? "—",
       color: (summary?.clientsWithoutWorkout ?? 0) > 0 ? "text-yellow-400" : "text-accent",
+    },
+    {
+      icon: AlertCircle, label: "Pagamenti in attesa",
+      value: pendingOrders.length,
+      color: pendingOrders.length > 0 ? "text-yellow-400" : "text-accent",
     },
   ];
 
@@ -192,37 +210,54 @@ export default function Dashboard() {
         sentIds={sentReminders}
       />
 
-      {/* ── Abbonamenti + Live ── */}
+      {/* ── Operatività ── */}
       <div className="grid gap-6 xl:grid-cols-3">
         <Card className="space-y-4">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h3 className="font-display text-lg font-bold uppercase">Abbonamenti &amp; pagamenti</h3>
-              <p className="text-sm text-text-muted">Gestisci abbonamenti e ordini dei clienti.</p>
+              <h3 className="font-display text-lg font-bold uppercase">Priorità clienti</h3>
+              <p className="text-sm text-text-muted">Cose da gestire prima del prossimo check.</p>
             </div>
-            <StatusBadge status="success">{payingClients.length}</StatusBadge>
+            <StatusBadge status={(summary?.openMessages || summary?.clientsWithoutWorkout) ? "warning" : "success"}>
+              {(summary?.openMessages || 0) + (summary?.clientsWithoutWorkout || 0)}
+            </StatusBadge>
           </div>
-          <p className="text-sm text-text-muted">
-            {summary?.subscriptionsActive ?? 0} abbonamenti attivi · {payingClients.length} clienti paganti
-          </p>
-          <p className="text-xs text-text-muted">
-            Se un pagamento Stripe va in errore, qui puoi correggere manualmente stato, accesso e scadenza.
-          </p>
-          <Button onClick={() => { window.location.href = "/dashboard/abbonamenti"; }}>
-            <CreditCard size={16} /> Gestisci abbonamenti
+          <div className="grid gap-2 text-sm">
+            <div className="flex items-center justify-between rounded-lg border border-border bg-surface-2 px-3 py-2">
+              <span className="text-text-muted">Richieste aperte</span>
+              <strong className="text-accent">{summary?.openMessages ?? messages.length}</strong>
+            </div>
+            <div className="flex items-center justify-between rounded-lg border border-border bg-surface-2 px-3 py-2">
+              <span className="text-text-muted">Clienti senza scheda attiva</span>
+              <strong className="text-accent">{summary?.clientsWithoutWorkout ?? 0}</strong>
+            </div>
+          </div>
+          <Button onClick={() => { window.location.href = "/dashboard/clienti"; }}>
+            <Users size={16} /> Apri clienti
           </Button>
         </Card>
 
         <Card className="space-y-4">
           <div>
-            <h3 className="font-display text-lg font-bold uppercase">Pacchetti</h3>
-            <p className="text-sm text-text-muted">Modifica prezzi, testi, sconti e live incluse.</p>
+            <h3 className="font-display text-lg font-bold uppercase">Incassi e pagamenti</h3>
+            <p className="text-sm text-text-muted">Andamento reale, non solo link di gestione.</p>
           </div>
-          <p className="text-xs text-text-muted">
-            Gli sconti qui cambiano anche il prezzo inviato a Stripe al checkout.
-          </p>
+          <div className="grid gap-2 text-sm">
+            <div className="flex items-center justify-between rounded-lg border border-border bg-surface-2 px-3 py-2">
+              <span className="text-text-muted">Incassi mese</span>
+              <strong className="text-accent">{summary ? money(summary.revenueMonthCents) : "—"}</strong>
+            </div>
+            <div className="flex items-center justify-between rounded-lg border border-border bg-surface-2 px-3 py-2">
+              <span className="text-text-muted">Clienti paganti</span>
+              <strong className="text-accent">{payingClients.length}</strong>
+            </div>
+            <div className="flex items-center justify-between rounded-lg border border-border bg-surface-2 px-3 py-2">
+              <span className="text-text-muted">In attesa</span>
+              <strong className="text-accent">{pendingOrders.length}</strong>
+            </div>
+          </div>
           <Button onClick={() => { window.location.href = "/dashboard/pacchetti"; }}>
-            <Package size={16} /> Gestisci pacchetti
+            <CreditCard size={16} /> Prezzi e checkout
           </Button>
         </Card>
 
@@ -298,6 +333,30 @@ export default function Dashboard() {
                   </div>
                   <p className="mt-2 line-clamp-2 text-sm text-text-muted">{msg.message}</p>
                   <div className="mt-3 flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => updateMessage.mutate({ id: msg.id, status: "resolved" })}
+                      disabled={updateMessage.isPending}
+                    >
+                      <CheckCircle2 size={15} /> Risolto
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => updateMessage.mutate({ id: msg.id, hidden: true })}
+                      disabled={updateMessage.isPending}
+                    >
+                      <EyeOff size={15} /> Nascondi
+                    </Button>
+                    {msg.clientId && (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => { window.location.href = `/dashboard/clienti?client=${msg.clientId}`; }}
+                      >
+                        <Users size={15} /> Cliente
+                      </Button>
+                    )}
                     {email && <Button as="a" size="sm" variant="secondary" href={`mailto:${email}`}><Mail size={15} /> Email</Button>}
                     {wa && <Button as="a" size="sm" variant="secondary" href={wa} target="_blank" rel="noreferrer"><MessageCircle size={15} /> WhatsApp</Button>}
                   </div>

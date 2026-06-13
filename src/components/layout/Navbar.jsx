@@ -16,7 +16,6 @@ const LINKS = [
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
-  const [appSeats, setAppSeats] = useState(12);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -25,22 +24,7 @@ export function Navbar() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  useEffect(() => {
-    let mounted = true;
-    fetch("/api/payments/products")
-      .then((res) => res.json())
-      .then((data) => {
-        if (!mounted) return;
-        const appMensile = data.products?.find((product) => product.name === "App Mensile");
-        if (typeof appMensile?.remainingSeats === "number") setAppSeats(appMensile.remainingSeats);
-      })
-      .catch(() => {});
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  const marqueeText = `PREZZO LANCIO APP MENSILE 59€/MESE • ${appSeats} POSTI RIMASTI • SCHEDE AGGIORNATE MANUALMENTE • BLOCCA IL PREZZO LANCIO`;
+  const marqueeText = "SCEGLI IL TUO PERCORSO • START, PROGRESS O COMPLETE • LIVE EXTRA AGGIUNGIBILI AL CHECKOUT • PAGAMENTO SICURO CON STRIPE";
 
   return (
     <header
@@ -55,7 +39,7 @@ export function Navbar() {
         <a
           href="/pacchetti"
           className="flex min-h-9 items-center whitespace-nowrap font-display text-xs font-black uppercase tracking-wide text-bg sm:text-sm"
-          aria-label={`Prezzo lancio App Mensile 59 euro al mese, ${appSeats} posti rimasti`}
+          aria-label="Vai alla pagina pacchetti"
         >
           <span className="flex min-w-max animate-marquee-x items-center gap-8 pr-8">
             {Array.from({ length: 4 }).map((_, index) => (

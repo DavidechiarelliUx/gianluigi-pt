@@ -4,6 +4,29 @@ import { parseJsonBody, methodNotAllowed } from "../../server/lib/body.js";
 
 const isEmail = (s) => typeof s === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
 
+function pushMap(map, key, value) {
+  if (!key) return;
+  const list = map.get(key) || [];
+  list.push(value);
+  map.set(key, list);
+}
+
+function paymentSummary(orders = [], subscriptions = []) {
+  const paidOrders = orders.filter((order) => order.status === "paid");
+  const activeSubscription = subscriptions.find((sub) => ["active", "trialing"].includes(sub.status));
+  const latestOrder = orders[0] || null;
+  const totalPaidCents = paidOrders.reduce((sum, order) => sum + (Number(order.amountCents) || 0), 0);
+  const paymentStatus = activeSubscription ? "active" : latestOrder?.status || "none";
+
+  return {
+    paymentStatus,
+    totalPaidCents,
+    paidOrdersCount: paidOrders.length,
+    latestOrder,
+    activeSubscription: activeSubscription || null,
+  };
+}
+
 /**
  * GET  /api/clients        → lista clienti (con user + conteggio schede)
  * POST /api/clients        → crea cliente (User + Client in transazione)
@@ -23,6 +46,50 @@ export default async function handler(req, res) {
         },
         orderBy: { createdAt: "desc" },
       });
+      const userIds = clients.map((client) => client.userId);
+      const clientIds = clients.map((client) => client.id);
+      const [
+        orders,
+        subscriptions,
+        liveBalances,
+        openMessages,
+        activeWorkouts,
+      ] = clientIds.length ? await Promise.all([
+        prisma.order.findMany({
+          where: { userId: { in: userIds } },
+          orderBy: { createdAt: "desc" },
+          include: { product: { select: { name: true, type: true, billingInterval: true, sessionsQty: true } } },
+        }),
+        prisma.subscription.findMany({
+          where: { userId: { in: userIds } },
+          orderBy: { updatedAt: "desc" },
+          include: { product: { select: { name: true, accessLevel: true, billingInterval: true } } },
+        }).catch(() => []),
+        prisma.liveCreditLedger.groupBy({
+          by: ["clientId"],
+          where: { clientId: { in: clientIds } },
+          _sum: { amount: true },
+        }),
+        prisma.coachMessage.groupBy({
+          by: ["clientId"],
+          where: { clientId: { in: clientIds }, hiddenAt: null, senderRole: "client", status: { not: "resolved" } },
+          _count: { _all: true },
+        }),
+        prisma.workout.groupBy({
+          by: ["clientId"],
+          where: { clientId: { in: clientIds }, status: "active" },
+          _count: { _all: true },
+        }),
+      ]) : [[], [], [], [], []];
+
+      const ordersByUser = new Map();
+      const subscriptionsByUser = new Map();
+      for (const order of orders) pushMap(ordersByUser, order.userId, order);
+      for (const subscription of subscriptions) pushMap(subscriptionsByUser, subscription.userId, subscription);
+      const liveBalanceMap = new Map(liveBalances.map((row) => [row.clientId, row._sum.amount || 0]));
+      const openMessageMap = new Map(openMessages.map((row) => [row.clientId, row._count._all || 0]));
+      const activeWorkoutMap = new Map(activeWorkouts.map((row) => [row.clientId, row._count._all || 0]));
+
       return res.status(200).json({
         ok: true,
         clients: clients.map((client) => ({
@@ -34,6 +101,14 @@ export default async function handler(req, res) {
             inviteToken: client.user.inviteToken,
             createdAt: client.user.createdAt,
             hasPassword: !!client.user.passwordHash,
+          },
+          dashboard: {
+            ...paymentSummary(ordersByUser.get(client.userId) || [], subscriptionsByUser.get(client.userId) || []),
+            liveCredits: liveBalanceMap.get(client.id) || 0,
+            openRequests: openMessageMap.get(client.id) || 0,
+            activeWorkouts: activeWorkoutMap.get(client.id) || 0,
+            totalWorkouts: client._count?.workouts || 0,
+            totalSessions: client._count?.workoutSessions || 0,
           },
         })),
       });

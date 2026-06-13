@@ -209,9 +209,9 @@ async function messages(req, res, auth) {
   if (req.method === "GET") {
     try {
       const list = await prisma.coachMessage.findMany({
-        where: { clientId: auth.clientId },
-        orderBy: { createdAt: "desc" },
-        take: 10,
+        where: { clientId: auth.clientId, hiddenAt: null },
+        orderBy: { createdAt: "asc" },
+        take: 80,
       });
       return res.status(200).json({ ok: true, messages: list });
     } catch (err) {
@@ -229,7 +229,15 @@ async function messages(req, res, auth) {
       return res.status(400).json({ ok: false, error: "Oggetto e messaggio sono obbligatori" });
     }
     try {
-      const created = await prisma.coachMessage.create({ data: { clientId: auth.clientId, subject, message } });
+      const created = await prisma.coachMessage.create({
+        data: {
+          clientId: auth.clientId,
+          subject,
+          message,
+          senderRole: "client",
+          status: "open",
+        },
+      });
       return res.status(201).json({ ok: true, message: created });
     } catch (err) {
       console.error("POST /api/client/messages:", err);

@@ -4,10 +4,10 @@ import { SectionHeader } from "../ui/SectionHeader";
 import { Badge } from "../ui/Badge";
 
 const SLOTS = [
-  { day: "GIO", date: "5", time: "18:00", label: "1:1 · libero", free: true },
-  { day: "GIO", date: "5", time: "19:00", label: "Classe HIIT", free: true },
-  { day: "VEN", date: "6", time: "07:30", label: "1:1 · libero", free: true },
-  { day: "VEN", date: "6", time: "18:00", label: "Completo", free: false },
+  { day: "LUN", date: "15", time: "18:00", label: "1:1 · libero", free: true },
+  { day: "LUN", date: "15", time: "19:00", label: "Gruppo forza", free: true },
+  { day: "MAR", date: "16", time: "07:30", label: "1:1 · libero", free: true },
+  { day: "MAR", date: "16", time: "18:00", label: "Completo", free: false },
 ];
 
 /** Mini calendario/slot costruito in UI (no stock). */
@@ -22,10 +22,7 @@ function SlotBoard() {
         {SLOTS.map((s) => (
           <div
             key={s.day + s.time}
-            className={
-              "flex items-center gap-3 rounded-md border px-3 py-2.5 " +
-              (s.free ? "border-accent/40 bg-bg" : "border-border bg-surface-2 opacity-60")
-            }
+            className={"flex items-center gap-3 rounded-md border px-3 py-2.5 " + (s.free ? "border-accent/40 bg-bg" : "border-border bg-surface-2 opacity-60")}
           >
             <div className="flex w-12 shrink-0 flex-col items-center rounded-sm bg-surface-2 py-1">
               <span className="text-[10px] uppercase text-text-muted">{s.day}</span>
@@ -34,9 +31,7 @@ function SlotBoard() {
             <div className="flex items-center gap-1.5 text-sm text-text-muted">
               <Clock size={14} /> {s.time}
             </div>
-            <span className={"ml-auto text-xs " + (s.free ? "text-accent" : "text-text-muted")}>
-              {s.label}
-            </span>
+            <span className={"ml-auto text-xs " + (s.free ? "text-accent" : "text-text-muted")}>{s.label}</span>
           </div>
         ))}
       </div>
@@ -45,24 +40,24 @@ function SlotBoard() {
 }
 
 const TYPES = [
-  { icon: User, title: "Sessioni 1:1", text: "Allenamento individuale dal vivo, correzioni in tempo reale." },
-  { icon: Users, title: "Classi di gruppo", text: "Energia di gruppo, orari fissi, posti limitati." },
-  { icon: Video, title: "Link videochiamata", text: "Prima versione con link Zoom/Meet manuale; integrazione in arrivo." },
+  { icon: User, title: "Live 1:1", text: "Sessioni individuali per tecnica, dubbi e correzioni in tempo reale." },
+  { icon: Users, title: "Live di gruppo", text: "Allenamenti condivisi, orari fissi e posti limitati." },
+  { icon: Video, title: "Crediti live", text: "Acquisti crediti, prenoti dall'app e trovi il link nella tua area cliente." },
 ];
 
-/** Anteprima Sessioni live 1:1 e di gruppo (Fase 3). */
+/** Anteprima sessioni live 1:1 e di gruppo. */
 export function PreviewLive() {
   return (
     <>
       <SectionHeader
-        eyebrow="In arrivo · Sessioni live"
-        title="Allenati dal vivo, anche a distanza"
-        subtitle="Sessioni individuali e classi di gruppo, prenotabili dal calendario."
+        eyebrow="Sessioni live attive"
+        title="Il tuo personal trainer, live ovunque sei"
+        subtitle="Sessioni individuali e live di gruppo prenotabili dal calendario con i crediti del tuo account."
         align="center"
       />
       <div className="mt-10 grid items-center gap-12 lg:grid-cols-2">
         <div className="space-y-4">
-          <Badge variant="soon">Fase 3</Badge>
+          <Badge variant="live">Prenotabili in app</Badge>
           <ul className="space-y-3">
             {TYPES.map((t, i) => {
               const Icon = t.icon;

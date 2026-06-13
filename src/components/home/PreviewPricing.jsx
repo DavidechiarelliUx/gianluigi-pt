@@ -1,36 +1,29 @@
 import { motion } from "framer-motion";
-import { Check, CreditCard } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
 import { SectionHeader } from "../ui/SectionHeader";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 
 const PLANS = [
   {
-    name: "Sessioni 1:1",
-    price: "45€",
-    unit: "/ sessione",
-    features: ["Scegli quante sessioni", "Pagamento aggiornato in automatico", "Accesso area cliente"],
+    name: "Start",
+    label: "Per iniziare bene",
+    text: "Il percorso essenziale per avere metodo, scheda e continuità dentro l'app.",
+    features: ["Scheda su misura", "App cliente", "Supporto messaggi"],
     featured: false,
   },
   {
-    name: "Abbonamento",
-    price: "99€",
-    unit: "/ mese",
-    features: ["Scheda + monitoraggio", "Priorità live", "Percorso continuativo"],
+    name: "Progress",
+    label: "Il più equilibrato",
+    text: "La scelta giusta se vuoi un controllo più vicino e una live inclusa nel percorso.",
+    features: ["1 live inclusa", "Check-in settimanale", "Progressi monitorati"],
     featured: true,
   },
   {
-    name: "Live gruppo",
-    price: "10€",
-    unit: "/ live",
-    features: ["Accesso singolo", "Allenamento live", "Ideale per provare"],
-    featured: false,
-  },
-  {
-    name: "Scheda",
-    price: "29€",
-    unit: "/ piano",
-    features: ["Scheda personalizzata", "Accesso piattaforma", "Base per iniziare"],
+    name: "Complete",
+    label: "Più live, più tecnica",
+    text: "Per chi vuole essere seguito più spesso, correggere la tecnica e spingere con costanza.",
+    features: ["3 live incluse", "Revisione tecnica", "Strategia mensile"],
     featured: false,
   },
 ];
@@ -40,12 +33,12 @@ export function PreviewPricing() {
   return (
     <>
       <SectionHeader
-        eyebrow="Pagamenti online"
-        title="Pacchetti e abbonamenti"
-        subtitle="Acquista una sessione o un pacchetto. Dopo il pagamento ricevi l'accesso alla tua area cliente."
+        eyebrow="Percorsi online"
+        title="Scegli come vuoi essere seguito"
+        subtitle="Tre livelli di supporto, tutti con app, scheda personalizzata e la possibilità di aggiungere live extra prima del checkout."
         align="center"
       />
-      <div className="mt-10 grid gap-4 md:grid-cols-4">
+      <div className="mt-10 grid gap-4 md:grid-cols-3">
         {PLANS.map((p, i) => (
           <motion.div
             key={p.name}
@@ -65,11 +58,9 @@ export function PreviewPricing() {
                 <Badge variant="neon">Più scelto</Badge>
               </span>
             )}
+            <p className="text-xs font-semibold uppercase tracking-wide text-accent">{p.label}</p>
             <h3 className="font-display text-lg font-bold uppercase">{p.name}</h3>
-            <div className="mt-3 flex items-end gap-1">
-              <span className="font-display text-4xl font-extrabold text-accent">{p.price}</span>
-              <span className="mb-1 text-sm text-text-muted">{p.unit}</span>
-            </div>
+            <p className="mt-3 min-h-[4.5rem] text-sm leading-6 text-text-muted">{p.text}</p>
             <ul className="mt-5 space-y-2">
               {p.features.map((f) => (
                 <li key={f} className="flex items-center gap-2 text-sm text-text-muted">
@@ -83,14 +74,14 @@ export function PreviewPricing() {
                 className="w-full"
                 onClick={() => (window.location.href = "/pacchetti")}
               >
-                <CreditCard size={16} /> Vedi pacchetti
+                Scopri i pacchetti <ArrowRight size={16} />
               </Button>
             </div>
           </motion.div>
         ))}
       </div>
       <p className="mt-6 text-center text-xs text-text-muted">
-        Pagamento sicuro con Stripe. Le sessioni live sono riservate ai clienti con pacchetto attivo.
+        Confronti i percorsi, scegli quello più adatto e aggiungi eventuali crediti live extra nello stesso checkout.
       </p>
     </>
   );

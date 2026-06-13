@@ -360,9 +360,13 @@ model CoachMessage {
   clientId  String
   subject   String
   message   String
+  senderRole String  @default("client") // client | admin
   status    String   @default("open")
   createdAt DateTime @default(now())
   readAt    DateTime?
+  resolvedAt DateTime?
+  hiddenAt  DateTime?
 
   @@index([clientId, createdAt])
+  @@index([status, hiddenAt])
 }

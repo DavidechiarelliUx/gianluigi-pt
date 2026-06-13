@@ -182,10 +182,8 @@ function QuantityControl({ value, onChange, min = 0 }) {
 export default function Packages() {
   const [products, setProducts] = useState([]);
   const [selectedId, setSelectedId] = useState("");
-  const [mode, setMode] = useState("package");
   const [form, setForm] = useState(DEFAULT_FORM);
   const [extraLiveQty, setExtraLiveQty] = useState(0);
-  const [liveOnlyQty, setLiveOnlyQty] = useState(1);
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
   const [previewMode, setPreviewMode] = useState(false);
@@ -226,13 +224,13 @@ export default function Packages() {
   );
   const selectedPackage = packages.find((product) => product.id === selectedId) || null;
 
-  const selectedProduct = mode === "live" ? liveProduct : selectedPackage;
-  const liveQty = mode === "live" ? liveOnlyQty : extraLiveQty;
-  const packageTotal = mode === "package" && selectedPackage ? unitPrice(selectedPackage, 1) : 0;
-  const liveUnit = liveProduct ? unitPrice(liveProduct, mode === "live" ? liveOnlyQty : extraLiveQty) : 0;
+  const liveQty = extraLiveQty;
+  const packageTotal = selectedPackage ? unitPrice(selectedPackage, 1) : 0;
+  const liveUnit = liveProduct ? unitPrice(liveProduct, extraLiveQty) : 0;
   const liveTotal = liveProduct ? liveUnit * liveQty : 0;
   const total = packageTotal + liveTotal;
   const liveDiscount = liveProduct ? discountFor(liveProduct, liveQty) : 0;
+  const checkoutCurrency = selectedPackage?.currency || liveProduct?.currency || "eur";
 
   const checkout = async (event) => {
     event.preventDefault();
@@ -241,13 +239,11 @@ export default function Packages() {
       setError("Preview locale: per testare il pagamento usa Vercel dev o il sito online.");
       return;
     }
-    if (!selectedProduct) return;
+    if (!selectedPackage) return;
     setStatus("loading");
 
     try {
-      const body = mode === "live"
-        ? { productId: liveProduct.id, quantity: liveOnlyQty, ...form }
-        : { productId: selectedPackage.id, quantity: 1, liveQuantity: extraLiveQty, ...form };
+      const body = { productId: selectedPackage.id, quantity: 1, liveQuantity: extraLiveQty, ...form };
       const res = await fetch("/api/payments/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -271,10 +267,10 @@ export default function Packages() {
               <Sparkles size={14} /> Percorsi online
             </Badge>
             <h1 className="mt-5 font-display text-4xl font-black uppercase leading-tight sm:text-5xl lg:text-6xl">
-              Scegli il pacchetto e aggiungi le live quando vuoi.
+              Scegli il pacchetto e aggiungi live extra al checkout.
             </h1>
             <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-text-muted sm:text-lg sm:leading-8">
-              Tutti i piani includono app, scheda personalizzata e supporto messaggi. Le live diventano crediti nel tuo account.
+              Tutti i piani includono app, scheda personalizzata e supporto messaggi. Se vuoi più sessioni, aumenti i crediti live prima del pagamento.
             </p>
           </div>
 
@@ -283,47 +279,11 @@ export default function Packages() {
               <PackageCard
                 key={product.id}
                 product={product}
-                active={mode === "package" && product.id === selectedId}
-                onSelect={() => {
-                  setMode("package");
-                  setSelectedId(product.id);
-                }}
+                active={product.id === selectedId}
+                onSelect={() => setSelectedId(product.id)}
               />
             ))}
           </div>
-
-          {liveProduct && (
-            <Card className="mt-8 border-accent/30 bg-bg/80">
-              <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="live">Extra live</Badge>
-                    <ProductDiscountBadge product={liveProduct} quantity={liveOnlyQty} />
-                  </div>
-                  <h2 className="mt-3 font-display text-2xl font-black uppercase">Acquista live</h2>
-                  <p className="mt-2 max-w-2xl text-sm leading-6 text-text-muted">
-                    Se vuoi più sessioni, acquisti crediti live separati. Li ritrovi nell'app e li usi per prenotare.
-                  </p>
-                </div>
-                <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
-                  <QuantityControl value={liveOnlyQty} min={1} onChange={(value) => setLiveOnlyQty(clampQty(value) || 1)} />
-                  <div className="min-w-[150px]">
-                    {liveDiscount > 0 && <p className="text-xs text-text-muted line-through">{money(liveProduct.priceCents * liveOnlyQty, liveProduct.currency)}</p>}
-                    <p className="font-display text-3xl font-black text-accent">{money(liveUnit * liveOnlyQty, liveProduct.currency)}</p>
-                  </div>
-                  <Button
-                    variant={mode === "live" ? "primary" : "secondary"}
-                    onClick={() => {
-                      setMode("live");
-                      window.requestAnimationFrame(() => document.getElementById("checkout")?.scrollIntoView({ behavior: "smooth", block: "start" }));
-                    }}
-                  >
-                    Acquista live
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          )}
 
           <Card id="checkout" className="mx-auto mt-10 h-fit w-full max-w-2xl border-accent/30 bg-bg/80">
             <div className="mb-6 flex items-center gap-3">
@@ -336,38 +296,45 @@ export default function Packages() {
               </div>
             </div>
 
-            {selectedProduct && (
+            {selectedPackage && (
               <div className="mb-5 space-y-3 rounded-md border border-accent/30 bg-accent/5 p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-xs uppercase tracking-wide text-text-muted">Selezione</p>
                     <p className="mt-1 font-display text-xl font-black uppercase text-text">
-                      {mode === "live" ? `${liveOnlyQty} ${liveOnlyQty === 1 ? "live" : "live"}` : selectedPackage.name}
+                      {selectedPackage.name}
                     </p>
                     <p className="mt-1 text-sm text-text-muted">
-                      {mode === "live" ? liveProduct.description : selectedPackage.description}
+                      {selectedPackage.description}
                     </p>
                   </div>
-                  <p className="font-display text-3xl font-black text-accent">{money(total, selectedProduct.currency)}</p>
+                  <p className="font-display text-3xl font-black text-accent">{money(total, checkoutCurrency)}</p>
                 </div>
 
-                {mode === "package" && liveProduct && (
+                {liveProduct && (
                   <div className="rounded-md border border-border bg-bg/70 p-3">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
-                        <p className="font-semibold text-white">Vuoi aggiungere live extra?</p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-semibold text-white">Vuoi aggiungere live extra?</p>
+                          {extraLiveQty > 0 && <ProductDiscountBadge product={liveProduct} quantity={extraLiveQty} />}
+                        </div>
                         <p className="text-xs text-text-muted">
-                          I crediti vengono aggiunti al tuo account insieme al pacchetto.
+                          Più crediti live aggiungi, più lo sconto può crescere. Li ritrovi nell'app insieme al pacchetto.
                         </p>
                       </div>
                       <QuantityControl value={extraLiveQty} onChange={(value) => setExtraLiveQty(clampQty(value))} />
                     </div>
-                    {extraLiveQty > 0 && (
-                      <p className="mt-2 text-xs text-text-muted">
-                        Extra live: {money(liveTotal, liveProduct.currency)}
-                        {liveDiscount > 0 ? ` con sconto -${liveDiscount}%` : ""}
-                      </p>
-                    )}
+                    <p className="mt-2 text-xs text-text-muted">
+                      {extraLiveQty > 0 ? (
+                        <>
+                          Extra live: {money(liveTotal, liveProduct.currency)}
+                          {liveDiscount > 0 ? ` con sconto -${liveDiscount}%` : ""}
+                        </>
+                      ) : (
+                        "Puoi lasciarle a zero o aggiungerle ora prima del pagamento."
+                      )}
+                    </p>
                   </div>
                 )}
               </div>
@@ -395,7 +362,7 @@ export default function Packages() {
 
               {error && <p className="rounded-sm border border-danger/40 bg-danger/10 p-3 text-sm text-danger">{error}</p>}
 
-              <Button className="w-full" type="submit" disabled={!selectedProduct || status === "loading"}>
+              <Button className="w-full" type="submit" disabled={!selectedPackage || status === "loading"}>
                 {status === "loading" ? <Loader2 className="animate-spin" size={18} /> : <ShieldCheck size={18} />}
                 Vai al pagamento
               </Button>

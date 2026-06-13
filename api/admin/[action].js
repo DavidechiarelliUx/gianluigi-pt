@@ -59,6 +59,7 @@ async function summary(req, res) {
       liveBookingsWeek,
       revenueMonth,
       clientsWithoutWorkout,
+      openMessages,
     ] = await Promise.all([
       prisma.client.count({ where: { deletedAt: null } }),
       prisma.workout.count({ where: { status: "active", client: { is: { deletedAt: null } } } }),
@@ -82,6 +83,9 @@ async function summary(req, res) {
       }),
       prisma.client.count({
         where: { deletedAt: null, workouts: { none: { status: "active" } } },
+      }),
+      prisma.coachMessage.count({
+        where: { hiddenAt: null, senderRole: "client", status: { not: "resolved" } },
       }),
     ]);
 
@@ -109,6 +113,7 @@ async function summary(req, res) {
         liveBookingsWeek,
         revenueMonthCents: revenueMonth._sum.amountCents || 0,
         clientsWithoutWorkout,
+        openMessages,
         subscriptionsActive,
         subscriptionsExpiring7d,
       },
@@ -151,19 +156,96 @@ async function exercises(req, res) {
 // ─── GET /api/admin/messages ──────────────────────────────────────────────────
 
 async function messages(req, res) {
-  if (req.method !== "GET") return methodNotAllowed(res, ["GET"]);
+  if (req.method === "GET") {
+    const includeResolved = req.query.includeResolved === "1" || req.query.includeResolved === "true";
+    const clientId = typeof req.query.clientId === "string" ? req.query.clientId : "";
+    const limit = clampInt(req.query.limit, 1, 100, clientId ? 50 : 12);
 
-  try {
-    const list = await prisma.coachMessage.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 12,
-      include: { client: { include: { user: { select: { fullName: true, email: true } } } } },
-    });
-    return res.status(200).json({ ok: true, messages: list });
-  } catch (err) {
-    console.error("GET /api/admin/messages:", err);
-    return res.status(500).json({ ok: false, error: "Errore interno" });
+    try {
+      const list = await prisma.coachMessage.findMany({
+        where: {
+          hiddenAt: null,
+          senderRole: "client",
+          ...(includeResolved ? {} : { status: { not: "resolved" } }),
+          ...(clientId ? { clientId } : {}),
+        },
+        orderBy: { createdAt: "desc" },
+        take: limit,
+        include: {
+          client: {
+            include: {
+              user: { select: { id: true, fullName: true, email: true } },
+            },
+          },
+        },
+      });
+      return res.status(200).json({ ok: true, messages: list });
+    } catch (err) {
+      console.error("GET /api/admin/messages:", err);
+      return res.status(500).json({ ok: false, error: "Errore interno" });
+    }
   }
+
+  if (req.method === "POST") {
+    const body = parseJsonBody(req);
+    const clientId = String(body?.clientId || "").trim();
+    const message = String(body?.message || "").trim();
+    const subject = String(body?.subject || "Messaggio dal trainer").trim() || "Messaggio dal trainer";
+    if (!clientId || message.length < 2) {
+      return res.status(400).json({ ok: false, error: "Cliente e messaggio sono obbligatori" });
+    }
+
+    try {
+      const client = await prisma.client.findFirst({ where: { id: clientId, deletedAt: null } });
+      if (!client) return res.status(404).json({ ok: false, error: "Cliente non trovato" });
+      const created = await prisma.coachMessage.create({
+        data: {
+          clientId,
+          subject,
+          message,
+          senderRole: "admin",
+          status: "sent",
+        },
+      });
+      return res.status(201).json({ ok: true, message: created });
+    } catch (err) {
+      console.error("POST /api/admin/messages:", err);
+      return res.status(500).json({ ok: false, error: "Errore interno" });
+    }
+  }
+
+  if (req.method === "PATCH" || req.method === "PUT") {
+    const body = parseJsonBody(req);
+    const id = String(body?.id || req.query.id || "").trim();
+    if (!id) return res.status(400).json({ ok: false, error: "id messaggio obbligatorio" });
+
+    const data = {};
+    if (body?.status !== undefined) {
+      const status = String(body.status || "").trim();
+      if (!["open", "resolved"].includes(status)) {
+        return res.status(400).json({ ok: false, error: "Stato messaggio non valido" });
+      }
+      data.status = status;
+      data.resolvedAt = status === "resolved" ? new Date() : null;
+    }
+    if (body?.hidden !== undefined) data.hiddenAt = body.hidden ? new Date() : null;
+    if (body?.read !== undefined && body.read) data.readAt = new Date();
+
+    try {
+      const updated = await prisma.coachMessage.update({
+        where: { id },
+        data,
+        include: { client: { include: { user: { select: { id: true, fullName: true, email: true } } } } },
+      });
+      return res.status(200).json({ ok: true, message: updated });
+    } catch (err) {
+      console.error("PATCH /api/admin/messages:", err);
+      if (err.code === "P2025") return res.status(404).json({ ok: false, error: "Messaggio non trovato" });
+      return res.status(500).json({ ok: false, error: "Errore interno" });
+    }
+  }
+
+  return methodNotAllowed(res, ["GET", "POST", "PATCH", "PUT"]);
 }
 
 // ─── GET /api/admin/subscription-expiring ────────────────────────────────────
