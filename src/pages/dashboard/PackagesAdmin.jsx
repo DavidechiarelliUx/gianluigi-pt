@@ -16,8 +16,18 @@ function money(cents = 0, currency = "eur") {
   return new Intl.NumberFormat("it-IT", {
     style: "currency",
     currency: currency.toUpperCase(),
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format((cents || 0) / 100);
+}
+
+function parseEuroCents(value) {
+  const normalized = String(value || "")
+    .trim()
+    .replace(/\s/g, "")
+    .replace(",", ".");
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? Math.round(parsed * 100) : 0;
 }
 
 function discountFor(product, quantity = 1) {
@@ -35,7 +45,10 @@ function effectivePrice(product, quantity = 1) {
 function toEdit(product) {
   return {
     ...product,
-    priceEuro: String((product.priceCents || 0) / 100),
+    priceEuro: new Intl.NumberFormat("it-IT", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format((product.priceCents || 0) / 100),
     featuresText: (product.features || []).join("\n"),
     tier1Qty: String(product.discountTiers?.[0]?.minQty || ""),
     tier1Discount: String(product.discountTiers?.[0]?.discountPercent || ""),
@@ -59,7 +72,7 @@ function fromEdit(form) {
     id: form.id,
     name: form.name,
     description: form.description,
-    priceCents: Math.round(Number(String(form.priceEuro).replace(",", ".")) * 100),
+    priceCents: parseEuroCents(form.priceEuro),
     sessionsQty: Number(form.sessionsQty) || 0,
     discountPercent: Number(form.discountPercent) || 0,
     discountTiers,
@@ -242,7 +255,7 @@ export default function PackagesAdmin() {
             </label>
             <label className="block">
               <span className="mb-1 block text-xs uppercase tracking-wide text-text-muted">Prezzo base (€)</span>
-              <Input type="number" step="0.01" min="1" value={edit.priceEuro} onChange={(e) => setEdit((v) => ({ ...v, priceEuro: e.target.value }))} />
+              <Input inputMode="decimal" value={edit.priceEuro} onChange={(e) => setEdit((v) => ({ ...v, priceEuro: e.target.value }))} />
             </label>
             <label className="block">
               <span className="mb-1 block text-xs uppercase tracking-wide text-text-muted">Sconto %</span>
