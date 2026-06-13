@@ -15,6 +15,7 @@ const EMPTY_FORM = {
   scheduledAt: "",
   durationMin: 60,
   maxSlots: 1,
+  targetClientId: "",
   videoLink: "",
   notes: "",
 };
@@ -113,6 +114,7 @@ export default function Live() {
       ...form,
       durationMin: Number(form.durationMin),
       maxSlots: Number(form.maxSlots),
+      targetClientId: form.type === "solo" ? form.targetClientId || null : null,
     });
   };
 
@@ -231,6 +233,9 @@ export default function Live() {
                     </p>
                     <p className="text-xs text-text-muted">
                       Prenotati: <span className={full ? "text-accent" : ""}>{booked}/{session.maxSlots}</span>
+                      {session.targetClient?.user && (
+                        <> · Cliente: {session.targetClient.user.fullName || session.targetClient.user.email}</>
+                      )}
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
@@ -359,7 +364,7 @@ export default function Live() {
               <select
                 value={form.type}
                 onChange={(e) =>
-                  setForm({ ...form, type: e.target.value, maxSlots: e.target.value === "solo" ? 1 : 10 })
+                  setForm({ ...form, type: e.target.value, maxSlots: e.target.value === "solo" ? 1 : 10, targetClientId: e.target.value === "solo" ? form.targetClientId : "" })
                 }
                 className="h-11 w-full rounded-md border border-border bg-surface-2 px-3 text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
@@ -377,6 +382,26 @@ export default function Live() {
               />
             </label>
           </div>
+          {form.type === "solo" && (
+            <label className="block">
+              <span className="mb-1 block text-xs uppercase text-text-muted">Cliente 1:1 dedicato</span>
+              <select
+                value={form.targetClientId}
+                onChange={(e) => setForm({ ...form, targetClientId: e.target.value, maxSlots: 1 })}
+                className="h-11 w-full rounded-md border border-border bg-surface-2 px-3 text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                <option value="">Nessun cliente specifico</option>
+                {clients.map((client) => (
+                  <option key={client.id} value={client.id}>
+                    {client.user?.fullName || client.user?.email} · {client.liveCredits} crediti
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-text-muted">
+                Se scegli un cliente, la live sarà visibile solo a lui e verrà prenotata automaticamente.
+              </p>
+            </label>
+          )}
           <label className="block">
             <span className="mb-1 block text-xs uppercase text-text-muted">Data e ora</span>
             <Input

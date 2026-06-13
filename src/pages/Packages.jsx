@@ -71,7 +71,7 @@ function money(cents = 0, currency = "eur") {
   return new Intl.NumberFormat("it-IT", {
     style: "currency",
     currency: currency.toUpperCase(),
-    maximumFractionDigits: 0,
+    maximumFractionDigits: 2,
   }).format((cents || 0) / 100);
 }
 

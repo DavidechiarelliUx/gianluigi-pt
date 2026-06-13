@@ -164,7 +164,7 @@ function ExercisePicker({ exercises, value, onChange }) {
                   <Dumbbell size={18} className="text-accent" />
                   <h3 className="font-display text-base font-bold uppercase">Scegli esercizio</h3>
                 </div>
-                <button onClick={close} className="rounded-full p-1 text-text-muted hover:text-text">
+                <button type="button" onClick={close} className="rounded-full p-1 text-text-muted hover:text-text">
                   <X size={18} />
                 </button>
               </div>
@@ -190,6 +190,7 @@ function ExercisePicker({ exercises, value, onChange }) {
                   const { color } = cat !== "all" ? getMuscleGroupColor(cat) : { color: "#39FF14" };
                   return (
                     <button
+                      type="button"
                       key={cat}
                       onClick={() => setFilterGroup(cat)}
                       className="shrink-0 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide transition-all"

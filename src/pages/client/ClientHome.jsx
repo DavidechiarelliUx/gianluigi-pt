@@ -30,25 +30,35 @@ function greeting() {
   return "Buonasera";
 }
 
-function calcStreak(sessions) {
+function isFullSession(session) {
+  const logs = session.itemLogs || [];
+  return logs.length > 0 && logs.every((log) => log.completed);
+}
+
+function weekKey(value) {
+  const d = new Date(value);
+  d.setHours(0, 0, 0, 0);
+  const day = (d.getDay() + 6) % 7;
+  d.setDate(d.getDate() - day);
+  return d.getTime();
+}
+
+function calcStreak(sessions, expectedDays = 1) {
   if (!sessions.length) return 0;
+  const target = Math.max(1, Number(expectedDays) || 1);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const days = [
-    ...new Set(
-      sessions.map((s) => {
-        const d = new Date(s.date);
-        d.setHours(0, 0, 0, 0);
-        return d.getTime();
-      })
-    ),
-  ].sort((a, b) => b - a);
+  const currentWeek = weekKey(today);
+  const byWeek = new Map();
+  for (const session of sessions) {
+    const key = weekKey(session.date);
+    byWeek.set(key, (byWeek.get(key) || 0) + 1);
+  }
 
   let streak = 0;
-  for (const ts of days) {
-    const expected = new Date(today);
-    expected.setDate(expected.getDate() - streak);
-    if (ts === expected.getTime()) streak++;
+  for (;;) {
+    const expectedWeek = currentWeek - streak * 7 * 86400000;
+    if ((byWeek.get(expectedWeek) || 0) >= target) streak++;
     else break;
   }
   return streak;
@@ -158,16 +168,18 @@ export default function ClientHome() {
   );
   const nextLive = liveSessions[0];
 
-  const streak = useMemo(() => calcStreak(sessions), [sessions]);
-  const week = useMemo(() => weekDays(sessions), [sessions]);
-  const totalSessions = sessions.length;
-  const lastSession = sessions[0];
+  const fullSessions = useMemo(() => sessions.filter(isFullSession), [sessions]);
+  const expectedWeekSessions = workout?.days?.length || 1;
+  const streak = useMemo(() => calcStreak(fullSessions, expectedWeekSessions), [fullSessions, expectedWeekSessions]);
+  const week = useMemo(() => weekDays(fullSessions), [fullSessions]);
+  const totalSessions = fullSessions.length;
+  const lastSession = fullSessions[0];
   const lastDone = lastSession?.itemLogs?.filter((l) => l.completed).length ?? 0;
   const lastTotal = lastSession?.itemLogs?.length ?? 0;
 
   // Oggi: ci sono sessioni di oggi?
   const todayTs = (() => { const d = new Date(); d.setHours(0,0,0,0); return d.getTime(); })();
-  const trainedToday = sessions.some((s) => {
+  const trainedToday = fullSessions.some((s) => {
     const d = new Date(s.date); d.setHours(0,0,0,0);
     return d.getTime() === todayTs;
   });
@@ -232,7 +244,7 @@ export default function ClientHome() {
         className="grid grid-cols-3 gap-2"
       >
         {[
-          { icon: Flame, value: streak, label: "streak" },
+          { icon: Flame, value: streak, label: "streak sett." },
           { icon: Dumbbell, value: totalSessions, label: "sessioni" },
           { icon: TrendingUp, value: workout?.days?.length ?? "—", label: "giorni piano" },
         ].map(({ icon: Icon, value, label }) => (

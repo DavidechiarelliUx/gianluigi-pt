@@ -12,9 +12,10 @@ function pushMap(map, key, value) {
 }
 
 function paymentSummary(orders = [], subscriptions = []) {
+  const visibleOrders = orders.filter((order) => order.status !== "pending");
   const paidOrders = orders.filter((order) => order.status === "paid");
   const activeSubscription = subscriptions.find((sub) => ["active", "trialing"].includes(sub.status));
-  const latestOrder = orders[0] || null;
+  const latestOrder = visibleOrders[0] || null;
   const totalPaidCents = paidOrders.reduce((sum, order) => sum + (Number(order.amountCents) || 0), 0);
   const paymentStatus = activeSubscription ? "active" : latestOrder?.status || "none";
 

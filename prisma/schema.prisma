@@ -115,6 +115,7 @@ model Client {
   workouts        Workout[]
   workoutSessions WorkoutSession[]
   bookings        Booking[]        // Fase 3
+  targetedLiveSessions LiveSession[] @relation("TargetedLiveSessions")
   liveCredits     LiveCreditLedger[]
   metrics         ClientMetric[]
   coachMessages   CoachMessage[]
@@ -292,6 +293,8 @@ model LiveSession {
   maxSlots    Int               @default(1)  // 1 per 1:1, N per gruppo
   product     Product?          @relation(fields: [productId], references: [id])
   productId   String?           // Product collegato (null = sessione gratuita/interna)
+  targetClient Client?           @relation("TargetedLiveSessions", fields: [targetClientId], references: [id])
+  targetClientId String?         // se presente, la live è visibile solo a quel cliente
   videoLink   String?           // link Zoom/Meet manuale
   notes       String?           // note interne del PT
   bookings    Booking[]
@@ -299,6 +302,7 @@ model LiveSession {
   updatedAt   DateTime          @updatedAt
 
   @@index([scheduledAt, status])
+  @@index([targetClientId])
 }
 
 /// Prenotazione di un cliente per una sessione live.

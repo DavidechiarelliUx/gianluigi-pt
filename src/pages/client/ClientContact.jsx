@@ -7,7 +7,6 @@ import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { Textarea } from "../../components/ui/Textarea";
 import { StatusBadge } from "../../components/app";
-import { useAuth } from "../../hooks/useAuth";
 import { apiFetch } from "../../lib/api";
 
 const WHATSAPP = "https://wa.me/393000000000?text=Ciao%20Gianluigi%2C%20ti%20scrivo%20dall%27app.";
@@ -45,7 +44,6 @@ function ChatBubble({ item }) {
 export default function ClientContact() {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { user } = useAuth();
 
   const [subject, setSubject] = useState("Domanda sulla scheda");
   const [message, setMessage] = useState("");
@@ -83,44 +81,16 @@ export default function ClientContact() {
         </button>
         <div>
           <h1 className="font-display text-xl font-black uppercase leading-none">Chat con Gianluigi</h1>
-          <p className="text-xs text-text-muted">Richieste, dubbi e risposte in un unico posto</p>
+          <p className="text-xs text-text-muted">Personal trainer: Gianluigi Chiarelli</p>
         </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <a
-          href={WHATSAPP}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex flex-col items-center gap-2 rounded-xl border p-4 text-center transition-colors"
-          style={{ background: "#111", borderColor: "#1e1e1e" }}
-        >
-          <div className="flex h-10 w-10 items-center justify-center rounded-full" style={{ background: "rgba(37,211,102,0.12)" }}>
-            <MessageCircle size={20} style={{ color: "#25D366" }} />
-          </div>
-          <p className="text-sm font-semibold text-white">WhatsApp</p>
-          <p className="text-[10px] text-text-muted">Per urgenze rapide</p>
-        </a>
-
-        <a
-          href="mailto:gianluigi@gianluigipt.it"
-          className="flex flex-col items-center gap-2 rounded-xl border p-4 text-center transition-colors"
-          style={{ background: "#111", borderColor: "#1e1e1e" }}
-        >
-          <div className="flex h-10 w-10 items-center justify-center rounded-full" style={{ background: "rgba(57,255,20,0.1)" }}>
-            <Mail size={20} className="text-accent" />
-          </div>
-          <p className="text-sm font-semibold text-white">Email</p>
-          <p className="text-[10px] text-text-muted">Questioni dettagliate</p>
-        </a>
       </div>
 
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
         <div className="overflow-hidden rounded-2xl" style={{ background: "#0f0f0f", border: "1px solid #1e1e1e" }}>
           <div className="border-b px-4 py-3" style={{ borderColor: "#1e1e1e" }}>
-            <p className="text-[11px] font-bold uppercase tracking-widest text-text-muted">Messaggi in-app</p>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-text-muted">Gianluigi Chiarelli</p>
             <p className="text-xs text-text-muted">
-              Da: <span className="font-semibold text-text">{user?.fullName || user?.email}</span>
+              Chat in-app per richieste, dubbi e risposte.
             </p>
           </div>
 
@@ -192,6 +162,28 @@ export default function ClientContact() {
           </form>
         </div>
       </motion.div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <a
+          href={WHATSAPP}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center gap-2 rounded-xl border p-4 text-center transition-colors"
+          style={{ background: "#111", borderColor: "#1e1e1e" }}
+        >
+          <MessageCircle size={18} style={{ color: "#25D366" }} />
+          <span className="text-sm font-semibold text-white">WhatsApp</span>
+        </a>
+
+        <a
+          href="mailto:gianluigi@gianluigipt.it"
+          className="flex items-center justify-center gap-2 rounded-xl border p-4 text-center transition-colors"
+          style={{ background: "#111", borderColor: "#1e1e1e" }}
+        >
+          <Mail size={18} className="text-accent" />
+          <span className="text-sm font-semibold text-white">Email</span>
+        </a>
+      </div>
     </div>
   );
 }

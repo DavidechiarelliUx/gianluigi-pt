@@ -28,7 +28,10 @@ async function sessions(req, res) {
       if (auth.role === "client") {
         const liveCredits = await getLiveCreditBalance(auth.clientId);
         const list = await prisma.liveSession.findMany({
-          where: { status: { in: ["scheduled", "live"] } },
+          where: {
+            status: { in: ["scheduled", "live"] },
+            OR: [{ targetClientId: null }, { targetClientId: auth.clientId }],
+          },
           orderBy: { scheduledAt: "asc" },
           include: {
             _count: { select: { bookings: { where: { status: "confirmed" } } } },
@@ -52,6 +55,7 @@ async function sessions(req, res) {
         orderBy: { scheduledAt: "asc" },
         include: {
           _count: { select: { bookings: { where: { status: "confirmed" } } } },
+          targetClient: { include: { user: { select: { fullName: true, email: true } } } },
           ...(auth.role === "client" && auth.clientId
             ? {
                 bookings: {
@@ -77,7 +81,7 @@ async function sessions(req, res) {
     const body = parseJsonBody(req);
     if (!body) return res.status(400).json({ ok: false, error: "Body non valido" });
 
-    const { title, type = "solo", scheduledAt, durationMin = 60, maxSlots, productId, videoLink, notes } =
+    const { title, type = "solo", scheduledAt, durationMin = 60, maxSlots, productId, targetClientId, videoLink, notes } =
       body;
 
     if (!title?.trim() || !scheduledAt) {
@@ -85,17 +89,32 @@ async function sessions(req, res) {
     }
 
     try {
-      const session = await prisma.liveSession.create({
-        data: {
-          title: title.trim(),
-          type,
-          scheduledAt: new Date(scheduledAt),
-          durationMin: Number(durationMin) || 60,
-          maxSlots: maxSlots ? Number(maxSlots) : type === "solo" ? 1 : 10,
-          productId: productId || null,
-          videoLink: videoLink?.trim() || null,
-          notes: notes?.trim() || null,
-        },
+      const assignedClientId = type === "solo" && targetClientId ? String(targetClientId) : null;
+      if (assignedClientId) {
+        const client = await prisma.client.findFirst({ where: { id: assignedClientId, deletedAt: null } });
+        if (!client) return res.status(404).json({ ok: false, error: "Cliente non trovato" });
+      }
+
+      const session = await prisma.$transaction(async (tx) => {
+        const created = await tx.liveSession.create({
+          data: {
+            title: title.trim(),
+            type,
+            scheduledAt: new Date(scheduledAt),
+            durationMin: Number(durationMin) || 60,
+            maxSlots: assignedClientId ? 1 : maxSlots ? Number(maxSlots) : type === "solo" ? 1 : 10,
+            productId: productId || null,
+            targetClientId: assignedClientId,
+            videoLink: videoLink?.trim() || null,
+            notes: notes?.trim() || null,
+          },
+        });
+        if (assignedClientId) {
+          await tx.booking.create({
+            data: { liveSessionId: created.id, clientId: assignedClientId, status: "confirmed" },
+          });
+        }
+        return created;
       });
       return res.status(201).json({ ok: true, session });
     } catch (err) {
@@ -144,7 +163,7 @@ async function sessionDetail(req, res) {
     const body = parseJsonBody(req);
     if (!body) return res.status(400).json({ ok: false, error: "Body non valido" });
 
-    const { title, type, status, scheduledAt, durationMin, maxSlots, productId, videoLink, notes } = body;
+    const { title, type, status, scheduledAt, durationMin, maxSlots, productId, targetClientId, videoLink, notes } = body;
 
     try {
       const session = await prisma.liveSession.update({
@@ -157,6 +176,7 @@ async function sessionDetail(req, res) {
           ...(durationMin != null && { durationMin: Number(durationMin) }),
           ...(maxSlots != null && { maxSlots: Number(maxSlots) }),
           ...(productId !== undefined && { productId: productId || null }),
+          ...(targetClientId !== undefined && { targetClientId: targetClientId || null }),
           ...(videoLink !== undefined && { videoLink: videoLink?.trim() || null }),
           ...(notes !== undefined && { notes: notes?.trim() || null }),
         },

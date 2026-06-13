@@ -280,7 +280,7 @@ async function activeWorkout(req, res, auth) {
     const sessions = await prisma.workoutSession.findMany({
       where: { clientId: auth.clientId, status: "completed" },
       orderBy: { date: "desc" },
-      take: 8,
+      take: 52,
       include: { itemLogs: true },
     });
     return res.status(200).json({ ok: true, workout, sessions, access: "granted" });

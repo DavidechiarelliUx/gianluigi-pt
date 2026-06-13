@@ -15,6 +15,18 @@ export const config = {
 
 const DEFAULT_PRODUCTS = [
   {
+    name: "Applicazione solo cliente",
+    description: "Scelta del personal trainer e creazione della scheda personale. Prodotto futuro, non ancora pubblico.",
+    priceCents: 499,
+    type: "package",
+    sessionsQty: 0,
+    accessLevel: "app",
+    billingInterval: "month",
+    sortOrder: 0,
+    active: false,
+    features: ["Applicazione cliente", "Scelta personal trainer", "Creazione scheda personale"],
+  },
+  {
     name: "Start",
     description: "Scheda personalizzata, app e supporto messaggi per partire con metodo.",
     priceCents: 2900,
@@ -144,7 +156,7 @@ async function ensureDefaultProducts() {
   for (const item of DEFAULT_PRODUCTS) {
     const existing = await prisma.product.findUnique({ where: { name: item.name }, select: { id: true } });
     if (!existing) {
-      await prisma.product.create({ data: { ...item, currency: "eur", active: true } });
+      await prisma.product.create({ data: { ...item, currency: "eur", active: item.active ?? true } });
     }
   }
   await prisma.product.updateMany({
@@ -762,7 +774,11 @@ async function orders(req, res) {
   if (req.method !== "GET") return methodNotAllowed(res, ["GET"]);
 
   try {
-    const where = auth.role === "admin" ? {} : { userId: auth.userId };
+    const includePending = req.query.includePending === "1" || req.query.includePending === "true";
+    const where = {
+      ...(auth.role === "admin" ? {} : { userId: auth.userId }),
+      ...(includePending ? {} : { status: { not: "pending" } }),
+    };
     const list = await prisma.order.findMany({
       where,
       include: {

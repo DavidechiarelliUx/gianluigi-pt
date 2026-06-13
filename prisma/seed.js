@@ -12,6 +12,19 @@ import { EXERCISE_CATALOG } from "../server/lib/exercise-catalog.js";
 
 const PRODUCTS = [
   {
+    name: "Applicazione solo cliente",
+    description: "Scelta del personal trainer e creazione della scheda personale. Prodotto futuro, non ancora pubblico.",
+    priceCents: 499,
+    currency: "eur",
+    type: "package",
+    sessionsQty: 0,
+    accessLevel: "app",
+    billingInterval: "month",
+    sortOrder: 0,
+    active: false,
+    features: ["Applicazione cliente", "Scelta personal trainer", "Creazione scheda personale"],
+  },
+  {
     name: "Start",
     description: "Scheda personalizzata, app e supporto messaggi per partire con metodo.",
     priceCents: 2900,
@@ -95,8 +108,8 @@ async function main() {
   for (const product of PRODUCTS) {
     await prisma.product.upsert({
       where: { name: product.name },
-      update: { ...product, active: true },
-      create: { ...product, active: true },
+      update: { ...product, active: product.active ?? true },
+      create: { ...product, active: product.active ?? true },
     });
   }
   await prisma.product.updateMany({

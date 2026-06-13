@@ -77,7 +77,6 @@ export default function Dashboard() {
   const subscriptions = useMemo(() => expiringQuery.data?.subscriptions || [], [expiringQuery.data?.subscriptions]);
 
   const paidOrders = useMemo(() => orders.filter((o) => o.status === "paid"), [orders]);
-  const pendingOrders = useMemo(() => orders.filter((o) => o.status === "pending"), [orders]);
 
   const upcomingSessions = useMemo(() =>
     sessions.filter((s) => s.status !== "cancelled")
@@ -165,9 +164,9 @@ export default function Dashboard() {
       color: (summary?.clientsWithoutWorkout ?? 0) > 0 ? "text-yellow-400" : "text-accent",
     },
     {
-      icon: AlertCircle, label: "Pagamenti in attesa",
-      value: pendingOrders.length,
-      color: pendingOrders.length > 0 ? "text-yellow-400" : "text-accent",
+      icon: AlertCircle, label: "Abbonamenti in scadenza",
+      value: summary?.subscriptionsExpiring7d ?? "—",
+      color: (summary?.subscriptionsExpiring7d ?? 0) > 0 ? "text-yellow-400" : "text-accent",
     },
   ];
 
@@ -252,8 +251,8 @@ export default function Dashboard() {
               <strong className="text-accent">{payingClients.length}</strong>
             </div>
             <div className="flex items-center justify-between rounded-lg border border-border bg-surface-2 px-3 py-2">
-              <span className="text-text-muted">In attesa</span>
-              <strong className="text-accent">{pendingOrders.length}</strong>
+              <span className="text-text-muted">Ordini pagati</span>
+              <strong className="text-accent">{paidOrders.length}</strong>
             </div>
           </div>
           <Button onClick={() => { window.location.href = "/dashboard/pacchetti"; }}>

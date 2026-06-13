@@ -78,14 +78,18 @@ function resizeImage(file, maxDim = 400) {
 
 const AVATAR_KEY = "gianluigi-pt:avatar";
 
-function loadAvatar() {
-  try { return localStorage.getItem(AVATAR_KEY) || ""; } catch { return ""; }
+function avatarKey(identity) {
+  return identity ? `${AVATAR_KEY}:${identity}` : AVATAR_KEY;
 }
 
-function saveAvatarStorage(url) {
+function loadAvatar(identity) {
+  try { return localStorage.getItem(avatarKey(identity)) || ""; } catch { return ""; }
+}
+
+function saveAvatarStorage(identity, url) {
   try {
-    if (url) localStorage.setItem(AVATAR_KEY, url);
-    else localStorage.removeItem(AVATAR_KEY);
+    if (url) localStorage.setItem(avatarKey(identity), url);
+    else localStorage.removeItem(avatarKey(identity));
   } catch { /* noop */ }
 }
 
@@ -265,14 +269,16 @@ function AvatarModal({ current, onSave, onClose }) {
 export default function ClientProfile() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const avatarIdentity = user?.id || user?.email || "";
 
   // Avatar state (client-side, localStorage)
-  const [avatar, setAvatar] = useState(loadAvatar);
+  const [avatars, setAvatars] = useState({});
   const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const avatar = avatars[avatarIdentity] ?? loadAvatar(avatarIdentity);
 
   const handleSaveAvatar = (url) => {
-    saveAvatarStorage(url);
-    setAvatar(url);
+    saveAvatarStorage(avatarIdentity, url);
+    setAvatars((value) => ({ ...value, [avatarIdentity]: url }));
     setShowAvatarModal(false);
   };
 
@@ -334,7 +340,10 @@ export default function ClientProfile() {
                 src={avatar}
                 alt="Avatar"
                 className="h-full w-full object-cover"
-                onError={() => { saveAvatarStorage(""); setAvatar(""); }}
+                onError={() => {
+                  saveAvatarStorage(avatarIdentity, "");
+                  setAvatars((value) => ({ ...value, [avatarIdentity]: "" }));
+                }}
               />
             ) : (
               <span className="m-auto font-display text-xl font-black" style={{ color: "#39FF14" }}>
