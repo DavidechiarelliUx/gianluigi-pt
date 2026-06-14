@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -124,6 +124,7 @@ function ProgressRing({ pct = 0, size = 120, stroke = 10 }) {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function ClientHome() {
+  const qc = useQueryClient();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -131,12 +132,91 @@ export default function ClientHome() {
 
   // Checkout success banner (dopo ritorno da Stripe in-app)
   const checkoutSuccess = searchParams.get("checkout") === "success";
+  const checkoutSessionId = searchParams.get("session_id");
+  const [checkoutState, setCheckoutState] = useState({
+    status: checkoutSuccess ? "checking" : "idle",
+    message: "Verifico il pagamento e aggiorno i tuoi crediti...",
+  });
   const dismissCheckoutBanner = () => {
     const p = new URLSearchParams(searchParams);
     p.delete("checkout");
     p.delete("session_id");
     setSearchParams(p, { replace: true });
   };
+
+  useEffect(() => {
+    if (!checkoutSuccess) return undefined;
+    let cancelled = false;
+    let timeoutId;
+
+    if (!checkoutSessionId) {
+      queueMicrotask(() => {
+        if (cancelled) return;
+        setCheckoutState({
+          status: "warning",
+          message: "Pagamento effettuato. Se i crediti live non compaiono entro pochi secondi, ricarica l'app.",
+        });
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    let attempts = 0;
+
+    const verifyCheckout = async () => {
+      attempts += 1;
+      setCheckoutState({
+        status: "checking",
+        message: "Verifico il pagamento e aggiorno i tuoi crediti...",
+      });
+
+      try {
+        const result = await apiFetch(`/api/payments/verify-session?session_id=${encodeURIComponent(checkoutSessionId)}`);
+        if (cancelled) return;
+
+        if (result.status === "paid") {
+          await Promise.all([
+            qc.invalidateQueries({ queryKey: ["client", "overview"] }),
+            qc.invalidateQueries({ queryKey: ["live", "sessions"] }),
+            qc.invalidateQueries({ queryKey: ["payments", "orders"] }),
+          ]);
+          if (cancelled) return;
+          setCheckoutState({
+            status: "paid",
+            message: "Pagamento confermato. I crediti live sono stati aggiornati nel tuo account.",
+          });
+          return;
+        }
+
+        if (attempts < 4) {
+          timeoutId = window.setTimeout(verifyCheckout, 1800);
+          return;
+        }
+
+        setCheckoutState({
+          status: "warning",
+          message: "Pagamento in verifica. Se i crediti live non compaiono a breve, ricarica l'app.",
+        });
+      } catch {
+        if (cancelled) return;
+        if (attempts < 3) {
+          timeoutId = window.setTimeout(verifyCheckout, 2000);
+          return;
+        }
+        setCheckoutState({
+          status: "warning",
+          message: "Pagamento effettuato, ma non sono riuscito ad aggiornare subito i crediti. Ricarica l'app tra qualche secondo.",
+        });
+      }
+    };
+
+    verifyCheckout();
+    return () => {
+      cancelled = true;
+      if (timeoutId) window.clearTimeout(timeoutId);
+    };
+  }, [checkoutSuccess, checkoutSessionId, qc]);
 
   const overviewQuery = useQuery({
     queryKey: ["client", "overview"],
@@ -211,13 +291,19 @@ export default function ClientHome() {
         <motion.div
           initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
           className="relative rounded-xl px-4 py-3 pr-10"
-          style={{ background: "rgba(57,255,20,0.08)", border: "1px solid rgba(57,255,20,0.3)" }}
+          style={{
+            background: checkoutState.status === "warning" ? "rgba(255,191,0,0.08)" : "rgba(57,255,20,0.08)",
+            border: checkoutState.status === "warning" ? "1px solid rgba(255,191,0,0.3)" : "1px solid rgba(57,255,20,0.3)",
+          }}
         >
-          <p className="flex items-center gap-2 text-sm font-semibold" style={{ color: "#39FF14" }}>
-            🎉 Abbonamento attivato!
+          <p
+            className="flex items-center gap-2 text-sm font-semibold"
+            style={{ color: checkoutState.status === "warning" ? "#ffbf00" : "#39FF14" }}
+          >
+            {checkoutState.status === "checking" ? "Pagamento in elaborazione..." : "Pagamento confermato"}
           </p>
           <p className="mt-0.5 text-xs text-text-muted">
-            Il tuo accesso è ora attivo. Se la scheda non appare ancora, attendi qualche secondo e ricarica.
+            {checkoutState.message}
           </p>
           <button
             onClick={dismissCheckoutBanner}

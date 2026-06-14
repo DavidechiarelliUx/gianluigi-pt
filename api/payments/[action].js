@@ -129,6 +129,16 @@ function effectiveUnitAmount(product, quantity = 1) {
   return Math.max(50, Math.round(product.priceCents * (100 - discount) / 100));
 }
 
+function liveCreditsForProduct(product, quantity = 1) {
+  const qty = Math.max(0, Number(quantity) || 0);
+  if (!product || qty <= 0) return 0;
+  const configuredCredits = Math.max(0, Number(product.sessionsQty) || 0);
+  const creditsPerUnit = product.type === "session_solo"
+    ? Math.max(1, configuredCredits)
+    : configuredCredits;
+  return creditsPerUnit * qty;
+}
+
 function publicProduct(product) {
   return {
     id: product.id,
@@ -239,7 +249,9 @@ async function ensureClientFromPaidOrder(order) {
 }
 
 async function grantLiveCreditsForOrder(order, client) {
-  const credits = Number(order.sessionsQty) || 0;
+  const credits = Number(order.sessionsQty) > 0
+    ? Number(order.sessionsQty)
+    : liveCreditsForProduct(order.product, order.quantity || 1);
   if (!client?.id || credits <= 0) return false;
 
   const existingOrder = await prisma.order.findUnique({
@@ -263,7 +275,10 @@ async function grantLiveCreditsForOrder(order, client) {
     });
     await tx.order.update({
       where: { id: order.id },
-      data: { liveCreditsGrantedAt: new Date() },
+      data: {
+        liveCreditsGrantedAt: new Date(),
+        ...(Number(order.sessionsQty) > 0 ? {} : { sessionsQty: credits }),
+      },
     });
   });
 
@@ -402,10 +417,8 @@ async function checkout(req, res) {
 
     const productUnitAmount = effectiveUnitAmount(product, quantity);
     const liveUnitAmount = liveProduct ? effectiveUnitAmount(liveProduct, extraLiveQuantity) : 0;
-    const productLiveCredits = product.sessionsQty != null ? product.sessionsQty * quantity : 0;
-    const extraLiveCredits = liveProduct?.sessionsQty != null
-      ? liveProduct.sessionsQty * extraLiveQuantity
-      : extraLiveQuantity;
+    const productLiveCredits = liveCreditsForProduct(product, quantity);
+    const extraLiveCredits = liveCreditsForProduct(liveProduct, extraLiveQuantity);
     const sessionsQty = productLiveCredits + extraLiveCredits;
     const amountCents = productUnitAmount * quantity + liveUnitAmount * extraLiveQuantity;
 
