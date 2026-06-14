@@ -83,6 +83,7 @@ function ExercisePicker({ exercises, value, onChange }) {
   const [open, setOpen]               = useState(false);
   const [search, setSearch]           = useState("");
   const [filterGroup, setFilterGroup] = useState("all");
+  const [previewExercise, setPreviewExercise] = useState(null);
 
   const selected = useMemo(() => exercises.find((e) => e.id === value) || null, [exercises, value]);
 
@@ -222,40 +223,56 @@ function ExercisePicker({ exercises, value, onChange }) {
                       const { bg, color } = getMuscleGroupColor(mg);
                       const isSelected = value === ex.id;
                       return (
-                        <button
+                        <article
                           key={ex.id}
-                          type="button"
-                          onClick={() => { onChange(ex.id); close(); }}
-                          className="flex flex-col items-center gap-2 rounded-xl border p-2.5 text-center transition-all"
+                          className="relative rounded-xl border text-center transition-all"
                           style={{
                             background:   isSelected ? "rgba(57,255,20,0.08)" : "#111",
                             borderColor:  isSelected ? "#39FF14" : "#1e1e1e",
                             boxShadow:    isSelected ? "0 0 14px rgba(57,255,20,0.2)" : "none",
                           }}
                         >
-                          {ex.illustration ? (
-                            <ExerciseIllustration
-                              exercise={ex.illustration}
-                              className="h-16 w-16 rounded-lg"
-                            />
-                          ) : (
-                            <div
-                              className="flex h-16 w-16 items-center justify-center rounded-lg text-2xl"
-                              style={{ background: "#0d0d0d", border: "1px solid #1e1e1e" }}
-                            >
-                              🏋️
-                            </div>
-                          )}
-                          <span className="line-clamp-2 text-[11px] font-semibold leading-tight text-text">
-                            {ex.name}
-                          </span>
-                          <span
-                            className="shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase"
-                            style={{ background: bg, color }}
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="absolute right-1.5 top-1.5 z-10 h-7 w-7 bg-bg/80 p-0 backdrop-blur-sm"
+                            onClick={() => setPreviewExercise(ex)}
+                            title={`Ingrandisci immagine ${ex.name}`}
+                            aria-label={`Ingrandisci immagine ${ex.name}`}
                           >
-                            {mg}
-                          </span>
-                        </button>
+                            <Maximize2 size={13} />
+                          </Button>
+
+                          <button
+                            type="button"
+                            onClick={() => { onChange(ex.id); close(); }}
+                            className="flex h-full w-full flex-col items-center gap-2 rounded-xl p-2.5 pt-3 transition-all"
+                          >
+                            {ex.illustration ? (
+                              <ExerciseIllustration
+                                exercise={ex.illustration}
+                                className="h-16 w-16 rounded-lg"
+                              />
+                            ) : (
+                              <div
+                                className="flex h-16 w-16 items-center justify-center rounded-lg text-2xl"
+                                style={{ background: "#0d0d0d", border: "1px solid #1e1e1e" }}
+                              >
+                                🏋️
+                              </div>
+                            )}
+                            <span className="line-clamp-2 text-[11px] font-semibold leading-tight text-text">
+                              {ex.name}
+                            </span>
+                            <span
+                              className="shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase"
+                              style={{ background: bg, color }}
+                            >
+                              {mg}
+                            </span>
+                          </button>
+                        </article>
                       );
                     })}
                   </div>
@@ -265,6 +282,12 @@ function ExercisePicker({ exercises, value, onChange }) {
           </>
         )}
       </AnimatePresence>
+
+      <ExercisePreviewModal
+        exercise={previewExercise}
+        open={!!previewExercise}
+        onClose={() => setPreviewExercise(null)}
+      />
     </>
   );
 }
