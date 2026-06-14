@@ -89,8 +89,32 @@ export default async function handler(req, res) {
           orderBy: { date: "desc" },
           take: 12,
           include: {
-            workout: { select: { id: true, title: true } },
-            itemLogs: { select: { completed: true, loadUsed: true, repsDone: true, perceivedDifficulty: true } },
+            workout: {
+              select: {
+                id: true,
+                title: true,
+                days: {
+                  select: {
+                    items: {
+                      select: {
+                        id: true,
+                        exercise: { select: { name: true, muscleGroup: true } },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            itemLogs: {
+              select: {
+                workoutItemId: true,
+                completed: true,
+                loadUsed: true,
+                repsDone: true,
+                perceivedDifficulty: true,
+                notes: true,
+              },
+            },
           },
         }),
         prisma.clientMetric.findMany({

@@ -81,6 +81,137 @@ function whatsappHref(phone) {
   return digits ? `https://wa.me/${digits}` : null;
 }
 
+function parseLoadNumber(value) {
+  if (!value) return null;
+  const match = String(value).replace(",", ".").match(/(\d+(?:\.\d+)?)/);
+  return match ? Number(match[1]) : null;
+}
+
+function workoutItemsById(session) {
+  const map = new Map();
+  for (const day of session?.workout?.days || []) {
+    for (const item of day.items || []) {
+      map.set(item.id, item);
+    }
+  }
+  return map;
+}
+
+function completedLogs(session) {
+  return (session?.itemLogs || []).filter((log) => log.completed);
+}
+
+function isTrainingSession(session) {
+  return session?.status === "completed" || completedLogs(session).length > 0;
+}
+
+function sessionCompletion(session) {
+  const logs = session?.itemLogs || [];
+  const total = logs.length;
+  const completed = completedLogs(session).length;
+  return {
+    total,
+    completed,
+    percent: total ? Math.round((completed / total) * 100) : 0,
+  };
+}
+
+function buildTrainingSummary(sessions = []) {
+  const trainingSessions = sessions.filter(isTrainingSession);
+  const completions = trainingSessions.map(sessionCompletion);
+  const loadLogs = trainingSessions.flatMap((session) => (session.itemLogs || []).filter((log) => log.loadUsed));
+  const rpeValues = trainingSessions
+    .map((session) => Number(session.feedbackDifficulty))
+    .filter((value) => Number.isFinite(value) && value > 0);
+  const averageCompletion = completions.length
+    ? Math.round(completions.reduce((sum, item) => sum + item.percent, 0) / completions.length)
+    : 0;
+  const averageRpe = rpeValues.length
+    ? (rpeValues.reduce((sum, value) => sum + value, 0) / rpeValues.length).toFixed(1)
+    : null;
+
+  return {
+    sessions: trainingSessions,
+    totalSessions: trainingSessions.length,
+    latestSession: trainingSessions[0] || sessions[0] || null,
+    totalCompletedExercises: completions.reduce((sum, item) => sum + item.completed, 0),
+    averageCompletion,
+    trackedLoads: loadLogs.length,
+    averageRpe,
+  };
+}
+
+function buildExerciseProgress(sessions = []) {
+  const byExercise = new Map();
+
+  for (const session of [...sessions].reverse()) {
+    const itemMap = workoutItemsById(session);
+    for (const log of session.itemLogs || []) {
+      const item = itemMap.get(log.workoutItemId);
+      const name = item?.exercise?.name;
+      if (!name || (!log.completed && !log.loadUsed && !log.repsDone)) continue;
+
+      if (!byExercise.has(name)) {
+        byExercise.set(name, {
+          name,
+          muscleGroup: item?.exercise?.muscleGroup || null,
+          completedSessions: 0,
+          firstLoad: null,
+          latestLoad: null,
+          latestLoadLabel: null,
+          bestLoad: null,
+          bestLoadLabel: null,
+          latestReps: null,
+          latestRpe: null,
+          lastDate: null,
+        });
+      }
+
+      const entry = byExercise.get(name);
+      const loadNumber = parseLoadNumber(log.loadUsed);
+      if (log.completed) entry.completedSessions += 1;
+      if (loadNumber != null) {
+        if (entry.firstLoad == null) entry.firstLoad = loadNumber;
+        entry.latestLoad = loadNumber;
+        entry.latestLoadLabel = log.loadUsed;
+        if (entry.bestLoad == null || loadNumber > entry.bestLoad) {
+          entry.bestLoad = loadNumber;
+          entry.bestLoadLabel = log.loadUsed;
+        }
+      } else if (log.loadUsed) {
+        entry.latestLoadLabel = log.loadUsed;
+      }
+      if (log.repsDone) entry.latestReps = log.repsDone;
+      if (log.perceivedDifficulty) entry.latestRpe = log.perceivedDifficulty;
+      entry.lastDate = session.date;
+    }
+  }
+
+  return [...byExercise.values()]
+    .map((entry) => ({
+      ...entry,
+      improvement: entry.firstLoad != null && entry.latestLoad != null ? entry.latestLoad - entry.firstLoad : null,
+    }))
+    .sort((a, b) => {
+      const loadDelta = Number(b.bestLoad != null) - Number(a.bestLoad != null);
+      if (loadDelta) return loadDelta;
+      return b.completedSessions - a.completedSessions;
+    })
+    .slice(0, 6);
+}
+
+function sessionLoadPreview(session) {
+  const itemMap = workoutItemsById(session);
+  return (session?.itemLogs || [])
+    .filter((log) => log.loadUsed || log.repsDone)
+    .map((log) => {
+      const exercise = itemMap.get(log.workoutItemId)?.exercise?.name || "Esercizio";
+      const details = [log.loadUsed, log.repsDone ? `${log.repsDone} reps` : null].filter(Boolean).join(" · ");
+      return `${exercise}: ${details}`;
+    })
+    .slice(0, 3);
+}
+
 function StatTile({ icon: Icon, label, value, tone = "text-accent" }) {
   return (
     <div className="rounded-lg border border-border bg-surface-2 p-3">
@@ -161,6 +292,14 @@ export default function Clients() {
   const accountStatus = selected ? clientStatus(selected) : null;
   const wa = selected ? whatsappHref(selected.phone) : null;
   const selectedDeadline = accessDeadline(summary);
+  const trainingSummary = useMemo(
+    () => buildTrainingSummary(selected?.sessions || []),
+    [selected?.sessions]
+  );
+  const exerciseProgress = useMemo(
+    () => buildExerciseProgress(selected?.sessions || []),
+    [selected?.sessions]
+  );
 
   const createClient = useMutation({
     mutationFn: (payload) => apiFetch("/api/clients", { method: "POST", body: payload }),
@@ -434,43 +573,132 @@ export default function Clients() {
                   <Activity className="text-accent" size={18} />
                   <h3 className="font-display text-base font-bold uppercase">Progressi</h3>
                 </div>
-                {latestMetric ? (
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div className="rounded-lg border border-border bg-surface-2 p-3">
-                      <p className="text-xs uppercase text-text-muted">Ultimo check</p>
-                      <p className="font-semibold">{shortDate(latestMetric.date)}</p>
-                    </div>
-                    <div className="rounded-lg border border-border bg-surface-2 p-3">
-                      <p className="text-xs uppercase text-text-muted">Peso</p>
-                      <p className="font-semibold">{latestMetric.weightKg ? `${latestMetric.weightKg} kg` : "—"}</p>
-                    </div>
-                    <div className="rounded-lg border border-border bg-surface-2 p-3">
-                      <p className="text-xs uppercase text-text-muted">Vita</p>
-                      <p className="font-semibold">{latestMetric.waistCm ? `${latestMetric.waistCm} cm` : "—"}</p>
-                    </div>
-                    <div className="rounded-lg border border-border bg-surface-2 p-3">
-                      <p className="text-xs uppercase text-text-muted">Note</p>
-                      <p className="line-clamp-2 font-semibold">{latestMetric.notes || "—"}</p>
-                    </div>
+
+                <div className="grid grid-cols-2 gap-3 text-sm lg:grid-cols-4">
+                  <div className="rounded-lg border border-border bg-surface-2 p-3">
+                    <p className="text-xs uppercase text-text-muted">Allenamenti</p>
+                    <p className="mt-1 font-display text-lg font-bold text-accent">{trainingSummary.totalSessions}</p>
                   </div>
-                ) : (
-                  <p className="rounded-lg border border-border bg-surface-2 p-3 text-sm text-text-muted">Nessun check-in progresso inserito.</p>
+                  <div className="rounded-lg border border-border bg-surface-2 p-3">
+                    <p className="text-xs uppercase text-text-muted">Esercizi svolti</p>
+                    <p className="mt-1 font-display text-lg font-bold text-accent">{trainingSummary.totalCompletedExercises}</p>
+                  </div>
+                  <div className="rounded-lg border border-border bg-surface-2 p-3">
+                    <p className="text-xs uppercase text-text-muted">Media completamento</p>
+                    <p className="mt-1 font-display text-lg font-bold text-accent">{trainingSummary.averageCompletion}%</p>
+                  </div>
+                  <div className="rounded-lg border border-border bg-surface-2 p-3">
+                    <p className="text-xs uppercase text-text-muted">Carichi inseriti</p>
+                    <p className="mt-1 font-display text-lg font-bold text-accent">{trainingSummary.trackedLoads}</p>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 text-sm sm:grid-cols-2">
+                  <div className="rounded-lg border border-border bg-surface-2 p-3">
+                    <p className="text-xs uppercase text-text-muted">Ultimo allenamento</p>
+                    <p className="mt-1 font-semibold">{trainingSummary.latestSession ? shortDate(trainingSummary.latestSession.date) : "—"}</p>
+                    <p className="mt-1 text-xs text-text-muted">
+                      {trainingSummary.latestSession?.workout?.title || "Nessuna sessione salvata"}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border bg-surface-2 p-3">
+                    <p className="text-xs uppercase text-text-muted">Check-in misure</p>
+                    {latestMetric ? (
+                      <>
+                        <p className="mt-1 font-semibold">{shortDate(latestMetric.date)}</p>
+                        <p className="mt-1 text-xs text-text-muted">
+                          Peso {latestMetric.weightKg ? `${latestMetric.weightKg} kg` : "—"} · Vita {latestMetric.waistCm ? `${latestMetric.waistCm} cm` : "—"}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="mt-1 text-xs text-text-muted">Nessun check-in inserito</p>
+                    )}
+                  </div>
+                </div>
+
+                {latestMetric?.notes && (
+                  <div className="rounded-lg border border-border bg-surface-2 p-3 text-sm">
+                    <p className="text-xs uppercase text-text-muted">Note ultimo check-in</p>
+                    <p className="mt-1 text-text">{latestMetric.notes}</p>
+                  </div>
                 )}
-                {(selected.sessions || []).length > 0 && (
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Carichi esercizi</p>
+                    {trainingSummary.averageRpe && <StatusBadge status="neutral">RPE medio {trainingSummary.averageRpe}</StatusBadge>}
+                  </div>
+                  {exerciseProgress.length ? (
+                    <div className="grid gap-2 md:grid-cols-2">
+                      {exerciseProgress.slice(0, 6).map((exercise) => (
+                        <article key={exercise.name} className="rounded-lg border border-border bg-surface-2 p-3 text-sm">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="truncate font-semibold">{exercise.name}</p>
+                              <p className="text-xs text-text-muted">
+                                {exercise.completedSessions} sessioni{exercise.muscleGroup ? ` · ${exercise.muscleGroup}` : ""}
+                              </p>
+                            </div>
+                            {exercise.improvement != null ? (
+                              <StatusBadge status={exercise.improvement >= 0 ? "success" : "warning"}>
+                                {exercise.improvement >= 0 ? "+" : ""}{exercise.improvement}
+                              </StatusBadge>
+                            ) : (
+                              <StatusBadge status="neutral">tracking</StatusBadge>
+                            )}
+                          </div>
+                          <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-text-muted">
+                            <span>Ultimo: <strong className="text-text">{exercise.latestLoadLabel || "—"}</strong></span>
+                            <span>Best: <strong className="text-accent">{exercise.bestLoadLabel || "—"}</strong></span>
+                            <span>Reps: <strong className="text-text">{exercise.latestReps || "—"}</strong></span>
+                            <span>RPE: <strong className="text-text">{exercise.latestRpe || "—"}</strong></span>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="rounded-lg border border-border bg-surface-2 p-3 text-sm text-text-muted">
+                      Nessun carico inserito negli allenamenti salvati.
+                    </p>
+                  )}
+                </div>
+
+                {trainingSummary.sessions.length > 0 ? (
                   <div className="space-y-2">
                     <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Ultimi allenamenti</p>
-                    {selected.sessions.slice(0, 4).map((session) => (
-                      <div key={session.id} className="rounded-lg border border-border bg-surface-2 p-3 text-sm">
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="font-semibold">{session.workout?.title || "Allenamento"}</span>
-                          <span className="text-xs text-text-muted">{shortDate(session.date)}</span>
+                    {trainingSummary.sessions.slice(0, 4).map((session) => {
+                      const completion = sessionCompletion(session);
+                      const loadPreview = sessionLoadPreview(session);
+                      return (
+                        <div key={session.id} className="rounded-lg border border-border bg-surface-2 p-3 text-sm">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="font-semibold">{session.workout?.title || "Allenamento"}</span>
+                            <span className="text-xs text-text-muted">{shortDate(session.date)}</span>
+                          </div>
+                          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-bg">
+                            <div className="h-full rounded-full bg-accent" style={{ width: `${completion.percent}%` }} />
+                          </div>
+                          <p className="mt-1 text-xs text-text-muted">
+                            {completion.completed}/{completion.total} esercizi · {completion.percent}% completato
+                          </p>
+                          {loadPreview.length > 0 && (
+                            <div className="mt-2 space-y-1">
+                              {loadPreview.map((item) => (
+                                <p key={item} className="truncate text-xs text-text-muted">{item}</p>
+                              ))}
+                            </div>
+                          )}
+                          <p className="mt-1 text-xs text-text-muted">
+                            RPE {session.feedbackDifficulty || "—"} · {session.feedbackNotes || "Nessuna nota"}
+                          </p>
                         </div>
-                        <p className="mt-1 text-xs text-text-muted">
-                          RPE {session.feedbackDifficulty || "—"} · {session.feedbackNotes || "Nessuna nota"}
-                        </p>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
+                ) : (
+                  <p className="rounded-lg border border-border bg-surface-2 p-3 text-sm text-text-muted">
+                    Nessun allenamento completato o salvato dal cliente.
+                  </p>
                 )}
               </Card>
 
