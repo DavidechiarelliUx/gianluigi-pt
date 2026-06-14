@@ -43,6 +43,16 @@ import cableChestFlyImage from "../../assets/exercises/cable-chest-fly.webp";
 import dumbbellPressImage from "../../assets/exercises/dumbbell-press.webp";
 import lentoAvantiImage from "../../assets/exercises/lento-avanti.webp";
 import flatBenchPressImage from "../../assets/exercises/flat-bench-press.webp";
+import highKneesImage from "../../assets/exercises/high-knees.webp";
+import battleRopesImage from "../../assets/exercises/battle-ropes.webp";
+import seatedCalfRaiseImage from "../../assets/exercises/seated-calf-raise.webp";
+import cableGluteKickbackImage from "../../assets/exercises/cable-glute-kickback.webp";
+import hipAbductorMachineImage from "../../assets/exercises/hip-abductor-machine.webp";
+import farmerWalkImage from "../../assets/exercises/farmer-walk.webp";
+import preacherCurlImage from "../../assets/exercises/preacher-curl.webp";
+import overheadTricepsExtensionImage from "../../assets/exercises/overhead-triceps-extension.webp";
+import facePullImage from "../../assets/exercises/face-pull.webp";
+import reverseFlyImage from "../../assets/exercises/reverse-fly.webp";
 
 export const EXERCISE_ILLUSTRATIONS = [
   { id: "push-up",                     label: "Piegamenti",                        muscleGroup: "Petto",      image: pushUpImage },
@@ -90,6 +100,16 @@ export const EXERCISE_ILLUSTRATIONS = [
   { id: "dumbbell-press",               label: "Spinte con manubri",                 muscleGroup: "Petto",      image: dumbbellPressImage },
   { id: "lento-avanti",                 label: "Lento avanti",                       muscleGroup: "Spalle",     image: lentoAvantiImage },
   { id: "flat-bench-press",             label: "Panca piana",                        muscleGroup: "Petto",      image: flatBenchPressImage },
+  { id: "high-knees",                   label: "High knees",                         muscleGroup: "Cardio",     image: highKneesImage },
+  { id: "battle-ropes",                 label: "Battle ropes",                       muscleGroup: "Cardio",     image: battleRopesImage },
+  { id: "seated-calf-raise",            label: "Calf raise seduto",                  muscleGroup: "Polpacci",   image: seatedCalfRaiseImage },
+  { id: "cable-glute-kickback",         label: "Slanci glutei al cavo",              muscleGroup: "Glutei",     image: cableGluteKickbackImage },
+  { id: "hip-abductor-machine",         label: "Abductor machine",                   muscleGroup: "Glutei",     image: hipAbductorMachineImage },
+  { id: "farmer-walk",                  label: "Farmer walk",                        muscleGroup: "Full body",  image: farmerWalkImage },
+  { id: "preacher-curl",                label: "Preacher curl",                      muscleGroup: "Bicipiti",   image: preacherCurlImage },
+  { id: "overhead-triceps-extension",   label: "Estensioni tricipiti sopra testa",   muscleGroup: "Tricipiti",  image: overheadTricepsExtensionImage },
+  { id: "face-pull",                    label: "Face pull",                          muscleGroup: "Spalle",     image: facePullImage },
+  { id: "reverse-fly",                  label: "Reverse fly",                        muscleGroup: "Spalle",     image: reverseFlyImage },
 ];
 
 export const EXERCISE_ILLUSTRATION_MAP = new Map(
@@ -139,6 +159,34 @@ const EXERCISE_ALIASES = new Map(
     ["military press avanti", "lento-avanti"],
     ["panca piana bilanciere", "flat-bench-press"],
     ["bench press", "flat-bench-press"],
+    ["skip alto", "high-knees"],
+    ["ginocchia alte", "high-knees"],
+    ["high knee", "high-knees"],
+    ["corde navali", "battle-ropes"],
+    ["battle rope", "battle-ropes"],
+    ["battle ropes alternate", "battle-ropes"],
+    ["calf seduto", "seated-calf-raise"],
+    ["seated calf raise", "seated-calf-raise"],
+    ["calf raise seduto macchina", "seated-calf-raise"],
+    ["slanci gluteo cavo", "cable-glute-kickback"],
+    ["kickback cavo", "cable-glute-kickback"],
+    ["cable kickback", "cable-glute-kickback"],
+    ["abductor", "hip-abductor-machine"],
+    ["abduttori macchina", "hip-abductor-machine"],
+    ["hip abductor", "hip-abductor-machine"],
+    ["camminata farmer", "farmer-walk"],
+    ["farmer carry", "farmer-walk"],
+    ["preacher curl bilanciere", "preacher-curl"],
+    ["curl panca scott", "preacher-curl"],
+    ["panca scott", "preacher-curl"],
+    ["estensioni tricipiti sopra la testa", "overhead-triceps-extension"],
+    ["overhead triceps extension", "overhead-triceps-extension"],
+    ["tricipiti sopra testa", "overhead-triceps-extension"],
+    ["tirate al viso", "face-pull"],
+    ["face pulls", "face-pull"],
+    ["croci inverse", "reverse-fly"],
+    ["reverse flies", "reverse-fly"],
+    ["alzate posteriori", "reverse-fly"],
   ].map(([label, id]) => [normalize(label), id])
 );
 

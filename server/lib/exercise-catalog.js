@@ -44,6 +44,16 @@ export const EXERCISE_CATALOG = [
   { name: "Spinte con manubri", muscleGroup: "Petto", slug: "dumbbell-press" },
   { name: "Lento avanti", muscleGroup: "Spalle", slug: "lento-avanti" },
   { name: "Panca piana", muscleGroup: "Petto", slug: "flat-bench-press" },
+  { name: "High knees", muscleGroup: "Cardio", slug: "high-knees" },
+  { name: "Battle ropes", muscleGroup: "Cardio", slug: "battle-ropes" },
+  { name: "Calf raise seduto", muscleGroup: "Polpacci", slug: "seated-calf-raise" },
+  { name: "Slanci glutei al cavo", muscleGroup: "Glutei", slug: "cable-glute-kickback" },
+  { name: "Abductor machine", muscleGroup: "Glutei", slug: "hip-abductor-machine" },
+  { name: "Farmer walk", muscleGroup: "Full body", slug: "farmer-walk" },
+  { name: "Preacher curl", muscleGroup: "Bicipiti", slug: "preacher-curl" },
+  { name: "Estensioni tricipiti sopra testa", muscleGroup: "Tricipiti", slug: "overhead-triceps-extension" },
+  { name: "Face pull", muscleGroup: "Spalle", slug: "face-pull" },
+  { name: "Reverse fly", muscleGroup: "Spalle", slug: "reverse-fly" },
 ];
 
 export const EXERCISE_SLUG_BY_NAME = new Map(EXERCISE_CATALOG.map((exercise) => [exercise.name, exercise.slug]));
