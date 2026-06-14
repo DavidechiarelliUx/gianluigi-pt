@@ -84,6 +84,16 @@ export const EXERCISE_CATALOG = [
   { name: "Pec deck", muscleGroup: "Petto", slug: "pec-deck-machine" },
   { name: "Crunch al cavo", muscleGroup: "Core", slug: "cable-crunch" },
   { name: "Glute kickback machine", muscleGroup: "Glutei", slug: "glute-kickback-machine" },
+  { name: "Calf press alla pressa", muscleGroup: "Polpacci", slug: "calf-press-leg-press" },
+  { name: "Tibialis raise seduto", muscleGroup: "Polpacci", slug: "seated-tibialis-raise" },
+  { name: "Abduzione anca al cavo", muscleGroup: "Glutei", slug: "cable-hip-abduction" },
+  { name: "Frog pump", muscleGroup: "Glutei", slug: "frog-pump" },
+  { name: "Thruster con manubri", muscleGroup: "Full body", slug: "dumbbell-thruster" },
+  { name: "Bear crawl", muscleGroup: "Full body", slug: "bear-crawl" },
+  { name: "Skater jump", muscleGroup: "Cardio", slug: "skater-jump" },
+  { name: "Squat jump", muscleGroup: "Cardio", slug: "squat-jump" },
+  { name: "Pulldown braccia tese", muscleGroup: "Dorso", slug: "straight-arm-pulldown" },
+  { name: "Spider curl", muscleGroup: "Bicipiti", slug: "spider-curl" },
 ];
 
 export const EXERCISE_SLUG_BY_NAME = new Map(EXERCISE_CATALOG.map((exercise) => [exercise.name, exercise.slug]));

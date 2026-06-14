@@ -83,6 +83,16 @@ import chestDipImage from "../../assets/exercises/chest-dip.webp";
 import pecDeckMachineImage from "../../assets/exercises/pec-deck-machine.webp";
 import cableCrunchImage from "../../assets/exercises/cable-crunch.webp";
 import gluteKickbackMachineImage from "../../assets/exercises/glute-kickback-machine.webp";
+import calfPressLegPressImage from "../../assets/exercises/calf-press-leg-press.webp";
+import seatedTibialisRaiseImage from "../../assets/exercises/seated-tibialis-raise.webp";
+import cableHipAbductionImage from "../../assets/exercises/cable-hip-abduction.webp";
+import frogPumpImage from "../../assets/exercises/frog-pump.webp";
+import dumbbellThrusterImage from "../../assets/exercises/dumbbell-thruster.webp";
+import bearCrawlImage from "../../assets/exercises/bear-crawl.webp";
+import skaterJumpImage from "../../assets/exercises/skater-jump.webp";
+import squatJumpImage from "../../assets/exercises/squat-jump.webp";
+import straightArmPulldownImage from "../../assets/exercises/straight-arm-pulldown.webp";
+import spiderCurlImage from "../../assets/exercises/spider-curl.webp";
 
 export const EXERCISE_ILLUSTRATIONS = [
   { id: "push-up",                     label: "Piegamenti",                        muscleGroup: "Petto",      image: pushUpImage },
@@ -170,6 +180,16 @@ export const EXERCISE_ILLUSTRATIONS = [
   { id: "pec-deck-machine",              label: "Pec deck",                           muscleGroup: "Petto",      image: pecDeckMachineImage },
   { id: "cable-crunch",                  label: "Crunch al cavo",                     muscleGroup: "Core",       image: cableCrunchImage },
   { id: "glute-kickback-machine",        label: "Glute kickback machine",             muscleGroup: "Glutei",     image: gluteKickbackMachineImage },
+  { id: "calf-press-leg-press",          label: "Calf press alla pressa",              muscleGroup: "Polpacci",   image: calfPressLegPressImage },
+  { id: "seated-tibialis-raise",         label: "Tibialis raise seduto",              muscleGroup: "Polpacci",   image: seatedTibialisRaiseImage },
+  { id: "cable-hip-abduction",           label: "Abduzione anca al cavo",             muscleGroup: "Glutei",     image: cableHipAbductionImage },
+  { id: "frog-pump",                     label: "Frog pump",                          muscleGroup: "Glutei",     image: frogPumpImage },
+  { id: "dumbbell-thruster",             label: "Thruster con manubri",               muscleGroup: "Full body",  image: dumbbellThrusterImage },
+  { id: "bear-crawl",                    label: "Bear crawl",                         muscleGroup: "Full body",  image: bearCrawlImage },
+  { id: "skater-jump",                   label: "Skater jump",                        muscleGroup: "Cardio",     image: skaterJumpImage },
+  { id: "squat-jump",                    label: "Squat jump",                         muscleGroup: "Cardio",     image: squatJumpImage },
+  { id: "straight-arm-pulldown",         label: "Pulldown braccia tese",              muscleGroup: "Dorso",      image: straightArmPulldownImage },
+  { id: "spider-curl",                   label: "Spider curl",                        muscleGroup: "Bicipiti",   image: spiderCurlImage },
 ];
 
 export const EXERCISE_ILLUSTRATION_MAP = new Map(
@@ -315,6 +335,23 @@ const EXERCISE_ALIASES = new Map(
     ["cable crunch", "cable-crunch"],
     ["glute kickback macchina", "glute-kickback-machine"],
     ["glute kickback machine", "glute-kickback-machine"],
+    ["calf press", "calf-press-leg-press"],
+    ["calf press alla pressa", "calf-press-leg-press"],
+    ["tibialis seduto", "seated-tibialis-raise"],
+    ["seated tibialis raise", "seated-tibialis-raise"],
+    ["abduzione anca cavo", "cable-hip-abduction"],
+    ["cable hip abduction", "cable-hip-abduction"],
+    ["frog pump", "frog-pump"],
+    ["thruster manubri", "dumbbell-thruster"],
+    ["dumbbell thruster", "dumbbell-thruster"],
+    ["bear crawl", "bear-crawl"],
+    ["skater jump", "skater-jump"],
+    ["salti skater", "skater-jump"],
+    ["squat jump", "squat-jump"],
+    ["jump squat", "squat-jump"],
+    ["pulldown braccia tese", "straight-arm-pulldown"],
+    ["straight arm pulldown", "straight-arm-pulldown"],
+    ["spider curl", "spider-curl"],
   ].map(([label, id]) => [normalize(label), id])
 );
 
