@@ -206,10 +206,12 @@ export function publicEntitlements(entitlements) {
   let status = "none";
   let renewsAt = null;
   let validUntil = null;
+  let currentPeriodStart = null;
 
   if (sub) {
     productName = sub.product?.name || "Abbonamento";
     status = isPastDue ? "past_due" : sub.status || "active";
+    currentPeriodStart = sub.currentPeriodStart;
     renewsAt = cancelAtPeriodEnd ? null : sub.currentPeriodEnd;
     validUntil = sub.currentPeriodEnd;
   } else if (order) {
@@ -222,6 +224,7 @@ export function publicEntitlements(entitlements) {
     accessLevel,            // none | app | live | app_live | premium
     source: source || null, // subscription | order | null
     productName,
+    currentPeriodStart,     // inizio periodo corrente
     renewsAt,               // data di rinnovo (null se canceled/one-time)
     validUntil,             // fine periodo corrente
     cancelAtPeriodEnd,      // se cancellerà a fine periodo

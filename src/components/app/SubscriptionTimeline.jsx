@@ -187,6 +187,11 @@ function SubscriptionCard({ sub, onSendReminder, sendingId, sentIds }) {
           <p className="mt-0.5 truncate text-xs" style={{ color: "hsl(var(--text-muted))" }}>
             {planName}
           </p>
+          {sub.currentPeriodEnd && (
+            <p className="mt-0.5 text-[11px] font-semibold" style={{ color: PCT_COLOR[sub.barStyle] }}>
+              Scadenza: {longDate(sub.currentPeriodEnd)}
+            </p>
+          )}
         </div>
         <div className="shrink-0 flex flex-col items-end gap-1">
           <StatusBadge status={BADGE_STATUS[sub.urgency] || "neutral"}>

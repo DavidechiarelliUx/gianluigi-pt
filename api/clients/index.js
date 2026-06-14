@@ -15,6 +15,11 @@ function paymentSummary(orders = [], subscriptions = []) {
   const visibleOrders = orders.filter((order) => order.status !== "pending");
   const paidOrders = orders.filter((order) => order.status === "paid");
   const activeSubscription = subscriptions.find((sub) => ["active", "trialing"].includes(sub.status));
+  const currentSubscription =
+    activeSubscription ||
+    subscriptions.find((sub) => ["past_due", "canceled"].includes(sub.status)) ||
+    subscriptions[0] ||
+    null;
   const latestOrder = visibleOrders[0] || null;
   const totalPaidCents = paidOrders.reduce((sum, order) => sum + (Number(order.amountCents) || 0), 0);
   const paymentStatus = activeSubscription ? "active" : latestOrder?.status || "none";
@@ -25,6 +30,11 @@ function paymentSummary(orders = [], subscriptions = []) {
     paidOrdersCount: paidOrders.length,
     latestOrder,
     activeSubscription: activeSubscription || null,
+    subscriptionStatus: currentSubscription?.status || null,
+    subscriptionProductName: currentSubscription?.product?.name || null,
+    subscriptionExpiresAt: currentSubscription?.currentPeriodEnd || null,
+    subscriptionRenewsAt: currentSubscription?.cancelAtPeriodEnd ? null : currentSubscription?.currentPeriodEnd || null,
+    subscriptionCancelAtPeriodEnd: !!currentSubscription?.cancelAtPeriodEnd,
   };
 }
 

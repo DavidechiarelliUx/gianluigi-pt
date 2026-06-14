@@ -73,6 +73,7 @@ async function overview(req, res, auth) {
         status:            pub.status,
         accessLevel:       pub.accessLevel,
         productName:       pub.productName,
+        currentPeriodStart: pub.currentPeriodStart,
         renewsAt:          pub.renewsAt,
         validUntil:        pub.validUntil,
         cancelAtPeriodEnd: pub.cancelAtPeriodEnd,

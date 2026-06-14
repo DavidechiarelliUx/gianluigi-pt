@@ -35,6 +35,15 @@ const shortDate = (value) =>
 const dateTime = (value) =>
   value ? new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(value)) : "—";
 
+function accessDeadline(summary) {
+  if (!summary?.subscriptionExpiresAt) return null;
+  return {
+    date: summary.subscriptionExpiresAt,
+    label: summary.subscriptionCancelAtPeriodEnd ? "Scadenza" : "Rinnovo",
+    productName: summary.subscriptionProductName || "Abbonamento",
+  };
+}
+
 function clientStatus(client) {
   if (client.user?.hasPassword) return { label: "Attivo", status: "success" };
   if (client.user?.inviteToken) return { label: "Invitato", status: "warning" };
@@ -138,6 +147,7 @@ export default function Clients() {
   const payStatus = paymentStatus(summary);
   const accountStatus = selected ? clientStatus(selected) : null;
   const wa = selected ? whatsappHref(selected.phone) : null;
+  const selectedDeadline = accessDeadline(summary);
 
   const createClient = useMutation({
     mutationFn: (payload) => apiFetch("/api/clients", { method: "POST", body: payload }),
@@ -227,7 +237,17 @@ export default function Clients() {
       label: "Pagamento",
       render: (client) => {
         const status = paymentStatus(client.dashboard);
-        return <StatusBadge status={status.status}>{status.label}</StatusBadge>;
+        const deadline = accessDeadline(client.dashboard);
+        return (
+          <div className="space-y-1">
+            <StatusBadge status={status.status}>{status.label}</StatusBadge>
+            {deadline && (
+              <p className="text-[11px] text-text-muted">
+                Scade {shortDate(deadline.date)}
+              </p>
+            )}
+          </div>
+        );
       },
     },
     {
@@ -294,6 +314,11 @@ export default function Clients() {
                       <StatusBadge status={(client.dashboard?.openRequests || 0) > 0 ? "warning" : "success"}>
                         {client.dashboard?.openRequests || 0} richieste
                       </StatusBadge>
+                      {accessDeadline(client.dashboard) && (
+                        <StatusBadge status="warning">
+                          Scade {shortDate(accessDeadline(client.dashboard).date)}
+                        </StatusBadge>
+                      )}
                     </div>
                   </div>
                 );
@@ -315,6 +340,11 @@ export default function Clients() {
                     <div className="mt-2 flex flex-wrap gap-2">
                       <StatusBadge status={accountStatus.status}>{accountStatus.label}</StatusBadge>
                       <StatusBadge status={payStatus.status}>{payStatus.label}</StatusBadge>
+                      {selectedDeadline && (
+                        <StatusBadge status="warning">
+                          Scade {shortDate(selectedDeadline.date)}
+                        </StatusBadge>
+                      )}
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -335,6 +365,7 @@ export default function Clients() {
                 <div className="grid grid-cols-2 gap-3">
                   <StatTile icon={CreditCard} label="Totale pagato" value={money(summary.totalPaidCents || 0)} />
                   <StatTile icon={Video} label="Live rimaste" value={summary.liveCredits ?? 0} />
+                  <StatTile icon={CalendarDays} label="Scadenza accesso" value={selectedDeadline ? shortDate(selectedDeadline.date) : "—"} tone={selectedDeadline ? "text-yellow-400" : "text-accent"} />
                   <StatTile icon={Dumbbell} label="Schede attive" value={summary.activeWorkouts ?? activeWorkouts.length} />
                   <StatTile icon={Activity} label="Sessioni svolte" value={summary.totalSessions ?? selected._count?.workoutSessions ?? 0} />
                 </div>
@@ -473,6 +504,22 @@ export default function Clients() {
                 <div className="flex items-center gap-2">
                   <CreditCard className="text-accent" size={18} />
                   <h3 className="font-display text-base font-bold uppercase">Pagamenti e live</h3>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-lg border border-border bg-surface-2 p-3 text-sm">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Scadenza abbonamento</p>
+                    <p className="mt-1 font-display text-lg font-bold text-accent">
+                      {selectedDeadline ? shortDate(selectedDeadline.date) : "—"}
+                    </p>
+                    <p className="text-xs text-text-muted">
+                      {selectedDeadline ? `${selectedDeadline.label} · ${selectedDeadline.productName}` : "Nessun abbonamento ricorrente attivo"}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border bg-surface-2 p-3 text-sm">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Crediti live disponibili</p>
+                    <p className="mt-1 font-display text-lg font-bold text-accent">{summary.liveCredits ?? 0}</p>
+                    <p className="text-xs text-text-muted">Saldo live del cliente</p>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   {(selected.orders || []).slice(0, 5).map((order) => (

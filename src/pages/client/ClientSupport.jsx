@@ -6,6 +6,40 @@ import { useAuth } from "../../hooks/useAuth";
 import { apiFetch } from "../../lib/api";
 
 const money = (cents = 0, currency = "eur") => new Intl.NumberFormat("it-IT", { style: "currency", currency }).format(cents / 100);
+const longDate = (value) =>
+  value
+    ? new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "long", year: "numeric" }).format(new Date(value))
+    : "—";
+
+function subscriptionProgress(subscription) {
+  const endValue = subscription?.validUntil || subscription?.renewsAt;
+  if (!endValue) return null;
+
+  const end = new Date(endValue).getTime();
+  if (!Number.isFinite(end)) return null;
+  const startValue = subscription.currentPeriodStart;
+  const fallbackStart = end - 30 * 86_400_000;
+  const start = startValue ? new Date(startValue).getTime() : fallbackStart;
+  const now = Date.now();
+  const total = start < end ? end - start : 30 * 86_400_000;
+  const remaining = Math.max(0, end - now);
+  const daysLeft = Math.ceil((end - now) / 86_400_000);
+  const pct = Math.max(0, Math.min(100, Math.round((remaining / total) * 100)));
+
+  return {
+    endValue,
+    pct,
+    daysLeft,
+    label:
+      daysLeft < 0
+        ? "Scaduto"
+        : daysLeft === 0
+        ? "Scade oggi"
+        : daysLeft === 1
+          ? "Manca 1 giorno"
+          : `Mancano ${daysLeft} giorni`,
+  };
+}
 
 function SectionCard({ children }) {
   return (
@@ -59,6 +93,7 @@ export default function ClientSupport() {
 
   const activePackage = overviewQuery.data?.activePackage;
   const subscription = overviewQuery.data?.subscription;
+  const subProgress = subscriptionProgress(subscription);
 
   const handleLogout = async () => {
     await logout();
@@ -161,6 +196,30 @@ export default function ClientSupport() {
                 {subscription.accessLevel === "live" && <span className="text-xs text-white">Solo Live</span>}
                 {subscription.accessLevel === "premium" && <span className="text-xs text-white">App + Live + 1:1 Premium</span>}
               </div>
+              {subProgress && (
+                <div className="mt-4 rounded-xl border border-border bg-bg/50 p-3">
+                  <div className="mb-2 flex items-center justify-between gap-3 text-xs">
+                    <span className="font-semibold uppercase tracking-wide text-text-muted">
+                      {subscription.cancelAtPeriodEnd ? "Scadenza accesso" : "Prossimo rinnovo"}
+                    </span>
+                    <span className="font-semibold text-white">{longDate(subProgress.endValue)}</span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full" style={{ background: "#1a1a1a" }}>
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{
+                        width: `${subProgress.pct}%`,
+                        background: subProgress.daysLeft <= 7 ? "#FFA500" : "#39FF14",
+                        boxShadow: subProgress.daysLeft <= 7 ? "0 0 8px rgba(255,165,0,0.45)" : "0 0 8px rgba(57,255,20,0.45)",
+                      }}
+                    />
+                  </div>
+                  <div className="mt-2 flex items-center justify-between text-xs text-text-muted">
+                    <span>{subProgress.label}</span>
+                    <span>{subProgress.pct}% del periodo rimasto</span>
+                  </div>
+                </div>
+              )}
             </div>
           </SectionCard>
         ) : activePackage ? (
