@@ -3,7 +3,7 @@ import { EXERCISE_ILLUSTRATIONS } from "./exercise-data";
 
 /**
  * Preview interna, non montata nella homepage.
- * Mostra la libreria completa delle 25 immagini esercizio neon.
+ * Mostra la libreria completa delle immagini esercizio neon.
  */
 export function ExerciseIconPreview() {
   return (

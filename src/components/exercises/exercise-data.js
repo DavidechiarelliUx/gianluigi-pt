@@ -33,6 +33,16 @@ import bulgarianSplitSquatImage from "../../assets/exercises/bulgarian-split-squ
 import stepUpBoxImage from "../../assets/exercises/step-up-box.webp";
 import kettlebellSwingImage from "../../assets/exercises/kettlebell-swing.webp";
 import bicycleCrunchImage from "../../assets/exercises/bicycle-crunch.webp";
+import barbellCurlImage from "../../assets/exercises/barbell-curl.webp";
+import trazioniImage from "../../assets/exercises/trazioni.webp";
+import frenchPressImage from "../../assets/exercises/french-press.webp";
+import latMachineImage from "../../assets/exercises/lat-machine.webp";
+import barbellRowImage from "../../assets/exercises/barbell-row.webp";
+import pressaImage from "../../assets/exercises/pressa.webp";
+import cableChestFlyImage from "../../assets/exercises/cable-chest-fly.webp";
+import dumbbellPressImage from "../../assets/exercises/dumbbell-press.webp";
+import lentoAvantiImage from "../../assets/exercises/lento-avanti.webp";
+import flatBenchPressImage from "../../assets/exercises/flat-bench-press.webp";
 
 export const EXERCISE_ILLUSTRATIONS = [
   { id: "push-up",                     label: "Piegamenti",                        muscleGroup: "Petto",      image: pushUpImage },
@@ -70,6 +80,16 @@ export const EXERCISE_ILLUSTRATIONS = [
   { id: "step-up-box",                  label: "Step-up box",                        muscleGroup: "Gambe",      image: stepUpBoxImage },
   { id: "kettlebell-swing",             label: "Kettlebell swing",                   muscleGroup: "Full body",  image: kettlebellSwingImage },
   { id: "bicycle-crunch",               label: "Bicycle crunch",                     muscleGroup: "Core",       image: bicycleCrunchImage },
+  { id: "barbell-curl",                 label: "Curl con bilanciere",                muscleGroup: "Bicipiti",   image: barbellCurlImage },
+  { id: "trazioni",                     label: "Trazioni",                           muscleGroup: "Dorso",      image: trazioniImage },
+  { id: "french-press",                 label: "French press",                       muscleGroup: "Tricipiti",  image: frenchPressImage },
+  { id: "lat-machine",                  label: "Lat machine",                        muscleGroup: "Dorso",      image: latMachineImage },
+  { id: "barbell-row",                  label: "Rematore con bilanciere",            muscleGroup: "Dorso",      image: barbellRowImage },
+  { id: "pressa",                       label: "Pressa",                             muscleGroup: "Gambe",      image: pressaImage },
+  { id: "cable-chest-fly",              label: "Croci ai cavi",                      muscleGroup: "Petto",      image: cableChestFlyImage },
+  { id: "dumbbell-press",               label: "Spinte con manubri",                 muscleGroup: "Petto",      image: dumbbellPressImage },
+  { id: "lento-avanti",                 label: "Lento avanti",                       muscleGroup: "Spalle",     image: lentoAvantiImage },
+  { id: "flat-bench-press",             label: "Panca piana",                        muscleGroup: "Petto",      image: flatBenchPressImage },
 ];
 
 export const EXERCISE_ILLUSTRATION_MAP = new Map(
@@ -88,9 +108,44 @@ const EXERCISE_ID_BY_LABEL = new Map(
   EXERCISE_ILLUSTRATIONS.map((exercise) => [normalize(exercise.label), exercise.id])
 );
 
+const EXERCISE_ALIASES = new Map(
+  [
+    ["curl bilanciere", "barbell-curl"],
+    ["curl con bilancere", "barbell-curl"],
+    ["barbell curl", "barbell-curl"],
+    ["trazione", "trazioni"],
+    ["trazioni sbarra", "trazioni"],
+    ["trazioni alla sbarra", "trazioni"],
+    ["pull up", "trazioni"],
+    ["pullup", "trazioni"],
+    ["french press bilanciere", "french-press"],
+    ["french press manubrio", "french-press"],
+    ["skull crusher", "french-press"],
+    ["lat machine avanti", "lat-machine"],
+    ["lat pulldown", "lat-machine"],
+    ["rematore bilanciere", "barbell-row"],
+    ["rematori con bilanciere", "barbell-row"],
+    ["rematori con bilancere", "barbell-row"],
+    ["barbell row", "barbell-row"],
+    ["leg press", "pressa"],
+    ["pressa gambe", "pressa"],
+    ["croci cavi", "cable-chest-fly"],
+    ["croci ai cavi alti", "cable-chest-fly"],
+    ["cable fly", "cable-chest-fly"],
+    ["spinte manubri", "dumbbell-press"],
+    ["distensioni manubri", "dumbbell-press"],
+    ["dumbbell press", "dumbbell-press"],
+    ["lento avanti bilanciere", "lento-avanti"],
+    ["military press avanti", "lento-avanti"],
+    ["panca piana bilanciere", "flat-bench-press"],
+    ["bench press", "flat-bench-press"],
+  ].map(([label, id]) => [normalize(label), id])
+);
+
 export function getExerciseIllustrationId(name) {
   if (!name) return null;
-  return EXERCISE_ID_BY_LABEL.get(normalize(name)) || null;
+  const normalized = normalize(name);
+  return EXERCISE_ID_BY_LABEL.get(normalized) || EXERCISE_ALIASES.get(normalized) || null;
 }
 
 /** Returns the muscleGroup for an exercise given its display name. */
