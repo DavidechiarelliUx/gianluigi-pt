@@ -35,12 +35,25 @@ const shortDate = (value) =>
 const dateTime = (value) =>
   value ? new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(value)) : "—";
 
+function subscriptionStatusLabel(status) {
+  const map = {
+    active: "Attivo",
+    trialing: "In prova",
+    past_due: "Pagamento da verificare",
+    canceled: "Cancellato",
+  };
+  return map[status] || "Abbonamento registrato";
+}
+
 function accessDeadline(summary) {
-  if (!summary?.subscriptionExpiresAt) return null;
+  if (!summary?.subscriptionStatus) return null;
+  const hasDate = !!summary.subscriptionExpiresAt;
   return {
     date: summary.subscriptionExpiresAt,
     label: summary.subscriptionCancelAtPeriodEnd ? "Scadenza" : "Rinnovo",
     productName: summary.subscriptionProductName || "Abbonamento",
+    status: summary.subscriptionStatus,
+    hasDate,
   };
 }
 
@@ -509,10 +522,14 @@ export default function Clients() {
                   <div className="rounded-lg border border-border bg-surface-2 p-3 text-sm">
                     <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Scadenza abbonamento</p>
                     <p className="mt-1 font-display text-lg font-bold text-accent">
-                      {selectedDeadline ? shortDate(selectedDeadline.date) : "—"}
+                      {selectedDeadline?.hasDate ? shortDate(selectedDeadline.date) : "—"}
                     </p>
                     <p className="text-xs text-text-muted">
-                      {selectedDeadline ? `${selectedDeadline.label} · ${selectedDeadline.productName}` : "Nessun abbonamento ricorrente attivo"}
+                      {selectedDeadline
+                        ? selectedDeadline.hasDate
+                          ? `${selectedDeadline.label} · ${selectedDeadline.productName}`
+                          : `${subscriptionStatusLabel(selectedDeadline.status)} · ${selectedDeadline.productName} · data rinnovo non disponibile`
+                        : "Nessun abbonamento ricorrente attivo"}
                     </p>
                   </div>
                   <div className="rounded-lg border border-border bg-surface-2 p-3 text-sm">

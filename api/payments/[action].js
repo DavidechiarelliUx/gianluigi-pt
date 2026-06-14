@@ -129,6 +129,18 @@ function effectiveUnitAmount(product, quantity = 1) {
   return Math.max(50, Math.round(product.priceCents * (100 - discount) / 100));
 }
 
+function stripeTimestampToDate(value) {
+  const timestamp = Number(value);
+  return Number.isFinite(timestamp) && timestamp > 0 ? new Date(timestamp * 1000) : null;
+}
+
+function subscriptionPeriodDate(stripeSub, field) {
+  return (
+    stripeTimestampToDate(stripeSub?.[field]) ||
+    stripeTimestampToDate(stripeSub?.items?.data?.find((item) => item?.[field])?.[field])
+  );
+}
+
 function liveCreditsForProduct(product, quantity = 1) {
   const qty = Math.max(0, Number(quantity) || 0);
   if (!product || qty <= 0) return 0;
@@ -320,6 +332,13 @@ async function grantLiveCreditsForInvoice(invoice, stripeSub) {
 /** Crea o aggiorna un record Subscription dal payload Stripe. */
 async function upsertSubscription(stripeSub, userId, productId, accessLevel) {
   const level = accessLevel || "app";
+  const currentPeriodStart = subscriptionPeriodDate(stripeSub, "current_period_start");
+  const currentPeriodEnd = subscriptionPeriodDate(stripeSub, "current_period_end");
+  const periodUpdate = {
+    ...(currentPeriodStart ? { currentPeriodStart } : {}),
+    ...(currentPeriodEnd ? { currentPeriodEnd } : {}),
+  };
+
   try {
     await prisma.subscription.upsert({
       where: { stripeSubscriptionId: stripeSub.id },
@@ -328,12 +347,7 @@ async function upsertSubscription(stripeSub, userId, productId, accessLevel) {
         stripePriceId: stripeSub.items?.data?.[0]?.price?.id || null,
         stripeCustomerId: typeof stripeSub.customer === "string" ? stripeSub.customer : null,
         accessLevel: level,
-        currentPeriodStart: stripeSub.current_period_start
-          ? new Date(stripeSub.current_period_start * 1000)
-          : null,
-        currentPeriodEnd: stripeSub.current_period_end
-          ? new Date(stripeSub.current_period_end * 1000)
-          : null,
+        ...periodUpdate,
         cancelAtPeriodEnd: !!stripeSub.cancel_at_period_end,
         updatedAt: new Date(),
       },
@@ -345,12 +359,8 @@ async function upsertSubscription(stripeSub, userId, productId, accessLevel) {
         stripeCustomerId: typeof stripeSub.customer === "string" ? stripeSub.customer : null,
         status: stripeSub.status,
         accessLevel: level,
-        currentPeriodStart: stripeSub.current_period_start
-          ? new Date(stripeSub.current_period_start * 1000)
-          : null,
-        currentPeriodEnd: stripeSub.current_period_end
-          ? new Date(stripeSub.current_period_end * 1000)
-          : null,
+        currentPeriodStart,
+        currentPeriodEnd,
         cancelAtPeriodEnd: !!stripeSub.cancel_at_period_end,
       },
     });
