@@ -73,6 +73,16 @@ import diamondPushUpImage from "../../assets/exercises/diamond-push-up.webp";
 import ropeOverheadTricepsExtensionImage from "../../assets/exercises/rope-overhead-triceps-extension.webp";
 import backExtensionImage from "../../assets/exercises/back-extension.webp";
 import hangingLegRaiseImage from "../../assets/exercises/hanging-leg-raise.webp";
+import cableBicepsCurlImage from "../../assets/exercises/cable-biceps-curl.webp";
+import reverseCurlImage from "../../assets/exercises/reverse-curl.webp";
+import closeGripBenchPressImage from "../../assets/exercises/close-grip-bench-press.webp";
+import skullCrusherBenchImage from "../../assets/exercises/skull-crusher-bench.webp";
+import seatedShoulderPressMachineImage from "../../assets/exercises/seated-shoulder-press-machine.webp";
+import arnoldPressImage from "../../assets/exercises/arnold-press.webp";
+import chestDipImage from "../../assets/exercises/chest-dip.webp";
+import pecDeckMachineImage from "../../assets/exercises/pec-deck-machine.webp";
+import cableCrunchImage from "../../assets/exercises/cable-crunch.webp";
+import gluteKickbackMachineImage from "../../assets/exercises/glute-kickback-machine.webp";
 
 export const EXERCISE_ILLUSTRATIONS = [
   { id: "push-up",                     label: "Piegamenti",                        muscleGroup: "Petto",      image: pushUpImage },
@@ -150,6 +160,16 @@ export const EXERCISE_ILLUSTRATIONS = [
   { id: "rope-overhead-triceps-extension", label: "Estensione tricipiti con corda",  muscleGroup: "Tricipiti",  image: ropeOverheadTricepsExtensionImage },
   { id: "back-extension",               label: "Back extension",                     muscleGroup: "Dorso",      image: backExtensionImage },
   { id: "hanging-leg-raise",            label: "Hanging leg raise",                  muscleGroup: "Core",       image: hangingLegRaiseImage },
+  { id: "cable-biceps-curl",             label: "Curl bicipiti al cavo",              muscleGroup: "Bicipiti",   image: cableBicepsCurlImage },
+  { id: "reverse-curl",                  label: "Reverse curl",                       muscleGroup: "Bicipiti",   image: reverseCurlImage },
+  { id: "close-grip-bench-press",        label: "Panca presa stretta",                muscleGroup: "Tricipiti",  image: closeGripBenchPressImage },
+  { id: "skull-crusher-bench",           label: "Skull crusher su panca",             muscleGroup: "Tricipiti",  image: skullCrusherBenchImage },
+  { id: "seated-shoulder-press-machine", label: "Shoulder press machine",             muscleGroup: "Spalle",     image: seatedShoulderPressMachineImage },
+  { id: "arnold-press",                  label: "Arnold press",                       muscleGroup: "Spalle",     image: arnoldPressImage },
+  { id: "chest-dip",                     label: "Dip petto",                          muscleGroup: "Petto",      image: chestDipImage },
+  { id: "pec-deck-machine",              label: "Pec deck",                           muscleGroup: "Petto",      image: pecDeckMachineImage },
+  { id: "cable-crunch",                  label: "Crunch al cavo",                     muscleGroup: "Core",       image: cableCrunchImage },
+  { id: "glute-kickback-machine",        label: "Glute kickback machine",             muscleGroup: "Glutei",     image: gluteKickbackMachineImage },
 ];
 
 export const EXERCISE_ILLUSTRATION_MAP = new Map(
@@ -275,6 +295,26 @@ const EXERCISE_ALIASES = new Map(
     ["iperestensioni", "back-extension"],
     ["hanging leg raise", "hanging-leg-raise"],
     ["leg raise alla sbarra", "hanging-leg-raise"],
+    ["curl bicipiti cavo", "cable-biceps-curl"],
+    ["cable biceps curl", "cable-biceps-curl"],
+    ["curl al cavo", "cable-biceps-curl"],
+    ["reverse curl", "reverse-curl"],
+    ["curl inverso", "reverse-curl"],
+    ["panca presa stretta", "close-grip-bench-press"],
+    ["close grip bench press", "close-grip-bench-press"],
+    ["skull crusher panca", "skull-crusher-bench"],
+    ["skull crusher", "skull-crusher-bench"],
+    ["shoulder press machine", "seated-shoulder-press-machine"],
+    ["pressa spalle macchina", "seated-shoulder-press-machine"],
+    ["arnold press", "arnold-press"],
+    ["dip petto", "chest-dip"],
+    ["chest dip", "chest-dip"],
+    ["pec deck", "pec-deck-machine"],
+    ["pectoral machine", "pec-deck-machine"],
+    ["crunch al cavo", "cable-crunch"],
+    ["cable crunch", "cable-crunch"],
+    ["glute kickback macchina", "glute-kickback-machine"],
+    ["glute kickback machine", "glute-kickback-machine"],
   ].map(([label, id]) => [normalize(label), id])
 );
 
