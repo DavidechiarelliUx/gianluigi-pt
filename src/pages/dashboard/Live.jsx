@@ -82,8 +82,7 @@ export default function Live() {
   });
 
   const updateSession = useMutation({
-    mutationFn: ({ id, ...data }) =>
-      apiFetch(`/api/live/session-detail?id=${id}`, { method: "PUT", body: data }),
+    mutationFn: ({ id, ...data }) => apiFetch(`/api/live/session-detail?id=${id}`, { method: "PUT", body: data }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["live", "sessions"] });
       toast({ type: "success", title: "Sessione aggiornata" });
@@ -102,9 +101,7 @@ export default function Live() {
       toast({
         type: "success",
         title: "Live eliminata",
-        description: data?.removedBookings
-          ? `${data.removedBookings} prenotazioni collegate eliminate.`
-          : "La live sbagliata è stata rimossa.",
+        description: data?.removedBookings ? `${data.removedBookings} prenotazioni collegate eliminate.` : "La live sbagliata è stata rimossa.",
       });
     },
     onError: (err) => toast({ type: "error", title: "Eliminazione fallita", description: err.message }),
@@ -160,7 +157,12 @@ export default function Live() {
           <h2 className="font-display text-xl font-bold uppercase">Sessioni Live</h2>
           <p className="text-sm text-text-muted">Crea sessioni 1:1 o di gruppo e gestisci le prenotazioni.</p>
         </div>
-        <Button onClick={() => { setForm(EMPTY_FORM); setModalOpen(true); }}>
+        <Button
+          onClick={() => {
+            setForm(EMPTY_FORM);
+            setModalOpen(true);
+          }}
+        >
           <Plus size={18} /> Nuova sessione
         </Button>
       </div>
@@ -168,8 +170,10 @@ export default function Live() {
       <Card>
         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h3 className="font-display text-lg font-bold uppercase">Crediti live cliente</h3>
-            <p className="text-sm text-text-muted">Seleziona un cliente e aggiungi sessioni live al suo account.</p>
+            <h3 className="font-display text-lg font-bold uppercase">Aggiungi Crediti A Cliente </h3>
+            <p className="text-sm text-text-muted">
+              Seleziona un cliente e aggiungi sessioni live al suo account (questo serve in caso ci fossero problemi o per ricompense).
+            </p>
           </div>
           {creditForm.clientId && (
             <span className="rounded-full bg-accent/10 px-3 py-1 text-xs font-semibold text-accent">
@@ -223,41 +227,30 @@ export default function Live() {
       {sessionsQuery.isLoading ? (
         <EmptyState icon={CalendarCheck} title="Carico le sessioni…" />
       ) : upcoming.length === 0 ? (
-        <EmptyState
-          icon={CalendarCheck}
-          title="Nessuna sessione live"
-          description="Crea la prima sessione per iniziare."
-        />
+        <EmptyState icon={CalendarCheck} title="Nessuna sessione live" description="Crea la prima sessione per iniziare." />
       ) : (
         <div className="space-y-3">
           {upcoming.map((session) => {
             const booked = session._count?.bookings ?? 0;
             const full = booked >= session.maxSlots;
             return (
-              <Card
-                key={session.id}
-                className="cursor-pointer hover:border-accent/40 transition-colors"
-                onClick={() => setEditSession(session)}
-              >
+              <Card key={session.id} className="cursor-pointer hover:border-accent/40 transition-colors" onClick={() => setEditSession(session)}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="font-display text-base font-bold uppercase">{session.title}</h3>
-                      <StatusBadge status={sessionStatus(session.status)}>
-                        {sessionStatusLabel(session.status)}
-                      </StatusBadge>
-                      <StatusBadge status={session.type === "solo" ? "active" : "warning"}>
-                        {session.type === "solo" ? "1:1" : "Gruppo"}
-                      </StatusBadge>
+                      <StatusBadge status={sessionStatus(session.status)}>{sessionStatusLabel(session.status)}</StatusBadge>
+                      <StatusBadge status={session.type === "solo" ? "active" : "warning"}>{session.type === "solo" ? "1:1" : "Gruppo"}</StatusBadge>
                     </div>
                     <p className="mt-1 text-sm text-text-muted">
                       {formatDate(session.scheduledAt)} · {session.durationMin} min
                     </p>
                     <p className="text-xs text-text-muted">
-                      Prenotati: <span className={full ? "text-accent" : ""}>{booked}/{session.maxSlots}</span>
-                      {session.targetClient?.user && (
-                        <> · Cliente: {session.targetClient.user.fullName || session.targetClient.user.email}</>
-                      )}
+                      Prenotati:{" "}
+                      <span className={full ? "text-accent" : ""}>
+                        {booked}/{session.maxSlots}
+                      </span>
+                      {session.targetClient?.user && <> · Cliente: {session.targetClient.user.fullName || session.targetClient.user.email}</>}
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
@@ -272,12 +265,7 @@ export default function Live() {
                         <Video size={14} /> Link
                       </a>
                     )}
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      onClick={(event) => confirmDeleteSession(session, event)}
-                      disabled={deleteSession.isPending}
-                    >
+                    <Button size="sm" variant="danger" onClick={(event) => confirmDeleteSession(session, event)} disabled={deleteSession.isPending}>
                       <Trash2 size={14} /> Elimina
                     </Button>
                   </div>
@@ -295,14 +283,12 @@ export default function Live() {
         title={editSession?.title || "Dettaglio sessione"}
         footer={
           <div className="flex w-full justify-between gap-3">
-            <Button
-              variant="danger"
-              disabled={deleteSession.isPending}
-              onClick={(event) => confirmDeleteSession(editSession, event)}
-            >
+            <Button variant="danger" disabled={deleteSession.isPending} onClick={(event) => confirmDeleteSession(editSession, event)}>
               <Trash2 size={16} /> Elimina sessione
             </Button>
-            <Button variant="ghost" onClick={() => setEditSession(null)}>Chiudi</Button>
+            <Button variant="ghost" onClick={() => setEditSession(null)}>
+              Chiudi
+            </Button>
           </div>
         }
       >
@@ -345,12 +331,7 @@ export default function Live() {
             <div>
               <div className="mb-2 text-xs uppercase text-text-muted">Aggiorna link video</div>
               <div className="flex gap-2">
-                <Input
-                  placeholder="https://meet.google.com/..."
-                  defaultValue={editSession.videoLink || ""}
-                  id="video-link-input"
-                  className="flex-1"
-                />
+                <Input placeholder="https://meet.google.com/..." defaultValue={editSession.videoLink || ""} id="video-link-input" className="flex-1" />
                 <Button
                   size="sm"
                   onClick={() => {
@@ -374,7 +355,9 @@ export default function Live() {
         title="Nuova sessione live"
         footer={
           <>
-            <Button variant="ghost" onClick={() => setModalOpen(false)}>Annulla</Button>
+            <Button variant="ghost" onClick={() => setModalOpen(false)}>
+              Annulla
+            </Button>
             <Button type="submit" form="live-form" disabled={createSession.isPending}>
               Crea sessione
             </Button>
@@ -382,19 +365,19 @@ export default function Live() {
         }
       >
         <form id="live-form" onSubmit={submitCreate} className="space-y-3">
-          <Input
-            placeholder="Titolo (es. Allenamento 1:1 — Mario)"
-            value={form.title}
-            onChange={(e) => setForm({ ...form, title: e.target.value })}
-            required
-          />
+          <Input placeholder="Titolo (es. Allenamento 1:1 — Mario)" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
           <div className="grid grid-cols-2 gap-3">
             <label className="block">
               <span className="mb-1 block text-xs uppercase text-text-muted">Tipo</span>
               <select
                 value={form.type}
                 onChange={(e) =>
-                  setForm({ ...form, type: e.target.value, maxSlots: e.target.value === "solo" ? 1 : 10, targetClientId: e.target.value === "solo" ? form.targetClientId : "" })
+                  setForm({
+                    ...form,
+                    type: e.target.value,
+                    maxSlots: e.target.value === "solo" ? 1 : 10,
+                    targetClientId: e.target.value === "solo" ? form.targetClientId : "",
+                  })
                 }
                 className="h-11 w-full rounded-md border border-border bg-surface-2 px-3 text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
@@ -404,12 +387,7 @@ export default function Live() {
             </label>
             <label className="block">
               <span className="mb-1 block text-xs uppercase text-text-muted">Max posti</span>
-              <Input
-                type="number"
-                min="1"
-                value={form.maxSlots}
-                onChange={(e) => setForm({ ...form, maxSlots: e.target.value })}
-              />
+              <Input type="number" min="1" value={form.maxSlots} onChange={(e) => setForm({ ...form, maxSlots: e.target.value })} />
             </label>
           </div>
           {form.type === "solo" && (
@@ -434,33 +412,14 @@ export default function Live() {
           )}
           <label className="block">
             <span className="mb-1 block text-xs uppercase text-text-muted">Data e ora</span>
-            <Input
-              type="datetime-local"
-              value={form.scheduledAt}
-              onChange={(e) => setForm({ ...form, scheduledAt: e.target.value })}
-              required
-            />
+            <Input type="datetime-local" value={form.scheduledAt} onChange={(e) => setForm({ ...form, scheduledAt: e.target.value })} required />
           </label>
           <label className="block">
             <span className="mb-1 block text-xs uppercase text-text-muted">Durata (minuti)</span>
-            <Input
-              type="number"
-              min="15"
-              step="15"
-              value={form.durationMin}
-              onChange={(e) => setForm({ ...form, durationMin: e.target.value })}
-            />
+            <Input type="number" min="15" step="15" value={form.durationMin} onChange={(e) => setForm({ ...form, durationMin: e.target.value })} />
           </label>
-          <Input
-            placeholder="Link video (Zoom/Meet) — opzionale"
-            value={form.videoLink}
-            onChange={(e) => setForm({ ...form, videoLink: e.target.value })}
-          />
-          <Textarea
-            placeholder="Note interne (opzionale)"
-            value={form.notes}
-            onChange={(e) => setForm({ ...form, notes: e.target.value })}
-          />
+          <Input placeholder="Link video (Zoom/Meet) — opzionale" value={form.videoLink} onChange={(e) => setForm({ ...form, videoLink: e.target.value })} />
+          <Textarea placeholder="Note interne (opzionale)" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
         </form>
       </Modal>
 
@@ -470,22 +429,12 @@ export default function Live() {
           <h3 className="mb-3 font-display text-sm font-bold uppercase text-text-muted">Storico</h3>
           <div className="space-y-2">
             {past.slice(0, 5).map((session) => (
-              <div
-                key={session.id}
-                className="flex items-center justify-between rounded-lg border border-border bg-surface px-4 py-3 text-sm"
-              >
+              <div key={session.id} className="flex items-center justify-between rounded-lg border border-border bg-surface px-4 py-3 text-sm">
                 <span className="font-semibold">{session.title}</span>
                 <span className="text-text-muted">{formatDate(session.scheduledAt)}</span>
                 <div className="flex items-center gap-2">
-                  <StatusBadge status={sessionStatus(session.status)}>
-                    {sessionStatusLabel(session.status)}
-                  </StatusBadge>
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    onClick={() => confirmDeleteSession(session)}
-                    disabled={deleteSession.isPending}
-                  >
+                  <StatusBadge status={sessionStatus(session.status)}>{sessionStatusLabel(session.status)}</StatusBadge>
+                  <Button size="sm" variant="danger" onClick={() => confirmDeleteSession(session)} disabled={deleteSession.isPending}>
                     <Trash2 size={14} /> Elimina
                   </Button>
                 </div>
