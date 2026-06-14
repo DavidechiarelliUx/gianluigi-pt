@@ -209,6 +209,27 @@ export default function ClientSupport() {
         )}
       </div>
 
+      {/* Upgrade CTA if no package */}
+      {!activePackage && (
+        <div className="rounded-2xl p-4" style={{ background: "rgba(57,255,20,0.06)", border: "1px solid rgba(57,255,20,0.2)" }}>
+          <p className="text-sm font-semibold text-white">Nessun pacchetto attivo</p>
+          <p className="mt-1 text-xs text-text-muted">Acquista un pacchetto per sbloccare la scheda e le sessioni live.</p>
+          <Button className="mt-3 w-full" onClick={() => navigate("/area-cliente/abbonamenti")}>
+            Vedi i pacchetti
+          </Button>
+        </div>
+      )}
+
+      {/* Support */}
+      <div>
+        <p className="mb-2 px-1 text-[11px] font-bold uppercase tracking-widest text-text-muted">Supporto</p>
+        <SectionCard>
+          <SectionRow icon={Mail} label="Contatta Gianluigi" value="Scrivi un messaggio o WhatsApp" onClick={() => navigate("/area-cliente/contatta")} />
+          <Divider />
+          <SectionRow icon={Shield} label="Privacy & sicurezza" value="Trattamento dati" onClick={() => navigate("/area-cliente/privacy")} />
+        </SectionCard>
+      </div>
+
       {/* App */}
       <div>
         <p className="mb-2 px-1 text-[11px] font-bold uppercase tracking-widest text-text-muted">Applicazione</p>
@@ -229,26 +250,6 @@ export default function ClientSupport() {
           />
         </SectionCard>
       </div>
-
-      {/* Support */}
-      <div>
-        <p className="mb-2 px-1 text-[11px] font-bold uppercase tracking-widest text-text-muted">Supporto</p>
-        <SectionCard>
-          <SectionRow icon={Mail} label="Contatta Gianluigi" value="Scrivi un messaggio o WhatsApp" onClick={() => navigate("/area-cliente/contatta")} />
-          <Divider />
-          <SectionRow icon={Shield} label="Privacy & sicurezza" value="Trattamento dati" onClick={() => navigate("/area-cliente/privacy")} />
-        </SectionCard>
-      </div>
-      {/* Upgrade CTA if no package */}
-      {!activePackage && (
-        <div className="rounded-2xl p-4" style={{ background: "rgba(57,255,20,0.06)", border: "1px solid rgba(57,255,20,0.2)" }}>
-          <p className="text-sm font-semibold text-white">Nessun pacchetto attivo</p>
-          <p className="mt-1 text-xs text-text-muted">Acquista un pacchetto per sbloccare la scheda e le sessioni live.</p>
-          <Button className="mt-3 w-full" onClick={() => navigate("/area-cliente/abbonamenti")}>
-            Vedi i pacchetti
-          </Button>
-        </div>
-      )}
     </div>
   );
 }
