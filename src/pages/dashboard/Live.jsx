@@ -71,6 +71,9 @@ export default function Live() {
     mutationFn: (payload) => apiFetch("/api/live/sessions", { method: "POST", body: payload }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["live", "sessions"] });
+      await qc.invalidateQueries({ queryKey: ["admin", "live-credits"] });
+      await qc.invalidateQueries({ queryKey: ["clients"] });
+      await qc.invalidateQueries({ queryKey: ["dashboard", "summary"] });
       setModalOpen(false);
       setForm(EMPTY_FORM);
       toast({ type: "success", title: "Sessione live creata" });
@@ -88,14 +91,23 @@ export default function Live() {
     onError: (err) => toast({ type: "error", title: "Aggiornamento fallito", description: err.message }),
   });
 
-  const cancelSession = useMutation({
-    mutationFn: (id) => apiFetch(`/api/live/session-detail?id=${id}`, { method: "DELETE" }),
-    onSuccess: async () => {
+  const deleteSession = useMutation({
+    mutationFn: (session) => apiFetch(`/api/live/session-detail?id=${session.id}`, { method: "DELETE" }),
+    onSuccess: async (data) => {
       await qc.invalidateQueries({ queryKey: ["live", "sessions"] });
+      await qc.invalidateQueries({ queryKey: ["admin", "live-credits"] });
+      await qc.invalidateQueries({ queryKey: ["clients"] });
+      await qc.invalidateQueries({ queryKey: ["dashboard", "summary"] });
       setEditSession(null);
-      toast({ type: "success", title: "Sessione annullata" });
+      toast({
+        type: "success",
+        title: "Live eliminata",
+        description: data?.removedBookings
+          ? `${data.removedBookings} prenotazioni collegate eliminate.`
+          : "La live sbagliata è stata rimossa.",
+      });
     },
-    onError: (err) => toast({ type: "error", title: "Annullamento fallito", description: err.message }),
+    onError: (err) => toast({ type: "error", title: "Eliminazione fallita", description: err.message }),
   });
 
   const grantCredits = useMutation({
@@ -118,6 +130,16 @@ export default function Live() {
     });
   };
 
+  const confirmDeleteSession = (session, event) => {
+    event?.stopPropagation();
+    const booked = session._count?.bookings || 0;
+    const detail = booked
+      ? `Questa live ha ${booked} prenotazioni confermate. Eliminandola rimuovi la live e ripristini i crediti scalati.`
+      : "Questa live non ha prenotazioni confermate e verrà rimossa definitivamente.";
+    if (!window.confirm(`${detail}\n\nVuoi eliminarla davvero?`)) return;
+    deleteSession.mutate(session);
+  };
+
   const submitCredits = (event) => {
     event.preventDefault();
     grantCredits.mutate({
@@ -128,7 +150,7 @@ export default function Live() {
   };
 
   // Sessioni future ordinate
-  const upcoming = sessions.filter((s) => s.status !== "cancelled");
+  const upcoming = sessions.filter((s) => s.status === "scheduled" || s.status === "live");
   const past = sessions.filter((s) => s.status === "completed" || s.status === "cancelled");
 
   return (
@@ -250,6 +272,14 @@ export default function Live() {
                         <Video size={14} /> Link
                       </a>
                     )}
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      onClick={(event) => confirmDeleteSession(session, event)}
+                      disabled={deleteSession.isPending}
+                    >
+                      <Trash2 size={14} /> Elimina
+                    </Button>
                   </div>
                 </div>
               </Card>
@@ -267,10 +297,10 @@ export default function Live() {
           <div className="flex w-full justify-between gap-3">
             <Button
               variant="danger"
-              disabled={cancelSession.isPending || editSession?.status === "cancelled"}
-              onClick={() => cancelSession.mutate(editSession.id)}
+              disabled={deleteSession.isPending}
+              onClick={(event) => confirmDeleteSession(editSession, event)}
             >
-              <Trash2 size={16} /> Annulla sessione
+              <Trash2 size={16} /> Elimina sessione
             </Button>
             <Button variant="ghost" onClick={() => setEditSession(null)}>Chiudi</Button>
           </div>
@@ -398,7 +428,7 @@ export default function Live() {
                 ))}
               </select>
               <p className="mt-1 text-xs text-text-muted">
-                Se scegli un cliente, la live sarà visibile solo a lui e verrà prenotata automaticamente.
+                Se scegli un cliente, la live sarà visibile solo a lui, verrà prenotata automaticamente e scalerà 1 credito live.
               </p>
             </label>
           )}
@@ -446,9 +476,19 @@ export default function Live() {
               >
                 <span className="font-semibold">{session.title}</span>
                 <span className="text-text-muted">{formatDate(session.scheduledAt)}</span>
-                <StatusBadge status={sessionStatus(session.status)}>
-                  {sessionStatusLabel(session.status)}
-                </StatusBadge>
+                <div className="flex items-center gap-2">
+                  <StatusBadge status={sessionStatus(session.status)}>
+                    {sessionStatusLabel(session.status)}
+                  </StatusBadge>
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    onClick={() => confirmDeleteSession(session)}
+                    disabled={deleteSession.isPending}
+                  >
+                    <Trash2 size={14} /> Elimina
+                  </Button>
+                </div>
               </div>
             ))}
           </div>

@@ -14,6 +14,35 @@ async function confirmedCount(liveSessionId) {
   });
 }
 
+async function liveCreditBalanceTx(tx, clientId) {
+  const result = await tx.liveCreditLedger.aggregate({
+    where: { clientId },
+    _sum: { amount: true },
+  });
+  return result._sum.amount || 0;
+}
+
+async function consumeLiveCreditForBooking(tx, { clientId, bookingId, title }) {
+  const balance = await liveCreditBalanceTx(tx, clientId);
+  if (balance <= 0) {
+    const err = new Error("Cliente senza crediti live disponibili. Aggiungi crediti prima di prenotare.");
+    err.code = "NO_LIVE_CREDITS";
+    err.liveCredits = balance;
+    throw err;
+  }
+
+  await tx.liveCreditLedger.create({
+    data: {
+      clientId,
+      bookingId,
+      externalRef: `booking:${bookingId}`,
+      amount: -1,
+      reason: "booking",
+      note: title,
+    },
+  });
+}
+
 // ─────────────────────────────────────────
 // GET/POST /api/live/sessions
 // ─────────────────────────────────────────
@@ -110,14 +139,22 @@ async function sessions(req, res) {
           },
         });
         if (assignedClientId) {
-          await tx.booking.create({
+          const booking = await tx.booking.create({
             data: { liveSessionId: created.id, clientId: assignedClientId, status: "confirmed" },
+          });
+          await consumeLiveCreditForBooking(tx, {
+            clientId: assignedClientId,
+            bookingId: booking.id,
+            title: created.title,
           });
         }
         return created;
       });
       return res.status(201).json({ ok: true, session });
     } catch (err) {
+      if (err.code === "NO_LIVE_CREDITS") {
+        return res.status(402).json({ ok: false, error: err.message, liveCredits: err.liveCredits || 0 });
+      }
       console.error("POST /api/live/sessions:", err);
       return res.status(500).json({ ok: false, error: "Errore interno" });
     }
@@ -188,41 +225,23 @@ async function sessionDetail(req, res) {
     }
   }
 
-  /* ---- DELETE (annulla la sessione, non elimina — preserva storico) ---- */
+  /* ---- DELETE (elimina davvero la sessione creata per errore) ---- */
   if (req.method === "DELETE") {
     try {
-      await prisma.$transaction(async (tx) => {
-        const bookings = await tx.booking.findMany({
-          where: { liveSessionId: id, status: { not: "cancelled" } },
-          include: { liveSession: true },
-        });
-
-        await tx.liveSession.update({ where: { id }, data: { status: "cancelled" } });
-        await tx.booking.updateMany({
-          where: { liveSessionId: id, status: { not: "cancelled" } },
-          data: { status: "cancelled" },
-        });
-
-        for (const booking of bookings) {
-          const consumedCredit = await tx.liveCreditLedger.findFirst({
-            where: { bookingId: booking.id, amount: { lt: 0 }, reason: "booking" },
-          });
-          if (!consumedCredit) continue;
-          await tx.liveCreditLedger.upsert({
-            where: { externalRef: `booking-cancelled:${booking.id}` },
-            update: {},
-            create: {
-              clientId: booking.clientId,
-              bookingId: booking.id,
-              externalRef: `booking-cancelled:${booking.id}`,
-              amount: Math.abs(consumedCredit.amount),
-              reason: "booking_cancelled",
-              note: booking.liveSession.title,
-            },
-          });
-        }
+      const session = await prisma.liveSession.findUnique({
+        where: { id },
+        include: { bookings: { select: { id: true } } },
       });
-      return res.status(200).json({ ok: true });
+      if (!session) return res.status(404).json({ ok: false, error: "Sessione non trovata" });
+      const bookingIds = session.bookings.map((booking) => booking.id);
+
+      await prisma.$transaction(async (tx) => {
+        if (bookingIds.length > 0) {
+          await tx.liveCreditLedger.deleteMany({ where: { bookingId: { in: bookingIds } } });
+        }
+        await tx.liveSession.delete({ where: { id } });
+      });
+      return res.status(200).json({ ok: true, deleted: true, removedBookings: bookingIds.length });
     } catch (err) {
       console.error("DELETE /api/live/session-detail:", err);
       return res.status(500).json({ ok: false, error: "Errore interno" });
@@ -254,20 +273,23 @@ async function bookings(req, res) {
     }
 
     try {
-      if (auth.role === "client") {
-        const balance = await getLiveCreditBalance(auth.clientId);
-        if (balance <= 0) {
-          return res.status(402).json({
-            ok: false,
-            error: "Non hai crediti live disponibili. Acquista una live per prenotare.",
-            liveCredits: balance,
-          });
-        }
-      }
-
       const session = await prisma.liveSession.findUnique({ where: { id: liveSessionId } });
       if (!session || session.status !== "scheduled") {
         return res.status(400).json({ ok: false, error: "Sessione non prenotabile" });
+      }
+      if (session.targetClientId && session.targetClientId !== clientId) {
+        return res.status(403).json({ ok: false, error: "Sessione riservata a un altro cliente" });
+      }
+
+      const balance = await getLiveCreditBalance(clientId);
+      if (balance <= 0) {
+        return res.status(402).json({
+          ok: false,
+          error: auth.role === "client"
+            ? "Non hai crediti live disponibili. Acquista una live per prenotare."
+            : "Cliente senza crediti live disponibili. Aggiungi crediti prima di prenotare.",
+          liveCredits: balance,
+        });
       }
 
       const booked = await confirmedCount(liveSessionId);
@@ -279,22 +301,14 @@ async function bookings(req, res) {
         const created = await tx.booking.create({
           data: { liveSessionId, clientId, status: "confirmed" },
         });
-        if (auth.role === "client") {
-          await tx.liveCreditLedger.create({
-            data: {
-              clientId,
-              bookingId: created.id,
-              externalRef: `booking:${created.id}`,
-              amount: -1,
-              reason: "booking",
-              note: session.title,
-            },
-          });
-        }
+        await consumeLiveCreditForBooking(tx, { clientId, bookingId: created.id, title: session.title });
         return created;
       });
       return res.status(201).json({ ok: true, booking });
     } catch (err) {
+      if (err.code === "NO_LIVE_CREDITS") {
+        return res.status(402).json({ ok: false, error: err.message, liveCredits: err.liveCredits || 0 });
+      }
       // Unique constraint → già prenotato
       if (err.code === "P2002") {
         return res.status(409).json({ ok: false, error: "Hai già prenotato questa sessione" });
