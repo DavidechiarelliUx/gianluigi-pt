@@ -54,6 +54,16 @@ export const EXERCISE_CATALOG = [
   { name: "Estensioni tricipiti sopra testa", muscleGroup: "Tricipiti", slug: "overhead-triceps-extension" },
   { name: "Face pull", muscleGroup: "Spalle", slug: "face-pull" },
   { name: "Reverse fly", muscleGroup: "Spalle", slug: "reverse-fly" },
+  { name: "Calf raise in piedi", muscleGroup: "Polpacci", slug: "standing-calf-raise" },
+  { name: "Donkey calf raise", muscleGroup: "Polpacci", slug: "donkey-calf-raise" },
+  { name: "Curl concentrato", muscleGroup: "Bicipiti", slug: "concentration-curl" },
+  { name: "Curl manubri inclinato", muscleGroup: "Bicipiti", slug: "incline-dumbbell-curl" },
+  { name: "Dip su panca", muscleGroup: "Tricipiti", slug: "bench-dips" },
+  { name: "Clean and press", muscleGroup: "Full body", slug: "clean-and-press" },
+  { name: "Medicine ball slam", muscleGroup: "Full body", slug: "medicine-ball-slam" },
+  { name: "Box jump", muscleGroup: "Cardio", slug: "box-jump" },
+  { name: "Salto con la corda", muscleGroup: "Cardio", slug: "jump-rope" },
+  { name: "Cable pull-through", muscleGroup: "Glutei", slug: "cable-pull-through" },
 ];
 
 export const EXERCISE_SLUG_BY_NAME = new Map(EXERCISE_CATALOG.map((exercise) => [exercise.name, exercise.slug]));

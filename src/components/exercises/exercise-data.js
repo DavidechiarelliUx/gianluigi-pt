@@ -53,6 +53,16 @@ import preacherCurlImage from "../../assets/exercises/preacher-curl.webp";
 import overheadTricepsExtensionImage from "../../assets/exercises/overhead-triceps-extension.webp";
 import facePullImage from "../../assets/exercises/face-pull.webp";
 import reverseFlyImage from "../../assets/exercises/reverse-fly.webp";
+import standingCalfRaiseImage from "../../assets/exercises/standing-calf-raise.webp";
+import donkeyCalfRaiseImage from "../../assets/exercises/donkey-calf-raise.webp";
+import concentrationCurlImage from "../../assets/exercises/concentration-curl.webp";
+import inclineDumbbellCurlImage from "../../assets/exercises/incline-dumbbell-curl.webp";
+import benchDipsImage from "../../assets/exercises/bench-dips.webp";
+import cleanAndPressImage from "../../assets/exercises/clean-and-press.webp";
+import medicineBallSlamImage from "../../assets/exercises/medicine-ball-slam.webp";
+import boxJumpImage from "../../assets/exercises/box-jump.webp";
+import jumpRopeImage from "../../assets/exercises/jump-rope.webp";
+import cablePullThroughImage from "../../assets/exercises/cable-pull-through.webp";
 
 export const EXERCISE_ILLUSTRATIONS = [
   { id: "push-up",                     label: "Piegamenti",                        muscleGroup: "Petto",      image: pushUpImage },
@@ -110,6 +120,16 @@ export const EXERCISE_ILLUSTRATIONS = [
   { id: "overhead-triceps-extension",   label: "Estensioni tricipiti sopra testa",   muscleGroup: "Tricipiti",  image: overheadTricepsExtensionImage },
   { id: "face-pull",                    label: "Face pull",                          muscleGroup: "Spalle",     image: facePullImage },
   { id: "reverse-fly",                  label: "Reverse fly",                        muscleGroup: "Spalle",     image: reverseFlyImage },
+  { id: "standing-calf-raise",          label: "Calf raise in piedi",                muscleGroup: "Polpacci",   image: standingCalfRaiseImage },
+  { id: "donkey-calf-raise",            label: "Donkey calf raise",                  muscleGroup: "Polpacci",   image: donkeyCalfRaiseImage },
+  { id: "concentration-curl",           label: "Curl concentrato",                   muscleGroup: "Bicipiti",   image: concentrationCurlImage },
+  { id: "incline-dumbbell-curl",        label: "Curl manubri inclinato",             muscleGroup: "Bicipiti",   image: inclineDumbbellCurlImage },
+  { id: "bench-dips",                   label: "Dip su panca",                       muscleGroup: "Tricipiti",  image: benchDipsImage },
+  { id: "clean-and-press",              label: "Clean and press",                    muscleGroup: "Full body",  image: cleanAndPressImage },
+  { id: "medicine-ball-slam",           label: "Medicine ball slam",                 muscleGroup: "Full body",  image: medicineBallSlamImage },
+  { id: "box-jump",                     label: "Box jump",                           muscleGroup: "Cardio",     image: boxJumpImage },
+  { id: "jump-rope",                    label: "Salto con la corda",                 muscleGroup: "Cardio",     image: jumpRopeImage },
+  { id: "cable-pull-through",           label: "Cable pull-through",                 muscleGroup: "Glutei",     image: cablePullThroughImage },
 ];
 
 export const EXERCISE_ILLUSTRATION_MAP = new Map(
@@ -187,6 +207,31 @@ const EXERCISE_ALIASES = new Map(
     ["croci inverse", "reverse-fly"],
     ["reverse flies", "reverse-fly"],
     ["alzate posteriori", "reverse-fly"],
+    ["calf raise in piedi", "standing-calf-raise"],
+    ["standing calf raise", "standing-calf-raise"],
+    ["calf in piedi", "standing-calf-raise"],
+    ["donkey calf", "donkey-calf-raise"],
+    ["donkey calf raises", "donkey-calf-raise"],
+    ["curl concentrato", "concentration-curl"],
+    ["concentration curl", "concentration-curl"],
+    ["curl di concentrazione", "concentration-curl"],
+    ["curl inclinato", "incline-dumbbell-curl"],
+    ["incline curl", "incline-dumbbell-curl"],
+    ["incline dumbbell curl", "incline-dumbbell-curl"],
+    ["dip su panca", "bench-dips"],
+    ["bench dip", "bench-dips"],
+    ["bench dips", "bench-dips"],
+    ["clean press", "clean-and-press"],
+    ["clean and press", "clean-and-press"],
+    ["slanci palla medica", "medicine-ball-slam"],
+    ["medicine ball slam", "medicine-ball-slam"],
+    ["box jump", "box-jump"],
+    ["salto box", "box-jump"],
+    ["salto con la corda", "jump-rope"],
+    ["corda", "jump-rope"],
+    ["jump rope", "jump-rope"],
+    ["pull through cavo", "cable-pull-through"],
+    ["cable pull through", "cable-pull-through"],
   ].map(([label, id]) => [normalize(label), id])
 );
 
