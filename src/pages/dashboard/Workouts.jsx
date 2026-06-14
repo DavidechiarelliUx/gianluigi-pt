@@ -6,6 +6,7 @@ import {
   ClipboardList,
   CreditCard,
   Dumbbell,
+  Maximize2,
   Plus,
   Save,
   Search,
@@ -18,7 +19,7 @@ import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { Input } from "../../components/ui/Input";
 import { Textarea } from "../../components/ui/Textarea";
-import { EmptyState, StatusBadge } from "../../components/app";
+import { EmptyState, Modal, StatusBadge } from "../../components/app";
 import { ExerciseIllustration } from "../../components/exercises";
 import {
   getMuscleGroupColor,
@@ -268,9 +269,40 @@ function ExercisePicker({ exercises, value, onChange }) {
   );
 }
 
+function ExercisePreviewModal({ exercise, open, onClose }) {
+  if (!exercise) return null;
+  const muscleGroup = resolveMuscleGroup(exercise);
+
+  return (
+    <Modal open={open} onClose={onClose} title={exercise.name} size="lg">
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <MuscleGroupBadge group={muscleGroup} />
+          {exercise.defaultNotes && (
+            <span className="text-xs text-text-muted">{exercise.defaultNotes}</span>
+          )}
+        </div>
+
+        {exercise.illustration ? (
+          <ExerciseIllustration
+            exercise={exercise.illustration}
+            title={`Anteprima esercizio ${exercise.name}`}
+            className="mx-auto aspect-[4/3] max-h-[62vh] w-full rounded-lg"
+          />
+        ) : (
+          <div className="flex aspect-[4/3] max-h-[62vh] w-full items-center justify-center rounded-lg border border-border bg-bg text-5xl">
+            🏋️
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
 // ─── WorkoutItemRow ────────────────────────────────────────────────────────────
 
 function WorkoutItemRow({ item, itemIndex, dayIndex, exercises, onSetItem, onRemove }) {
+  const [previewOpen, setPreviewOpen] = useState(false);
   const selectedExercise = exercises.find((e) => e.id === item.exerciseId) || null;
   const mg = selectedExercise ? resolveMuscleGroup(selectedExercise) : null;
 
@@ -287,6 +319,26 @@ function WorkoutItemRow({ item, itemIndex, dayIndex, exercises, onSetItem, onRem
         value={item.exerciseId}
         onChange={(id) => onSetItem(dayIndex, itemIndex, { exerciseId: id })}
       />
+
+      {selectedExercise && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface-2 px-3 py-2">
+          <div className="min-w-0">
+            <p className="truncate text-xs font-semibold text-text">{selectedExercise.name}</p>
+            <p className="text-[10px] uppercase tracking-wide text-text-muted">Anteprima esercizio</p>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-8 w-8 shrink-0 p-0"
+            onClick={() => setPreviewOpen(true)}
+            title={`Ingrandisci immagine ${selectedExercise.name}`}
+            aria-label={`Ingrandisci immagine ${selectedExercise.name}`}
+          >
+            <Maximize2 size={14} />
+          </Button>
+        </div>
+      )}
 
       {/* Sets / Reps / Rest */}
       <div className="grid grid-cols-3 gap-2">
@@ -345,6 +397,12 @@ function WorkoutItemRow({ item, itemIndex, dayIndex, exercises, onSetItem, onRem
           <Trash2 size={15} />
         </Button>
       </div>
+
+      <ExercisePreviewModal
+        exercise={selectedExercise}
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+      />
     </div>
   );
 }
