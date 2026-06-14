@@ -371,6 +371,10 @@ export default function Workouts() {
     () => (ordersQuery.data?.orders || []).filter((o) => o.status === "paid" && o.user?.client?.id),
     [ordersQuery.data?.orders]
   );
+  const paidPackageOrders = useMemo(
+    () => paidOrders.filter((o) => o.product?.type === "package"),
+    [paidOrders]
+  );
 
   const selectedClient = clients.find((c) => c.id === clientId) || null;
 
@@ -385,26 +389,35 @@ export default function Workouts() {
     return map;
   }, [paidOrders]);
 
+  const packageOrdersByClientId = useMemo(() => {
+    const map = new Map();
+    for (const o of paidPackageOrders) {
+      const cid = o.user?.client?.id;
+      if (!cid) continue;
+      if (!map.has(cid)) map.set(cid, []);
+      map.get(cid).push(o);
+    }
+    return map;
+  }, [paidPackageOrders]);
+
   const packageGroups = useMemo(() => {
     const groups = new Map();
     for (const client of clients) {
-      for (const o of paidOrdersByClientId.get(client.id) || []) {
-        const label = o.product?.name || "Pacchetto pagato";
-        if (!groups.has(label)) groups.set(label, []);
-        const group = groups.get(label);
-        if (!group.some((it) => it.id === client.id))
-          group.push({ ...client, latestOrder: o });
-      }
+      const latestPackageOrder = packageOrdersByClientId.get(client.id)?.[0];
+      if (!latestPackageOrder) continue;
+      const label = latestPackageOrder.product?.name || "Pacchetto pagato";
+      if (!groups.has(label)) groups.set(label, []);
+      groups.get(label).push({ ...client, latestOrder: latestPackageOrder });
     }
     return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
-  }, [clients, paidOrdersByClientId]);
+  }, [clients, packageOrdersByClientId]);
 
   const unpaidClients = useMemo(
     () => clients.filter((c) => !paidOrdersByClientId.has(c.id)),
     [clients, paidOrdersByClientId]
   );
   const selectedClientOrders = selectedClient
-    ? paidOrdersByClientId.get(selectedClient.id) || []
+    ? packageOrdersByClientId.get(selectedClient.id) || []
     : [];
 
   const workoutsQuery = useQuery({
