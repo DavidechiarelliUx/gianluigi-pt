@@ -63,6 +63,16 @@ import medicineBallSlamImage from "../../assets/exercises/medicine-ball-slam.web
 import boxJumpImage from "../../assets/exercises/box-jump.webp";
 import jumpRopeImage from "../../assets/exercises/jump-rope.webp";
 import cablePullThroughImage from "../../assets/exercises/cable-pull-through.webp";
+import singleLegCalfRaiseImage from "../../assets/exercises/single-leg-calf-raise.webp";
+import tibialisRaiseImage from "../../assets/exercises/tibialis-raise.webp";
+import sledPushImage from "../../assets/exercises/sled-push.webp";
+import rowingMachineImage from "../../assets/exercises/rowing-machine.webp";
+import cableWoodchopperImage from "../../assets/exercises/cable-woodchopper.webp";
+import cableLateralRaiseImage from "../../assets/exercises/cable-lateral-raise.webp";
+import diamondPushUpImage from "../../assets/exercises/diamond-push-up.webp";
+import ropeOverheadTricepsExtensionImage from "../../assets/exercises/rope-overhead-triceps-extension.webp";
+import backExtensionImage from "../../assets/exercises/back-extension.webp";
+import hangingLegRaiseImage from "../../assets/exercises/hanging-leg-raise.webp";
 
 export const EXERCISE_ILLUSTRATIONS = [
   { id: "push-up",                     label: "Piegamenti",                        muscleGroup: "Petto",      image: pushUpImage },
@@ -130,6 +140,16 @@ export const EXERCISE_ILLUSTRATIONS = [
   { id: "box-jump",                     label: "Box jump",                           muscleGroup: "Cardio",     image: boxJumpImage },
   { id: "jump-rope",                    label: "Salto con la corda",                 muscleGroup: "Cardio",     image: jumpRopeImage },
   { id: "cable-pull-through",           label: "Cable pull-through",                 muscleGroup: "Glutei",     image: cablePullThroughImage },
+  { id: "single-leg-calf-raise",        label: "Calf raise monopodalico",            muscleGroup: "Polpacci",   image: singleLegCalfRaiseImage },
+  { id: "tibialis-raise",               label: "Tibialis raise",                     muscleGroup: "Polpacci",   image: tibialisRaiseImage },
+  { id: "sled-push",                    label: "Sled push",                          muscleGroup: "Full body",  image: sledPushImage },
+  { id: "rowing-machine",               label: "Rowing machine",                     muscleGroup: "Cardio",     image: rowingMachineImage },
+  { id: "cable-woodchopper",            label: "Cable woodchopper",                  muscleGroup: "Core",       image: cableWoodchopperImage },
+  { id: "cable-lateral-raise",          label: "Alzata laterale al cavo",            muscleGroup: "Spalle",     image: cableLateralRaiseImage },
+  { id: "diamond-push-up",              label: "Diamond push-up",                    muscleGroup: "Petto",      image: diamondPushUpImage },
+  { id: "rope-overhead-triceps-extension", label: "Estensione tricipiti con corda",  muscleGroup: "Tricipiti",  image: ropeOverheadTricepsExtensionImage },
+  { id: "back-extension",               label: "Back extension",                     muscleGroup: "Dorso",      image: backExtensionImage },
+  { id: "hanging-leg-raise",            label: "Hanging leg raise",                  muscleGroup: "Core",       image: hangingLegRaiseImage },
 ];
 
 export const EXERCISE_ILLUSTRATION_MAP = new Map(
@@ -232,6 +252,29 @@ const EXERCISE_ALIASES = new Map(
     ["jump rope", "jump-rope"],
     ["pull through cavo", "cable-pull-through"],
     ["cable pull through", "cable-pull-through"],
+    ["calf monopodalico", "single-leg-calf-raise"],
+    ["single leg calf raise", "single-leg-calf-raise"],
+    ["calf raise una gamba", "single-leg-calf-raise"],
+    ["tibiale", "tibialis-raise"],
+    ["tibialis raise", "tibialis-raise"],
+    ["sled push", "sled-push"],
+    ["spinta slitta", "sled-push"],
+    ["rower", "rowing-machine"],
+    ["rowing machine", "rowing-machine"],
+    ["vogatore", "rowing-machine"],
+    ["woodchopper", "cable-woodchopper"],
+    ["cable woodchopper", "cable-woodchopper"],
+    ["taglialegna cavo", "cable-woodchopper"],
+    ["alzata laterale cavo", "cable-lateral-raise"],
+    ["cable lateral raise", "cable-lateral-raise"],
+    ["diamond push up", "diamond-push-up"],
+    ["piegamenti diamante", "diamond-push-up"],
+    ["estensione tricipiti corda", "rope-overhead-triceps-extension"],
+    ["rope overhead triceps extension", "rope-overhead-triceps-extension"],
+    ["back extension", "back-extension"],
+    ["iperestensioni", "back-extension"],
+    ["hanging leg raise", "hanging-leg-raise"],
+    ["leg raise alla sbarra", "hanging-leg-raise"],
   ].map(([label, id]) => [normalize(label), id])
 );
 

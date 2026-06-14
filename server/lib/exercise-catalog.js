@@ -64,6 +64,16 @@ export const EXERCISE_CATALOG = [
   { name: "Box jump", muscleGroup: "Cardio", slug: "box-jump" },
   { name: "Salto con la corda", muscleGroup: "Cardio", slug: "jump-rope" },
   { name: "Cable pull-through", muscleGroup: "Glutei", slug: "cable-pull-through" },
+  { name: "Calf raise monopodalico", muscleGroup: "Polpacci", slug: "single-leg-calf-raise" },
+  { name: "Tibialis raise", muscleGroup: "Polpacci", slug: "tibialis-raise" },
+  { name: "Sled push", muscleGroup: "Full body", slug: "sled-push" },
+  { name: "Rowing machine", muscleGroup: "Cardio", slug: "rowing-machine" },
+  { name: "Cable woodchopper", muscleGroup: "Core", slug: "cable-woodchopper" },
+  { name: "Alzata laterale al cavo", muscleGroup: "Spalle", slug: "cable-lateral-raise" },
+  { name: "Diamond push-up", muscleGroup: "Petto", slug: "diamond-push-up" },
+  { name: "Estensione tricipiti con corda", muscleGroup: "Tricipiti", slug: "rope-overhead-triceps-extension" },
+  { name: "Back extension", muscleGroup: "Dorso", slug: "back-extension" },
+  { name: "Hanging leg raise", muscleGroup: "Core", slug: "hanging-leg-raise" },
 ];
 
 export const EXERCISE_SLUG_BY_NAME = new Map(EXERCISE_CATALOG.map((exercise) => [exercise.name, exercise.slug]));
