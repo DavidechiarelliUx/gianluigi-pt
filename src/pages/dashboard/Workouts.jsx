@@ -442,6 +442,36 @@ export default function Workouts() {
     onError: (err) => toast({ type: "error", title: "Aggiornamento fallito", description: err.message }),
   });
 
+  const deleteWorkout = useMutation({
+    mutationFn: (workout) => apiFetch(`/api/workouts/${workout.id}`, { method: "DELETE" }),
+    onSuccess: async (data, workout) => {
+      await qc.invalidateQueries({ queryKey: ["workouts", clientId] });
+      await qc.invalidateQueries({ queryKey: ["clients"] });
+      await qc.invalidateQueries({ queryKey: ["dashboard", "summary"] });
+      if (editingId === workout.id) {
+        setEditingId(null);
+        setForm(emptyWorkout());
+      }
+      toast({
+        type: "success",
+        title: "Scheda eliminata",
+        description: data?.removedSessions
+          ? `${data.removedSessions} sessioni collegate eliminate.`
+          : "La scheda sbagliata è stata rimossa.",
+      });
+    },
+    onError: (err) => toast({ type: "error", title: "Eliminazione fallita", description: err.message }),
+  });
+
+  const confirmDeleteWorkout = (workout) => {
+    const sessions = workout._count?.sessions || 0;
+    const detail = sessions
+      ? `Questa scheda ha ${sessions} sessioni salvate. Eliminandola perderai anche quelle sessioni e i relativi progressi.`
+      : "Questa scheda non ha sessioni salvate e verrà rimossa definitivamente.";
+    if (!window.confirm(`${detail}\n\nVuoi eliminarla davvero?`)) return;
+    deleteWorkout.mutate(workout);
+  };
+
   // ── Form helpers ───────────────────────────────────────────────────────────
   const setDay  = (di, patch) =>
     setForm((f) => ({ ...f, days: f.days.map((d, i) => (i === di ? { ...d, ...patch } : d)) }));
@@ -621,6 +651,14 @@ export default function Workouts() {
                         <Archive size={15} /> Archivia
                       </Button>
                     )}
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      onClick={() => confirmDeleteWorkout(w)}
+                      disabled={deleteWorkout.isPending}
+                    >
+                      <Trash2 size={15} /> Elimina
+                    </Button>
                   </div>
                 </Card>
               ))

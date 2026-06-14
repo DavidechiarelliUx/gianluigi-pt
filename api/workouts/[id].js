@@ -92,13 +92,18 @@ export default async function handler(req, res) {
 
   if (req.method === "DELETE") {
     try {
-      const workout = await prisma.workout.findUnique({ where: { id } });
-      if (!workout) return res.status(404).json({ ok: false, error: "Scheda non trovata" });
-      await prisma.workout.update({
+      const workout = await prisma.workout.findUnique({
         where: { id },
-        data: { status: "archived", archivedAt: new Date() },
+        include: { _count: { select: { sessions: true } } },
       });
-      return res.status(200).json({ ok: true });
+      if (!workout) return res.status(404).json({ ok: false, error: "Scheda non trovata" });
+
+      await prisma.$transaction(async (tx) => {
+        await tx.workoutSession.deleteMany({ where: { workoutId: id } });
+        await tx.workout.delete({ where: { id } });
+      });
+
+      return res.status(200).json({ ok: true, deleted: true, removedSessions: workout._count.sessions });
     } catch (err) {
       console.error("DELETE /api/workouts/[id]:", err);
       return res.status(500).json({ ok: false, error: "Errore interno" });
