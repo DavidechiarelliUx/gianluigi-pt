@@ -515,12 +515,20 @@ export default function Workouts() {
       editingId
         ? apiFetch(`/api/workouts/${editingId}`, { method: "PUT", body: payload })
         : apiFetch("/api/workouts", { method: "POST", body: payload }),
-    onSuccess: async () => {
+    onSuccess: async (data) => {
       await qc.invalidateQueries({ queryKey: ["workouts", clientId] });
       await qc.invalidateQueries({ queryKey: ["dashboard", "summary"] });
       setEditingId(null);
       setForm(emptyWorkout());
-      toast({ type: "success", title: "Scheda salvata" });
+      toast({
+        type: "success",
+        title: "Scheda salvata",
+        description: editingId
+          ? "Scheda aggiornata."
+          : data?.emailSent
+            ? "Email inviata al cliente."
+            : "Scheda creata. Email non inviata.",
+      });
     },
     onError: (err) => toast({ type: "error", title: "Salvataggio fallito", description: err.message }),
   });

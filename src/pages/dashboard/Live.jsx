@@ -69,14 +69,24 @@ export default function Live() {
 
   const createSession = useMutation({
     mutationFn: (payload) => apiFetch("/api/live/sessions", { method: "POST", body: payload }),
-    onSuccess: async () => {
+    onSuccess: async (data) => {
       await qc.invalidateQueries({ queryKey: ["live", "sessions"] });
       await qc.invalidateQueries({ queryKey: ["admin", "live-credits"] });
       await qc.invalidateQueries({ queryKey: ["clients"] });
       await qc.invalidateQueries({ queryKey: ["dashboard", "summary"] });
       setModalOpen(false);
       setForm(EMPTY_FORM);
-      toast({ type: "success", title: "Sessione live creata" });
+      const emailDescription =
+        data?.emailSent > 0
+          ? data.emailFailed > 0
+            ? `${data.emailSent} email inviate, ${data.emailFailed} non inviate.`
+            : data.emailSent === 1
+              ? "Email inviata al cliente."
+              : `${data.emailSent} email inviate ai clienti.`
+          : data?.emailFailed > 0
+            ? "Sessione creata. Email non inviata."
+            : "Sessione creata.";
+      toast({ type: "success", title: "Sessione live creata", description: emailDescription });
     },
     onError: (err) => toast({ type: "error", title: "Creazione fallita", description: err.message }),
   });

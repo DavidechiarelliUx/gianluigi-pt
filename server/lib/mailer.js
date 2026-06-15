@@ -19,6 +19,41 @@ export function appUrl() {
   return process.env.APP_URL?.trim() || "https://gianluigi-pt.vercel.app";
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function formatDateTime(value) {
+  if (!value) return "—";
+  return new Intl.DateTimeFormat("it-IT", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Europe/Rome",
+  }).format(new Date(value));
+}
+
+export function clientAppLoginLink(user = {}) {
+  const baseUrl = appUrl();
+  const inviteExpires = user.inviteExpires ? new Date(user.inviteExpires) : null;
+  const hasValidInvite = !!user.inviteToken && (!inviteExpires || inviteExpires > new Date());
+  if (!user.passwordHash && hasValidInvite) return `${baseUrl}/login?invite=${encodeURIComponent(user.inviteToken)}`;
+  return `${baseUrl}/login`;
+}
+
+export function clientAppCtaLabel(user = {}) {
+  const inviteExpires = user.inviteExpires ? new Date(user.inviteExpires) : null;
+  const hasValidInvite = !!user.inviteToken && (!inviteExpires || inviteExpires > new Date());
+  return !user.passwordHash && hasValidInvite ? "Imposta password e accedi" : "Accedi all'app";
+}
+
 export function createTransporter() {
   const { host, port, user, pass } = smtpConfig();
   return nodemailer.createTransport({
@@ -47,7 +82,7 @@ function emailShell({ firstName, intro, ctaHref, ctaLabel, extraHtml = "", foote
   return `
     <div style="font-family:Inter,Arial,sans-serif;max-width:560px;margin:0 auto;background:#0a0b0a;color:#f4f7f2;border-radius:18px;padding:32px;border:1px solid rgba(57,255,20,.28);">
       <p style="margin:0 0 10px;color:#39FF14;font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;">Gianluigi Chiarelli PT</p>
-      <h2 style="margin:0 0 18px;color:#ffffff;font-size:28px;line-height:1.1;">Ciao, ${firstName}.</h2>
+      <h2 style="margin:0 0 18px;color:#ffffff;font-size:28px;line-height:1.1;">Ciao, ${escapeHtml(firstName)}.</h2>
       <p style="color:#c7d0c3;line-height:1.6;">${intro}</p>
       ${extraHtml}
       <a href="${ctaHref}" style="display:inline-block;margin:22px 0;padding:14px 24px;background:#39FF14;color:#071007;font-weight:900;border-radius:999px;text-decoration:none;font-size:15px;">
@@ -55,6 +90,24 @@ function emailShell({ firstName, intro, ctaHref, ctaLabel, extraHtml = "", foote
       </a>
       ${appInstallBlock(installLink)}
       <p style="color:#7f887b;font-size:12px;margin-top:22px;">${footer}</p>
+    </div>
+  `;
+}
+
+function detailsCard(rows = []) {
+  const content = rows
+    .filter((row) => row?.value != null && row.value !== "")
+    .map((row) => `
+      <div style="margin-top:8px;">
+        <strong style="color:#39FF14;">${escapeHtml(row.label)}:</strong>
+        <span style="color:#f4f7f2;"> ${escapeHtml(row.value)}</span>
+      </div>
+    `)
+    .join("");
+
+  return `
+    <div style="margin-top:18px;padding:16px;border-radius:12px;background:#111610;border:1px solid rgba(57,255,20,.22);">
+      ${content}
     </div>
   `;
 }
@@ -190,6 +243,142 @@ export async function sendExistingClientPaymentEmail({ to, fullName, productName
       "Per aggiungere l'app alla schermata Home:",
       "iPhone: apri il link in Safari → Condividi → Aggiungi alla schermata Home.",
       `Guida: ${installLink}`,
+    ].filter(Boolean).join("\n"),
+  });
+}
+
+export async function sendWorkoutAssignedEmail({
+  to,
+  fullName,
+  workoutTitle,
+  daysCount,
+  exercisesCount,
+  loginHref,
+  ctaLabel = "Accedi all'app",
+}) {
+  const { user } = smtpConfig();
+  const firstName = fullName?.split(" ")[0] || "ciao";
+  const title = workoutTitle || "Nuova scheda";
+  const extraHtml = detailsCard([
+    { label: "Scheda", value: title },
+    { label: "Giorni", value: daysCount },
+    { label: "Esercizi", value: exercisesCount },
+  ]);
+
+  await createTransporter().sendMail({
+    from: `"Gianluigi PT" <${user}>`,
+    to,
+    subject: `Nuova scheda disponibile: ${title}`,
+    html: emailShell({
+      firstName,
+      intro: "Gianluigi ha preparato una nuova scheda personalizzata per te. La trovi già nell'app, pronta da seguire allenamento dopo allenamento.",
+      ctaHref: loginHref || `${appUrl()}/login`,
+      ctaLabel,
+      extraHtml,
+      footer: "Accedi all'app per vedere la scheda completa, gli esercizi e tracciare i tuoi progressi.",
+    }),
+    text: [
+      `Ciao ${firstName}!`,
+      "",
+      "Gianluigi ha preparato una nuova scheda personalizzata per te.",
+      `Scheda: ${title}`,
+      daysCount != null ? `Giorni: ${daysCount}` : "",
+      exercisesCount != null ? `Esercizi: ${exercisesCount}` : "",
+      `Accedi qui: ${loginHref || `${appUrl()}/login`}`,
+    ].filter(Boolean).join("\n"),
+  });
+}
+
+export async function sendSoloLiveSessionEmail({
+  to,
+  fullName,
+  title,
+  scheduledAt,
+  durationMin,
+  videoLink,
+  loginHref,
+  ctaLabel = "Accedi all'app",
+}) {
+  const { user } = smtpConfig();
+  const firstName = fullName?.split(" ")[0] || "ciao";
+  const sessionTitle = title || "Sessione 1:1";
+  const extraHtml = detailsCard([
+    { label: "Sessione", value: sessionTitle },
+    { label: "Quando", value: formatDateTime(scheduledAt) },
+    { label: "Durata", value: durationMin ? `${durationMin} minuti` : null },
+    { label: "Link video", value: videoLink || "Disponibile nell'app" },
+  ]);
+
+  await createTransporter().sendMail({
+    from: `"Gianluigi PT" <${user}>`,
+    to,
+    subject: `Sessione 1:1 programmata: ${sessionTitle}`,
+    html: emailShell({
+      firstName,
+      intro: "Gianluigi ha programmato una sessione live 1:1 per te. Apri l'app per controllare i dettagli e prepararti alla sessione.",
+      ctaHref: loginHref || `${appUrl()}/login`,
+      ctaLabel,
+      extraHtml,
+      footer: "Se non puoi partecipare, rispondi a questa email o scrivi a Gianluigi dall'app.",
+    }),
+    text: [
+      `Ciao ${firstName}!`,
+      "",
+      "Gianluigi ha programmato una sessione live 1:1 per te.",
+      `Sessione: ${sessionTitle}`,
+      `Quando: ${formatDateTime(scheduledAt)}`,
+      durationMin ? `Durata: ${durationMin} minuti` : "",
+      videoLink ? `Link video: ${videoLink}` : "Link video disponibile nell'app.",
+      `Accedi qui: ${loginHref || `${appUrl()}/login`}`,
+    ].filter(Boolean).join("\n"),
+  });
+}
+
+export async function sendGroupLiveSessionEmail({
+  to,
+  fullName,
+  title,
+  scheduledAt,
+  durationMin,
+  availableSlots,
+  maxSlots,
+  loginHref,
+  ctaLabel = "Accedi all'app",
+}) {
+  const { user } = smtpConfig();
+  const firstName = fullName?.split(" ")[0] || "ciao";
+  const sessionTitle = title || "Live di gruppo";
+  const slotsLabel = `${Math.max(0, Number(availableSlots) || 0)} su ${Number(maxSlots) || 0}`;
+  const extraHtml = detailsCard([
+    { label: "Live", value: sessionTitle },
+    { label: "Quando", value: formatDateTime(scheduledAt) },
+    { label: "Durata", value: durationMin ? `${durationMin} minuti` : null },
+    { label: "Posti disponibili", value: slotsLabel },
+    { label: "Prenotazione", value: "Disponibile nell'app" },
+  ]);
+
+  await createTransporter().sendMail({
+    from: `"Gianluigi PT" <${user}>`,
+    to,
+    subject: `Nuova live di gruppo: ${sessionTitle}`,
+    html: emailShell({
+      firstName,
+      intro: "Gianluigi ha creato una nuova live di gruppo. I posti sono limitati: entra nell'app per vedere i dettagli e prenotarti.",
+      ctaHref: loginHref || `${appUrl()}/login`,
+      ctaLabel,
+      extraHtml,
+      footer: "La prenotazione e i dettagli aggiornati sono sempre disponibili nella tua area cliente.",
+    }),
+    text: [
+      `Ciao ${firstName}!`,
+      "",
+      "Gianluigi ha creato una nuova live di gruppo.",
+      `Live: ${sessionTitle}`,
+      `Quando: ${formatDateTime(scheduledAt)}`,
+      durationMin ? `Durata: ${durationMin} minuti` : "",
+      `Posti disponibili: ${slotsLabel}`,
+      "Prenotazione disponibile nell'app.",
+      `Accedi qui: ${loginHref || `${appUrl()}/login`}`,
     ].filter(Boolean).join("\n"),
   });
 }

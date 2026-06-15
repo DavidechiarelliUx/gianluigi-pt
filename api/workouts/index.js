@@ -1,6 +1,11 @@
 import { prisma } from "../../server/lib/prisma.js";
 import { requireAdmin } from "../../server/lib/guards.js";
 import { parseJsonBody, methodNotAllowed } from "../../server/lib/body.js";
+import {
+  clientAppCtaLabel,
+  clientAppLoginLink,
+  sendWorkoutAssignedEmail,
+} from "../../server/lib/mailer.js";
 
 /**
  * GET  /api/workouts?clientId=xxx  → schede di un cliente
@@ -49,7 +54,20 @@ export default async function handler(req, res) {
     }
 
     try {
-      const client = await prisma.client.findFirst({ where: { id: clientId, deletedAt: null } });
+      const client = await prisma.client.findFirst({
+        where: { id: clientId, deletedAt: null },
+        include: {
+          user: {
+            select: {
+              email: true,
+              fullName: true,
+              passwordHash: true,
+              inviteToken: true,
+              inviteExpires: true,
+            },
+          },
+        },
+      });
       if (!client) return res.status(404).json({ ok: false, error: "Cliente non trovato" });
 
       const workout = await prisma.$transaction(async (tx) => {
@@ -88,7 +106,28 @@ export default async function handler(req, res) {
           },
         });
       });
-      return res.status(201).json({ ok: true, workout });
+
+      let emailSent = false;
+      let emailError = null;
+      try {
+        const daysCount = workout.days?.length || 0;
+        const exercisesCount = (workout.days || []).reduce((sum, day) => sum + (day.items?.length || 0), 0);
+        await sendWorkoutAssignedEmail({
+          to: client.user.email,
+          fullName: client.user.fullName,
+          workoutTitle: workout.title,
+          daysCount,
+          exercisesCount,
+          loginHref: clientAppLoginLink(client.user),
+          ctaLabel: clientAppCtaLabel(client.user),
+        });
+        emailSent = true;
+      } catch (err) {
+        emailError = err.code || err.message || "EMAIL_FAILED";
+        console.warn("POST /api/workouts: email scheda non inviata", emailError);
+      }
+
+      return res.status(201).json({ ok: true, workout, emailSent, emailError });
     } catch (err) {
       console.error("POST /api/workouts:", err);
       return res.status(500).json({ ok: false, error: "Errore interno" });

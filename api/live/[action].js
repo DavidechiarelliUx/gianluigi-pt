@@ -2,6 +2,12 @@ import { prisma } from "../../server/lib/prisma.js";
 import { requireAuth, requireAdmin, getAuth } from "../../server/lib/guards.js";
 import { parseJsonBody, methodNotAllowed } from "../../server/lib/body.js";
 import { getLiveCreditBalance } from "../../server/lib/live-credits.js";
+import {
+  clientAppCtaLabel,
+  clientAppLoginLink,
+  sendGroupLiveSessionEmail,
+  sendSoloLiveSessionEmail,
+} from "../../server/lib/mailer.js";
 
 // ─────────────────────────────────────────
 // Helper
@@ -119,9 +125,23 @@ async function sessions(req, res) {
 
     try {
       const assignedClientId = type === "solo" && targetClientId ? String(targetClientId) : null;
+      let assignedClient = null;
       if (assignedClientId) {
-        const client = await prisma.client.findFirst({ where: { id: assignedClientId, deletedAt: null } });
-        if (!client) return res.status(404).json({ ok: false, error: "Cliente non trovato" });
+        assignedClient = await prisma.client.findFirst({
+          where: { id: assignedClientId, deletedAt: null },
+          include: {
+            user: {
+              select: {
+                email: true,
+                fullName: true,
+                passwordHash: true,
+                inviteToken: true,
+                inviteExpires: true,
+              },
+            },
+          },
+        });
+        if (!assignedClient) return res.status(404).json({ ok: false, error: "Cliente non trovato" });
       }
 
       const session = await prisma.$transaction(async (tx) => {
@@ -150,7 +170,74 @@ async function sessions(req, res) {
         }
         return created;
       });
-      return res.status(201).json({ ok: true, session });
+
+      let emailSent = 0;
+      let emailFailed = 0;
+      let emailError = null;
+
+      if (assignedClient) {
+        try {
+          await sendSoloLiveSessionEmail({
+            to: assignedClient.user.email,
+            fullName: assignedClient.user.fullName,
+            title: session.title,
+            scheduledAt: session.scheduledAt,
+            durationMin: session.durationMin,
+            videoLink: session.videoLink,
+            loginHref: clientAppLoginLink(assignedClient.user),
+            ctaLabel: clientAppCtaLabel(assignedClient.user),
+          });
+          emailSent = 1;
+        } catch (err) {
+          emailFailed = 1;
+          emailError = err.code || err.message || "EMAIL_FAILED";
+          console.warn("POST /api/live/sessions: email live 1:1 non inviata", emailError);
+        }
+      } else if (type === "group") {
+        try {
+          const recipients = await prisma.client.findMany({
+            where: { deletedAt: null },
+            include: {
+              user: {
+                select: {
+                  email: true,
+                  fullName: true,
+                  passwordHash: true,
+                  inviteToken: true,
+                  inviteExpires: true,
+                },
+              },
+            },
+          });
+          const availableSlots = Math.max(0, Number(session.maxSlots) || 0);
+          const results = await Promise.allSettled(
+            recipients
+              .filter((client) => client.user?.email)
+              .map((client) =>
+                sendGroupLiveSessionEmail({
+                  to: client.user.email,
+                  fullName: client.user.fullName,
+                  title: session.title,
+                  scheduledAt: session.scheduledAt,
+                  durationMin: session.durationMin,
+                  availableSlots,
+                  maxSlots: session.maxSlots,
+                  loginHref: clientAppLoginLink(client.user),
+                  ctaLabel: clientAppCtaLabel(client.user),
+                })
+              )
+          );
+          emailSent = results.filter((result) => result.status === "fulfilled").length;
+          emailFailed = results.length - emailSent;
+          if (emailFailed > 0) emailError = "SOME_EMAILS_FAILED";
+        } catch (err) {
+          emailError = err.code || err.message || "EMAIL_FAILED";
+          emailFailed = 1;
+          console.warn("POST /api/live/sessions: email live gruppo non inviate", emailError);
+        }
+      }
+
+      return res.status(201).json({ ok: true, session, emailSent, emailFailed, emailError });
     } catch (err) {
       if (err.code === "NO_LIVE_CREDITS") {
         return res.status(402).json({ ok: false, error: err.message, liveCredits: err.liveCredits || 0 });
