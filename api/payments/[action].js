@@ -626,7 +626,10 @@ async function handleCheckoutCompleted(session) {
       to: user.email,
       fullName: user.fullName,
       productName: updatedOrder.product?.name,
+      productType: updatedOrder.product?.type,
       sessionsQty: updatedOrder.sessionsQty,
+      quantity: updatedOrder.quantity,
+      billingInterval: updatedOrder.product?.billingInterval,
       isSubscription: session.mode === "subscription",
     };
     try {

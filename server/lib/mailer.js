@@ -112,7 +112,42 @@ function detailsCard(rows = []) {
   `;
 }
 
-export async function sendClientInviteEmail({ to, fullName, token, context = "manual", productName, sessionsQty }) {
+function productTypeLabel(productType, isSubscription) {
+  if (isSubscription) return "Abbonamento";
+  if (productType === "session_solo") return "Crediti live 1:1";
+  if (productType === "session_group") return "Live di gruppo";
+  if (productType === "package") return "Pacchetto";
+  return "Acquisto";
+}
+
+function billingLabel(billingInterval, isSubscription) {
+  if (billingInterval === "month") return "Mensile";
+  if (billingInterval === "year") return "Annuale";
+  return isSubscription ? "Ricorrente" : "Pagamento singolo";
+}
+
+function purchaseDetails({ productName, productType, sessionsQty, quantity, billingInterval, isSubscription }) {
+  return detailsCard([
+    { label: "Tipo acquisto", value: productTypeLabel(productType, isSubscription) },
+    { label: productType === "package" || isSubscription ? "Pacchetto" : "Prodotto", value: productName },
+    { label: "Fatturazione", value: billingLabel(billingInterval, isSubscription) },
+    { label: "Quantità", value: quantity && quantity > 1 ? quantity : null },
+    { label: "Live incluse/acquistate", value: sessionsQty && sessionsQty > 0 ? sessionsQty : null },
+  ]);
+}
+
+export async function sendClientInviteEmail({
+  to,
+  fullName,
+  token,
+  context = "manual",
+  productName,
+  productType,
+  sessionsQty,
+  quantity,
+  billingInterval,
+  isSubscription,
+}) {
   const { user } = smtpConfig();
   const firstName = fullName?.split(" ")[0] || "ciao";
   const baseUrl = appUrl();
@@ -128,7 +163,7 @@ export async function sendClientInviteEmail({ to, fullName, token, context = "ma
     ? "Pagamento ricevuto. La tua area allenamenti è pronta.<br>Imposta la password e accedi alla piattaforma."
     : "Gianluigi ti ha aggiunto alla sua piattaforma di allenamento.";
   const extraHtml = productName
-    ? `<div style="margin-top:18px;padding:14px;border-radius:12px;background:#111610;border:1px solid rgba(57,255,20,.22);"><strong style="color:#39FF14;">Acquisto:</strong> ${productName}${sessionsQty ? ` · ${sessionsQty} sessioni` : ""}</div>`
+    ? purchaseDetails({ productName, productType, sessionsQty, quantity, billingInterval, isSubscription })
     : "";
 
   const transporter = createTransporter();
@@ -149,7 +184,11 @@ export async function sendClientInviteEmail({ to, fullName, token, context = "ma
       `Ciao ${fullName || ""}!`,
       "",
       intro,
-      productName ? `Acquisto: ${productName}${sessionsQty ? ` · ${sessionsQty} sessioni` : ""}` : "",
+      productName ? `Tipo acquisto: ${productTypeLabel(productType, isSubscription)}` : "",
+      productName ? `Prodotto: ${productName}` : "",
+      productName ? `Fatturazione: ${billingLabel(billingInterval, isSubscription)}` : "",
+      quantity && quantity > 1 ? `Quantità: ${quantity}` : "",
+      sessionsQty ? `Live incluse/acquistate: ${sessionsQty}` : "",
       `Imposta la password qui: ${loginLink}`,
       "",
       "Per aggiungere l'app alla schermata Home:",
@@ -211,23 +250,33 @@ export async function sendRenewalReminderEmail({ to, fullName, productName, expi
   });
 }
 
-export async function sendExistingClientPaymentEmail({ to, fullName, productName, sessionsQty }) {
+export async function sendExistingClientPaymentEmail({
+  to,
+  fullName,
+  productName,
+  productType,
+  sessionsQty,
+  quantity,
+  billingInterval,
+  isSubscription,
+}) {
   const { user } = smtpConfig();
   const firstName = fullName?.split(" ")[0] || "ciao";
   const baseUrl = appUrl();
   const loginLink = `${baseUrl}/login`;
   const installLink = `${baseUrl}/installa-app`;
   const summary = productName
-    ? `<div style="margin-top:18px;padding:14px;border-radius:12px;background:#111610;border:1px solid rgba(57,255,20,.22);"><strong style="color:#39FF14;">Acquisto confermato:</strong> ${productName}${sessionsQty ? ` · ${sessionsQty} sessioni` : ""}</div>`
+    ? purchaseDetails({ productName, productType, sessionsQty, quantity, billingInterval, isSubscription })
     : "";
+  const purchaseType = productTypeLabel(productType, isSubscription);
 
   await createTransporter().sendMail({
     from: `"Gianluigi PT" <${user}>`,
     to,
-    subject: "Pagamento confermato — accedi alla tua area Gianluigi PT",
+    subject: `Acquisto confermato — ${purchaseType} Gianluigi PT`,
     html: emailShell({
       firstName,
-      intro: "Pagamento ricevuto. Il tuo acquisto è stato aggiunto alla tua area cliente.",
+      intro: `Pagamento ricevuto. Il tuo ${purchaseType.toLowerCase()} è stato aggiunto alla tua area cliente.`,
       ctaHref: loginLink,
       ctaLabel: "Accedi alla tua area",
       extraHtml: summary,
@@ -236,8 +285,12 @@ export async function sendExistingClientPaymentEmail({ to, fullName, productName
     text: [
       `Ciao ${fullName || ""}!`,
       "",
-      "Pagamento ricevuto. Il tuo acquisto è stato aggiunto alla tua area cliente.",
-      productName ? `Acquisto: ${productName}${sessionsQty ? ` · ${sessionsQty} sessioni` : ""}` : "",
+      `Pagamento ricevuto. Il tuo ${purchaseType.toLowerCase()} è stato aggiunto alla tua area cliente.`,
+      productName ? `Tipo acquisto: ${purchaseType}` : "",
+      productName ? `Prodotto: ${productName}` : "",
+      productName ? `Fatturazione: ${billingLabel(billingInterval, isSubscription)}` : "",
+      quantity && quantity > 1 ? `Quantità: ${quantity}` : "",
+      sessionsQty ? `Live incluse/acquistate: ${sessionsQty}` : "",
       `Accedi qui: ${loginLink}`,
       "",
       "Per aggiungere l'app alla schermata Home:",
