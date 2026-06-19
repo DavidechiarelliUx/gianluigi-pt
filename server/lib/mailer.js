@@ -300,6 +300,46 @@ export async function sendExistingClientPaymentEmail({
   });
 }
 
+export async function sendPaymentDocumentEmail({
+  to,
+  fullName,
+  productName,
+  amountLabel,
+  documentUrl,
+  documentType = "fattura",
+}) {
+  const { user } = smtpConfig();
+  const firstName = fullName?.split(" ")[0] || "ciao";
+  const typeLabel = documentType === "receipt" ? "ricevuta" : "fattura";
+  const extraHtml = detailsCard([
+    { label: "Documento", value: typeLabel },
+    { label: "Prodotto", value: productName },
+    { label: "Importo", value: amountLabel },
+  ]);
+
+  await createTransporter().sendMail({
+    from: `"Gianluigi PT" <${user}>`,
+    to,
+    subject: `La tua ${typeLabel} Gianluigi PT`,
+    html: emailShell({
+      firstName,
+      intro: `Ti inviamo il link alla ${typeLabel} relativa al tuo pagamento.`,
+      ctaHref: documentUrl,
+      ctaLabel: `Apri ${typeLabel}`,
+      extraHtml,
+      footer: "Il documento è generato e ospitato da Stripe. Se hai bisogno di supporto, rispondi a questa email.",
+    }),
+    text: [
+      `Ciao ${firstName}!`,
+      "",
+      `Ti inviamo il link alla ${typeLabel} relativa al tuo pagamento.`,
+      productName ? `Prodotto: ${productName}` : "",
+      amountLabel ? `Importo: ${amountLabel}` : "",
+      `Apri documento: ${documentUrl}`,
+    ].filter(Boolean).join("\n"),
+  });
+}
+
 export async function sendWorkoutAssignedEmail({
   to,
   fullName,

@@ -528,6 +528,9 @@ async function checkout(req, res) {
       session = await stripe.checkout.sessions.create({
         ...commonParams,
         mode: "payment",
+        invoice_creation: {
+          enabled: true,
+        },
         payment_intent_data: {
           metadata: {
             orderId: order.id,
@@ -752,10 +755,16 @@ async function webhook(req, res) {
     const rawBody = await readRawBody(req);
     const signature = req.headers["stripe-signature"];
 
+    const isProd = process.env.VERCEL_ENV === "production" || process.env.NODE_ENV === "production";
+    if (!endpointSecret && isProd) {
+      throw new Error("STRIPE_WEBHOOK_SECRET non configurato in produzione");
+    }
+
     let event;
     if (endpointSecret) {
       event = stripe.webhooks.constructEvent(rawBody, signature, endpointSecret);
     } else {
+      // Solo dev locale senza Stripe CLI: nessuna verifica firma, bloccato in prod sopra
       event = JSON.parse(rawBody.toString("utf8"));
     }
 

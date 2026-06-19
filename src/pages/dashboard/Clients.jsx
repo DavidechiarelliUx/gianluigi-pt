@@ -382,6 +382,17 @@ export default function Clients() {
     onError: (err) => toast({ type: "error", title: "Invio fallito", description: err.message }),
   });
 
+  const sendInvoice = useMutation({
+    mutationFn: (id) => apiFetch("/api/admin-billing", { method: "POST", body: { type: "invoice", id } }),
+    onSuccess: (data) =>
+      toast({
+        type: "success",
+        title: data?.documentType === "receipt" ? "Ricevuta inviata" : "Fattura inviata",
+        description: data?.to ? `Email inviata a ${data.to}` : undefined,
+      }),
+    onError: (err) => toast({ type: "error", title: "Invio fattura fallito", description: err.message }),
+  });
+
   const updateMessage = useMutation({
     mutationFn: ({ id, ...payload }) => apiFetch("/api/admin/messages", { method: "PATCH", body: { id, ...payload } }),
     onSuccess: async (_, payload) => {
@@ -819,9 +830,18 @@ export default function Clients() {
                         <p className="font-semibold">{order.product?.name || "Ordine"}</p>
                         <p className="text-xs text-text-muted">{shortDate(order.createdAt)} · {order.quantity}x</p>
                       </div>
-                      <div className="text-right">
+                      <div className="flex flex-col items-end gap-2 text-right">
                         <p className="font-semibold text-accent">{money(order.amountCents, order.currency)}</p>
                         <StatusBadge status={paymentStatus({ paymentStatus: order.status }).status}>{order.status}</StatusBadge>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          disabled={order.status !== "paid" || sendInvoice.isPending}
+                          onClick={() => sendInvoice.mutate(order.id)}
+                        >
+                          <Send size={14} />
+                          Fattura
+                        </Button>
                       </div>
                     </div>
                   ))}

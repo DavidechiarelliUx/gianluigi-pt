@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CreditCard, Pencil, RefreshCw } from "lucide-react";
+import { CreditCard, FileText, Pencil, RefreshCw, Send } from "lucide-react";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { DataTable, EmptyState, Modal, StatusBadge } from "../../components/app";
@@ -78,6 +78,18 @@ export default function Subscriptions() {
     onError: (err) => toast({ type: "error", title: "Aggiornamento fallito", description: err.message }),
   });
 
+  const sendInvoice = useMutation({
+    mutationFn: (id) => apiFetch("/api/admin-billing", { method: "POST", body: { type: "invoice", id } }),
+    onSuccess: (data) => {
+      toast({
+        type: "success",
+        title: data?.documentType === "receipt" ? "Ricevuta inviata" : "Fattura inviata",
+        description: data?.to ? `Email inviata a ${data.to}` : undefined,
+      });
+    },
+    onError: (err) => toast({ type: "error", title: "Invio fattura fallito", description: err.message }),
+  });
+
   const subColumns = [
     {
       key: "user", label: "Cliente",
@@ -109,6 +121,24 @@ export default function Subscriptions() {
     { key: "amount", label: "Importo", render: (o) => money(o.amountCents, o.currency) },
     { key: "status", label: "Stato", render: (o) => <StatusBadge status={orderBadge(o.status)}>{o.status}</StatusBadge> },
     { key: "date", label: "Data", render: (o) => fmtDate(o.createdAt) },
+    {
+      key: "invoice",
+      label: "Fattura",
+      render: (o) => (
+        <Button
+          size="sm"
+          variant="secondary"
+          disabled={o.status !== "paid" || sendInvoice.isPending}
+          onClick={(event) => {
+            event.stopPropagation();
+            sendInvoice.mutate(o.id);
+          }}
+        >
+          {sendInvoice.isPending ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />}
+          Invia
+        </Button>
+      ),
+    },
     { key: "edit", label: "", render: () => <Pencil size={16} className="text-text-muted" /> },
   ];
 
@@ -148,7 +178,7 @@ export default function Subscriptions() {
       {/* Ordini / pacchetti */}
       <section className="space-y-3">
         <h3 className="flex items-center gap-2 font-display text-lg font-bold uppercase">
-          <CreditCard size={18} className="text-accent" /> Ordini &amp; pacchetti
+          <FileText size={18} className="text-accent" /> Ordini &amp; pacchetti
         </h3>
         <DataTable
           columns={orderColumns}
