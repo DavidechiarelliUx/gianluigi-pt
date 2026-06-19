@@ -23,6 +23,14 @@ async function login(req, res) {
     if (!user || !user.passwordHash) {
       return res.status(401).json({ ok: false, error: "Credenziali non valide" });
     }
+    if (user.role === "client" && (user.client?.deletedAt || user.client?.accessDisabledAt)) {
+      return res.status(403).json({
+        ok: false,
+        error: user.client?.accessDisabledAt
+          ? "Accesso app chiuso dal trainer. Contatta il coach per riattivarlo."
+          : "Accesso cliente non disponibile.",
+      });
+    }
     const ok = await verifyPassword(password, user.passwordHash);
     if (!ok) return res.status(401).json({ ok: false, error: "Credenziali non valide" });
 
@@ -56,6 +64,15 @@ async function me(req, res) {
       include: { client: true },
     });
     if (!user) return res.status(401).json({ ok: false, error: "Non autenticato" });
+    if (user.role === "client" && (user.client?.deletedAt || user.client?.accessDisabledAt)) {
+      res.setHeader("Set-Cookie", clearCookie());
+      return res.status(401).json({
+        ok: false,
+        error: user.client?.accessDisabledAt
+          ? "Accesso app chiuso dal trainer. Contatta il coach per riattivarlo."
+          : "Accesso cliente non disponibile.",
+      });
+    }
     return res.status(200).json({
       ok: true,
       user: {
@@ -89,6 +106,14 @@ async function setPassword(req, res) {
     });
     if (!user || !user.inviteExpires || user.inviteExpires < new Date()) {
       return res.status(400).json({ ok: false, error: "Invito non valido o scaduto" });
+    }
+    if (user.role === "client" && (user.client?.deletedAt || user.client?.accessDisabledAt)) {
+      return res.status(403).json({
+        ok: false,
+        error: user.client?.accessDisabledAt
+          ? "Accesso app chiuso dal trainer. Contatta il coach per riattivarlo."
+          : "Accesso cliente non disponibile.",
+      });
     }
 
     const passwordHash = await hashPassword(password);

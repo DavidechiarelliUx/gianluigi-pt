@@ -12,6 +12,24 @@ function clientOnly(auth, res) {
   return true;
 }
 
+async function activeClientOnly(auth, res) {
+  if (!clientOnly(auth, res)) return false;
+  const client = await prisma.client.findUnique({
+    where: { id: auth.clientId },
+    select: { deletedAt: true, accessDisabledAt: true },
+  });
+  if (!client || client.deletedAt || client.accessDisabledAt) {
+    res.status(403).json({
+      ok: false,
+      error: client?.accessDisabledAt
+        ? "Accesso app chiuso dal trainer. Contatta il coach per riattivarlo."
+        : "Accesso cliente non disponibile.",
+    });
+    return false;
+  }
+  return true;
+}
+
 function parseOptionalNumber(value) {
   if (value === "" || value == null) return null;
   const parsed = Number(value);
@@ -351,9 +369,10 @@ async function sessions(req, res, auth) {
 
 // ─── Router ───────────────────────────────────────────────────────────────────
 
-export default function handler(req, res) {
+export default async function handler(req, res) {
   const auth = requireAuth(req, res);
   if (!auth) return;
+  if (auth.role === "client" && !(await activeClientOnly(auth, res))) return;
 
   const { action } = req.query;
   if (action === "overview")       return overview(req, res, auth);

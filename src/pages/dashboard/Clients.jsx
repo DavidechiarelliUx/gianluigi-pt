@@ -8,11 +8,13 @@ import {
   CreditCard,
   Dumbbell,
   EyeOff,
+  Lock,
   Mail,
   MessageCircle,
   Plus,
   Send,
   Trash2,
+  Unlock,
   Users,
   Video,
 } from "lucide-react";
@@ -58,6 +60,7 @@ function accessDeadline(summary) {
 }
 
 function clientStatus(client) {
+  if (client.accessDisabledAt) return { label: "App chiusa", status: "danger" };
   if (client.user?.hasPassword) return { label: "Attivo", status: "success" };
   if (client.user?.inviteToken) return { label: "Invitato", status: "warning" };
   return { label: "Da invitare", status: "archived" };
@@ -308,7 +311,11 @@ export default function Clients() {
       setForm(EMPTY_FORM);
       await qc.invalidateQueries({ queryKey: ["clients"] });
       if (data?.client?.id) selectClient(data.client.id);
-      toast({ type: "success", title: "Cliente creato" });
+      toast({
+        type: data?.inviteEmailSent ? "success" : "warning",
+        title: data?.inviteEmailSent ? "Cliente creato e invito inviato" : "Cliente creato, invito da reinviare",
+        description: data?.inviteEmailError ? `Email non inviata: ${data.inviteEmailError}` : undefined,
+      });
     },
     onError: (err) => toast({ type: "error", title: "Creazione fallita", description: err.message }),
   });
@@ -334,6 +341,28 @@ export default function Clients() {
       toast({ type: "success", title: "Cliente archiviato" });
     },
     onError: (err) => toast({ type: "error", title: "Archivio fallito", description: err.message }),
+  });
+
+  const toggleClientAccess = useMutation({
+    mutationFn: ({ id, disabled }) =>
+      apiFetch(`/api/clients/${id}`, {
+        method: "PUT",
+        body: {
+          accessDisabled: disabled,
+          accessDisabledReason: disabled ? "Chiuso manualmente dall'admin" : null,
+        },
+      }),
+    onSuccess: async (_, { disabled }) => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["clients"] }),
+        qc.invalidateQueries({ queryKey: ["clients", selectedId] }),
+      ]);
+      toast({
+        type: disabled ? "warning" : "success",
+        title: disabled ? "App cliente chiusa" : "App cliente riaperta",
+      });
+    },
+    onError: (err) => toast({ type: "error", title: "Aggiornamento accesso fallito", description: err.message }),
   });
 
   const sendAdminMessage = useMutation({
@@ -462,6 +491,7 @@ export default function Clients() {
                       <div className="text-xs text-text-muted">{client.user.email}</div>
                     </div>
                     <div className="flex flex-wrap gap-2">
+                      <StatusBadge status={clientStatus(client).status}>{clientStatus(client).label}</StatusBadge>
                       <StatusBadge status={status.status}>{status.label}</StatusBadge>
                       <StatusBadge status={(client.dashboard?.openRequests || 0) > 0 ? "warning" : "success"}>
                         {client.dashboard?.openRequests || 0} richieste
@@ -503,6 +533,15 @@ export default function Clients() {
                     <Button size="sm" onClick={() => inviteClient.mutate(selected.id)} disabled={inviteClient.isPending}>
                       <Send size={15} /> Invito
                     </Button>
+                    <Button
+                      size="sm"
+                      variant={selected.accessDisabledAt ? "secondary" : "ghost"}
+                      onClick={() => toggleClientAccess.mutate({ id: selected.id, disabled: !selected.accessDisabledAt })}
+                      disabled={toggleClientAccess.isPending}
+                    >
+                      {selected.accessDisabledAt ? <Unlock size={15} /> : <Lock size={15} />}
+                      {selected.accessDisabledAt ? "Riapri app" : "Chiudi app"}
+                    </Button>
                     {wa && (
                       <Button as="a" size="sm" variant="secondary" href={wa} target="_blank" rel="noreferrer">
                         <MessageCircle size={15} /> WhatsApp
@@ -513,6 +552,13 @@ export default function Clients() {
                     </Button>
                   </div>
                 </div>
+
+                {selected.accessDisabledAt && (
+                  <div className="rounded-lg border border-danger/35 bg-danger/10 p-3 text-sm text-danger">
+                    App cliente chiusa dal {shortDate(selected.accessDisabledAt)}.
+                    {selected.accessDisabledReason ? ` Motivo: ${selected.accessDisabledReason}` : ""}
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-3">
                   <StatTile icon={CreditCard} label="Totale pagato" value={money(summary.totalPaidCents || 0)} />
@@ -816,7 +862,7 @@ export default function Clients() {
           <>
             <Button variant="ghost" onClick={() => setModalOpen(false)}>Annulla</Button>
             <Button type="submit" form="client-form" disabled={createClient.isPending}>
-              Crea cliente
+              Crea e invia invito
             </Button>
           </>
         }

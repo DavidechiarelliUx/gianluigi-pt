@@ -1,6 +1,8 @@
+import crypto from "crypto";
 import { prisma } from "../../server/lib/prisma.js";
 import { requireAdmin } from "../../server/lib/guards.js";
 import { parseJsonBody, methodNotAllowed } from "../../server/lib/body.js";
+import { sendClientInviteEmail } from "../../server/lib/mailer.js";
 
 const isEmail = (s) => typeof s === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
 
@@ -113,6 +115,8 @@ export default async function handler(req, res) {
             createdAt: client.user.createdAt,
             hasPassword: !!client.user.passwordHash,
           },
+          accessDisabledAt: client.accessDisabledAt,
+          accessDisabledReason: client.accessDisabledReason,
           dashboard: {
             ...paymentSummary(ordersByUser.get(client.userId) || [], subscriptionsByUser.get(client.userId) || []),
             liveCredits: liveBalanceMap.get(client.id) || 0,
@@ -143,12 +147,17 @@ export default async function handler(req, res) {
       const existing = await prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } });
       if (existing) return res.status(409).json({ ok: false, error: "Email già registrata" });
 
+      const token = crypto.randomBytes(32).toString("hex");
+      const expires = new Date(Date.now() + 48 * 60 * 60 * 1000);
+
       const result = await prisma.$transaction(async (tx) => {
         const user = await tx.user.create({
           data: {
             email: email.trim().toLowerCase(),
             fullName: fullName.trim(),
             role: "client",
+            inviteToken: token,
+            inviteExpires: expires,
             // passwordHash null: il cliente la imposterà via invito
           },
         });
@@ -163,7 +172,28 @@ export default async function handler(req, res) {
         return { user, client };
       });
 
-      return res.status(201).json({ ok: true, client: result.client, user: result.user });
+      let inviteEmailSent = false;
+      let inviteEmailError = null;
+      try {
+        await sendClientInviteEmail({
+          to: result.user.email,
+          fullName: result.user.fullName,
+          token,
+          context: "manual",
+        });
+        inviteEmailSent = true;
+      } catch (err) {
+        inviteEmailError = err.code || err.message || "EMAIL_FAILED";
+        console.warn("POST /api/clients: invito email non inviato", inviteEmailError);
+      }
+
+      return res.status(201).json({
+        ok: true,
+        client: result.client,
+        user: result.user,
+        inviteEmailSent,
+        inviteEmailError,
+      });
     } catch (err) {
       console.error("POST /api/clients:", err);
       return res.status(500).json({ ok: false, error: "Errore interno" });

@@ -29,7 +29,7 @@ function paymentSummary(orders = [], subscriptions = []) {
 
 /**
  * GET    /api/clients/:id  → dettaglio cliente
- * PUT    /api/clients/:id  → modifica (phone, goal, notes, fullName)
+ * PUT    /api/clients/:id  → modifica (phone, goal, notes, fullName, accessDisabled)
  * DELETE /api/clients/:id  → soft delete (GDPR: deletedAt = now)
  */
 export default async function handler(req, res) {
@@ -183,7 +183,7 @@ export default async function handler(req, res) {
   if (req.method === "PUT") {
     const body = parseJsonBody(req);
     if (!body) return res.status(400).json({ ok: false, error: "Body non valido" });
-    const { fullName, phone, goal, notes } = body || {};
+    const { fullName, phone, goal, notes, accessDisabled, accessDisabledReason } = body || {};
 
     try {
       const client = await prisma.client.findFirst({ where: { id, deletedAt: null } });
@@ -199,6 +199,10 @@ export default async function handler(req, res) {
             phone: phone?.trim() ?? undefined,
             goal: goal?.trim() ?? undefined,
             notes: notes?.trim() ?? undefined,
+            ...(typeof accessDisabled === "boolean" && {
+              accessDisabledAt: accessDisabled ? new Date() : null,
+              accessDisabledReason: accessDisabled ? accessDisabledReason?.trim() || "Chiuso manualmente dall'admin" : null,
+            }),
           },
         }),
       ];

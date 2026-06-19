@@ -49,6 +49,28 @@ async function consumeLiveCreditForBooking(tx, { clientId, bookingId, title }) {
   });
 }
 
+async function ensureClientAccess(auth, res) {
+  if (auth.role !== "client") return true;
+  if (!auth.clientId) {
+    res.status(403).json({ ok: false, error: "Area riservata ai clienti" });
+    return false;
+  }
+  const client = await prisma.client.findUnique({
+    where: { id: auth.clientId },
+    select: { deletedAt: true, accessDisabledAt: true },
+  });
+  if (!client || client.deletedAt || client.accessDisabledAt) {
+    res.status(403).json({
+      ok: false,
+      error: client?.accessDisabledAt
+        ? "Accesso app chiuso dal trainer. Contatta il coach per riattivarlo."
+        : "Accesso cliente non disponibile.",
+    });
+    return false;
+  }
+  return true;
+}
+
 // ─────────────────────────────────────────
 // GET/POST /api/live/sessions
 // ─────────────────────────────────────────
@@ -61,6 +83,7 @@ async function sessions(req, res) {
   if (req.method === "GET") {
     try {
       if (auth.role === "client") {
+        if (!(await ensureClientAccess(auth, res))) return;
         const liveCredits = await getLiveCreditBalance(auth.clientId);
         const list = await prisma.liveSession.findMany({
           where: {
@@ -349,6 +372,7 @@ async function bookings(req, res) {
   /* ---- POST — prenota ---- */
   if (req.method === "POST") {
     // Admin può prenotare per un clientId specificato; cliente prenota per sé
+    if (!(await ensureClientAccess(auth, res))) return;
     const body = parseJsonBody(req);
     if (!body) return res.status(400).json({ ok: false, error: "Body non valido" });
 
@@ -407,6 +431,7 @@ async function bookings(req, res) {
 
   /* ---- DELETE — cancella prenotazione ---- */
   if (req.method === "DELETE") {
+    if (!(await ensureClientAccess(auth, res))) return;
     const body = parseJsonBody(req);
     if (!body) return res.status(400).json({ ok: false, error: "Body non valido" });
 
