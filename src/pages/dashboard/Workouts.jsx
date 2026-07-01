@@ -486,7 +486,7 @@ export default function Workouts() {
   const clientsQuery   = useQuery({ queryKey: ["clients"],          queryFn: () => apiFetch("/api/clients") });
   const exercisesQuery = useQuery({ queryKey: ["exercises"],         queryFn: () => apiFetch("/api/admin/exercises") });
   const ordersQuery    = useQuery({ queryKey: ["payments", "orders"], queryFn: () => apiFetch("/api/payments/orders") });
-  const templatesQuery = useQuery({ queryKey: ["workout-templates"], queryFn: () => apiFetch("/api/workout-templates") });
+  const templatesQuery = useQuery({ queryKey: ["workout-templates"], queryFn: () => apiFetch("/api/workouts/templates") });
 
   const clients   = useMemo(() => clientsQuery.data?.clients || [],   [clientsQuery.data?.clients]);
   const exercises = useMemo(() => exercisesQuery.data?.exercises || [], [exercisesQuery.data?.exercises]);
@@ -612,8 +612,8 @@ export default function Workouts() {
   const saveTemplate = useMutation({
     mutationFn: (payload) =>
       payload.id
-        ? apiFetch("/api/workout-templates", { method: "PUT", body: payload })
-        : apiFetch("/api/workout-templates", { method: "POST", body: payload }),
+        ? apiFetch("/api/workouts/templates", { method: "PUT", body: payload })
+        : apiFetch("/api/workouts/templates", { method: "POST", body: payload }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["workout-templates"] });
       setTemplateDraft(null);
@@ -623,7 +623,7 @@ export default function Workouts() {
   });
 
   const deleteTemplate = useMutation({
-    mutationFn: (template) => apiFetch("/api/workout-templates", { method: "DELETE", body: { id: template.id } }),
+    mutationFn: (template) => apiFetch("/api/workouts/templates", { method: "DELETE", body: { id: template.id } }),
     onSuccess: async (_data, template) => {
       await qc.invalidateQueries({ queryKey: ["workout-templates"] });
       if (templateEditingId === template.id) setTemplateEditingId(null);
