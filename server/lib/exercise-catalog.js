@@ -94,6 +94,15 @@ export const EXERCISE_CATALOG = [
   { name: "Squat jump", muscleGroup: "Cardio", slug: "squat-jump" },
   { name: "Pulldown braccia tese", muscleGroup: "Dorso", slug: "straight-arm-pulldown" },
   { name: "Spider curl", muscleGroup: "Bicipiti", slug: "spider-curl" },
+  { name: "Cyclette", muscleGroup: "Cardio", slug: "cyclette" },
+  { name: "TOP cardio", muscleGroup: "Cardio", slug: "top-cardio" },
+  { name: "Stacchi gambe tese", muscleGroup: "Gambe", slug: "stiff-leg-deadlift" },
+  { name: "Low-row a carico libero", muscleGroup: "Dorso", slug: "low-row-plate-loaded" },
+  { name: "Trazioni presa inversa", muscleGroup: "Dorso", slug: "reverse-grip-pull-up" },
+  { name: "Curl hammer al cavo basso", muscleGroup: "Bicipiti", slug: "cable-hammer-curl" },
+  { name: "Panca inclinata manubri", muscleGroup: "Petto", slug: "incline-dumbbell-press" },
+  { name: "Chiusure a libro", muscleGroup: "Core", slug: "knee-tuck-crunch" },
+  { name: "Curl bicipiti ST", muscleGroup: "Bicipiti", slug: "suspension-trainer-biceps-curl" },
 ];
 
 export const EXERCISE_SLUG_BY_NAME = new Map(EXERCISE_CATALOG.map((exercise) => [exercise.name, exercise.slug]));

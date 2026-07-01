@@ -93,6 +93,15 @@ import skaterJumpImage from "../../assets/exercises/skater-jump.webp";
 import squatJumpImage from "../../assets/exercises/squat-jump.webp";
 import straightArmPulldownImage from "../../assets/exercises/straight-arm-pulldown.webp";
 import spiderCurlImage from "../../assets/exercises/spider-curl.webp";
+import cycletteImage from "../../assets/exercises/cyclette.webp";
+import topCardioImage from "../../assets/exercises/top-cardio.webp";
+import stiffLegDeadliftImage from "../../assets/exercises/stiff-leg-deadlift.webp";
+import lowRowPlateLoadedImage from "../../assets/exercises/low-row-plate-loaded.webp";
+import reverseGripPullUpImage from "../../assets/exercises/reverse-grip-pull-up.webp";
+import cableHammerCurlImage from "../../assets/exercises/cable-hammer-curl.webp";
+import inclineDumbbellPressImage from "../../assets/exercises/incline-dumbbell-press.webp";
+import kneeTuckCrunchImage from "../../assets/exercises/knee-tuck-crunch.webp";
+import suspensionTrainerBicepsCurlImage from "../../assets/exercises/suspension-trainer-biceps-curl.webp";
 
 export const EXERCISE_ILLUSTRATIONS = [
   { id: "push-up",                     label: "Piegamenti",                        muscleGroup: "Petto",      image: pushUpImage },
@@ -190,6 +199,15 @@ export const EXERCISE_ILLUSTRATIONS = [
   { id: "squat-jump",                    label: "Squat jump",                         muscleGroup: "Cardio",     image: squatJumpImage },
   { id: "straight-arm-pulldown",         label: "Pulldown braccia tese",              muscleGroup: "Dorso",      image: straightArmPulldownImage },
   { id: "spider-curl",                   label: "Spider curl",                        muscleGroup: "Bicipiti",   image: spiderCurlImage },
+  { id: "cyclette",                     label: "Cyclette",                          muscleGroup: "Cardio",     image: cycletteImage },
+  { id: "top-cardio",                   label: "TOP cardio",                        muscleGroup: "Cardio",     image: topCardioImage },
+  { id: "stiff-leg-deadlift",           label: "Stacchi gambe tese",                muscleGroup: "Gambe",      image: stiffLegDeadliftImage },
+  { id: "low-row-plate-loaded",         label: "Low-row a carico libero",           muscleGroup: "Dorso",      image: lowRowPlateLoadedImage },
+  { id: "reverse-grip-pull-up",         label: "Trazioni presa inversa",            muscleGroup: "Dorso",      image: reverseGripPullUpImage },
+  { id: "cable-hammer-curl",            label: "Curl hammer al cavo basso",         muscleGroup: "Bicipiti",   image: cableHammerCurlImage },
+  { id: "incline-dumbbell-press",       label: "Panca inclinata manubri",           muscleGroup: "Petto",      image: inclineDumbbellPressImage },
+  { id: "knee-tuck-crunch",             label: "Chiusure a libro",                  muscleGroup: "Core",       image: kneeTuckCrunchImage },
+  { id: "suspension-trainer-biceps-curl", label: "Curl bicipiti ST",                muscleGroup: "Bicipiti",   image: suspensionTrainerBicepsCurlImage },
 ];
 
 export const EXERCISE_ILLUSTRATION_MAP = new Map(
@@ -352,6 +370,46 @@ const EXERCISE_ALIASES = new Map(
     ["pulldown braccia tese", "straight-arm-pulldown"],
     ["straight arm pulldown", "straight-arm-pulldown"],
     ["spider curl", "spider-curl"],
+    ["cyclette", "cyclette"],
+    ["cyclett", "cyclette"],
+    ["bike", "cyclette"],
+    ["top", "top-cardio"],
+    ["top cardio", "top-cardio"],
+    ["cardio top", "top-cardio"],
+    ["stacchi gambe tese bilanciere", "stiff-leg-deadlift"],
+    ["stacco gambe tese", "stiff-leg-deadlift"],
+    ["romanian deadlift", "stiff-leg-deadlift"],
+    ["stiff leg deadlift", "stiff-leg-deadlift"],
+    ["pressa 45", "pressa"],
+    ["pressa 45 gradi", "pressa"],
+    ["leg curl seduto", "leg-curl"],
+    ["volare in piedi 2 manubri", "lateral-raise"],
+    ["volare in piedi manubri", "lateral-raise"],
+    ["leg raise gambe 90 alle parallele", "hanging-leg-raise"],
+    ["leg raise parallele", "hanging-leg-raise"],
+    ["pulley basso trazibar", "cable-row"],
+    ["rematore alla low row a carico libero", "low-row-plate-loaded"],
+    ["low row a carico libero", "low-row-plate-loaded"],
+    ["low row plate loaded", "low-row-plate-loaded"],
+    ["trazioni presa inversa alla sbarra", "reverse-grip-pull-up"],
+    ["trazioni presa inversa", "reverse-grip-pull-up"],
+    ["chin up", "reverse-grip-pull-up"],
+    ["curl hammer in piedi 2 manubri", "hammer-curl"],
+    ["curl hammer al cavo basso corda", "cable-hammer-curl"],
+    ["curl hammer al cavo basso", "cable-hammer-curl"],
+    ["hammer curl cavo basso", "cable-hammer-curl"],
+    ["curl bicipiti st", "suspension-trainer-biceps-curl"],
+    ["curl bicipiti suspension trainer", "suspension-trainer-biceps-curl"],
+    ["distensioni panca inclinata 2 manubri", "incline-dumbbell-press"],
+    ["distensioni panca inclinata manubri", "incline-dumbbell-press"],
+    ["panca inclinata 2 manubri", "incline-dumbbell-press"],
+    ["croci panca piana 2 manubri", "dumbbell-chest-fly"],
+    ["french press panca piana 2 manubri", "french-press"],
+    ["estensioni al cavo alto", "triceps-pushdown"],
+    ["piegamenti a terra", "push-up"],
+    ["chiusure a libro gambe piegate", "knee-tuck-crunch"],
+    ["chiusure a libro", "knee-tuck-crunch"],
+    ["knee tuck crunch", "knee-tuck-crunch"],
   ].map(([label, id]) => [normalize(label), id])
 );
 
