@@ -1,11 +1,14 @@
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Archive,
+  BookOpen,
   CheckCircle2,
   ChevronDown,
   ClipboardList,
+  Copy,
   CreditCard,
   Dumbbell,
+  Edit3,
   Maximize2,
   Plus,
   Save,
@@ -52,6 +55,42 @@ function normalizeWorkout(w) {
       })),
     })),
   };
+}
+
+function normalizeTemplate(template) {
+  return {
+    title: template.name || "",
+    description: template.description || "",
+    days: Array.isArray(template.days)
+      ? template.days.map((d) => ({
+          label: d.label,
+          items: (d.items || []).map((it) => ({
+            exerciseId: it.exerciseId,
+            sets: it.sets,
+            reps: it.reps,
+            restSeconds: it.restSeconds || "",
+            notes: it.notes || "",
+          })),
+        }))
+      : [emptyDay()],
+  };
+}
+
+function templateDaysFromForm(source) {
+  return (source.days || [])
+    .map((day) => ({
+      label: day.label,
+      items: (day.items || [])
+        .filter((item) => item.exerciseId)
+        .map((item) => ({
+          exerciseId: item.exerciseId,
+          sets: item.sets,
+          reps: item.reps,
+          restSeconds: item.restSeconds || null,
+          notes: item.notes || null,
+        })),
+    }))
+    .filter((day) => day.items.length > 0);
 }
 
 /** Resolve muscleGroup from server data OR fallback to client-side inference. */
@@ -439,15 +478,19 @@ export default function Workouts() {
     () => new URLSearchParams(window.location.search).get("clientId") || ""
   );
   const [editingId, setEditingId]   = useState(null);
+  const [templateEditingId, setTemplateEditingId] = useState(null);
+  const [templateDraft, setTemplateDraft] = useState(null);
   const [form, setForm]             = useState(emptyWorkout);
 
   // ── Queries ────────────────────────────────────────────────────────────────
   const clientsQuery   = useQuery({ queryKey: ["clients"],          queryFn: () => apiFetch("/api/clients") });
   const exercisesQuery = useQuery({ queryKey: ["exercises"],         queryFn: () => apiFetch("/api/admin/exercises") });
   const ordersQuery    = useQuery({ queryKey: ["payments", "orders"], queryFn: () => apiFetch("/api/payments/orders") });
+  const templatesQuery = useQuery({ queryKey: ["workout-templates"], queryFn: () => apiFetch("/api/workout-templates") });
 
   const clients   = useMemo(() => clientsQuery.data?.clients || [],   [clientsQuery.data?.clients]);
   const exercises = useMemo(() => exercisesQuery.data?.exercises || [], [exercisesQuery.data?.exercises]);
+  const templates = useMemo(() => templatesQuery.data?.templates || [], [templatesQuery.data?.templates]);
   const paidOrders = useMemo(
     () => (ordersQuery.data?.orders || []).filter((o) => o.status === "paid" && o.user?.client?.id),
     [ordersQuery.data?.orders]
@@ -519,6 +562,7 @@ export default function Workouts() {
       await qc.invalidateQueries({ queryKey: ["workouts", clientId] });
       await qc.invalidateQueries({ queryKey: ["dashboard", "summary"] });
       setEditingId(null);
+      setTemplateEditingId(null);
       setForm(emptyWorkout());
       toast({
         type: "success",
@@ -565,6 +609,29 @@ export default function Workouts() {
     onError: (err) => toast({ type: "error", title: "Eliminazione fallita", description: err.message }),
   });
 
+  const saveTemplate = useMutation({
+    mutationFn: (payload) =>
+      payload.id
+        ? apiFetch("/api/workout-templates", { method: "PUT", body: payload })
+        : apiFetch("/api/workout-templates", { method: "POST", body: payload }),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["workout-templates"] });
+      setTemplateDraft(null);
+      toast({ type: "success", title: "Template salvato", description: "Ora puoi riusarlo su altri clienti." });
+    },
+    onError: (err) => toast({ type: "error", title: "Template non salvato", description: err.message }),
+  });
+
+  const deleteTemplate = useMutation({
+    mutationFn: (template) => apiFetch("/api/workout-templates", { method: "DELETE", body: { id: template.id } }),
+    onSuccess: async (_data, template) => {
+      await qc.invalidateQueries({ queryKey: ["workout-templates"] });
+      if (templateEditingId === template.id) setTemplateEditingId(null);
+      toast({ type: "success", title: "Template eliminato" });
+    },
+    onError: (err) => toast({ type: "error", title: "Eliminazione fallita", description: err.message }),
+  });
+
   const confirmDeleteWorkout = (workout) => {
     const sessions = workout._count?.sessions || 0;
     const detail = sessions
@@ -572,6 +639,45 @@ export default function Workouts() {
       : "Questa scheda non ha sessioni salvate e verrà rimossa definitivamente.";
     if (!window.confirm(`${detail}\n\nVuoi eliminarla davvero?`)) return;
     deleteWorkout.mutate(workout);
+  };
+
+  const loadTemplate = (template) => {
+    setEditingId(null);
+    setTemplateEditingId(template.id);
+    setForm(normalizeTemplate(template));
+    toast({
+      type: "success",
+      title: "Template caricato",
+      description: "Puoi modificarlo prima di assegnarlo al cliente selezionato.",
+    });
+  };
+
+  const openTemplateDraft = ({ source, id = null }) => {
+    const days = templateDaysFromForm(source);
+    if (!days.length) {
+      toast({ type: "error", title: "Template vuoto", description: "Aggiungi almeno un esercizio prima di salvarlo." });
+      return;
+    }
+    setTemplateDraft({
+      id,
+      name: source.title || "",
+      description: source.description || "",
+      days,
+    });
+  };
+
+  const submitTemplateDraft = (e) => {
+    e.preventDefault();
+    if (!templateDraft?.name?.trim()) {
+      toast({ type: "error", title: "Nome template obbligatorio" });
+      return;
+    }
+    saveTemplate.mutate({
+      id: templateDraft.id || undefined,
+      name: templateDraft.name,
+      description: templateDraft.description,
+      days: templateDraft.days,
+    });
   };
 
   // ── Form helpers ───────────────────────────────────────────────────────────
@@ -637,6 +743,7 @@ export default function Workouts() {
             onChange={(e) => {
               setClientId(e.target.value);
               setEditingId(null);
+              setTemplateEditingId(null);
               setForm(emptyWorkout());
             }}
             className="h-11 w-full rounded-md border border-border bg-surface-2 px-3 text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
@@ -707,6 +814,64 @@ export default function Workouts() {
 
           {/* ── Schede esistenti ── */}
           <div className="space-y-3">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+                  Template schede
+                </p>
+                <StatusBadge status="neutral">{templates.length}</StatusBadge>
+              </div>
+              {templates.length ? (
+                templates.map((template) => {
+                  const daysCount = template.days?.length || 0;
+                  const exercisesCount = (template.days || []).reduce((sum, day) => sum + (day.items?.length || 0), 0);
+                  return (
+                    <Card key={template.id} className="space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <h3 className="truncate font-display text-base font-bold uppercase">
+                            {template.name}
+                          </h3>
+                          <p className="text-xs text-text-muted">
+                            {daysCount} giorni · {exercisesCount} esercizi
+                          </p>
+                        </div>
+                        <BookOpen size={18} className="shrink-0 text-accent" />
+                      </div>
+                      {template.description && (
+                        <p className="line-clamp-2 text-xs leading-5 text-text-muted">{template.description}</p>
+                      )}
+                      <div className="flex flex-wrap gap-2">
+                        <Button size="sm" onClick={() => loadTemplate(template)}>
+                          <Copy size={15} /> Usa
+                        </Button>
+                        <Button size="sm" variant="secondary" onClick={() => loadTemplate(template)}>
+                          <Edit3 size={15} /> Modifica
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          disabled={deleteTemplate.isPending}
+                          onClick={() => {
+                            if (window.confirm(`Eliminare il template "${template.name}"?`)) deleteTemplate.mutate(template);
+                          }}
+                        >
+                          <Trash2 size={15} /> Elimina
+                        </Button>
+                      </div>
+                    </Card>
+                  );
+                })
+              ) : (
+                <EmptyState
+                  icon={BookOpen}
+                  title="Nessun template"
+                  description="Salva una scheda come template per riusarla su altri clienti."
+                  className="py-8"
+                />
+              )}
+            </div>
+
             <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
               Schede di {selectedClient?.user?.fullName}
             </p>
@@ -732,10 +897,18 @@ export default function Workouts() {
                       variant="secondary"
                       onClick={() => {
                         setEditingId(w.id);
+                        setTemplateEditingId(null);
                         setForm(normalizeWorkout(w));
                       }}
                     >
                       Modifica
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => openTemplateDraft({ source: normalizeWorkout(w) })}
+                    >
+                      <BookOpen size={15} /> Template
                     </Button>
                     {w.status !== "active" ? (
                       <Button
@@ -784,12 +957,17 @@ export default function Workouts() {
                   <h3 className="font-display text-lg font-bold uppercase">
                     {editingId ? "Modifica scheda" : "Nuova scheda"}
                   </h3>
+                  {templateEditingId && !editingId && (
+                    <p className="mt-1 text-xs text-accent">
+                      Template caricato: personalizzalo e assegnalo al cliente.
+                    </p>
+                  )}
                 </div>
                 {editingId && (
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => { setEditingId(null); setForm(emptyWorkout()); }}
+                    onClick={() => { setEditingId(null); setTemplateEditingId(null); setForm(emptyWorkout()); }}
                   >
                     + Nuova
                   </Button>
@@ -862,22 +1040,42 @@ export default function Workouts() {
               ))}
 
               {/* Footer actions */}
-              <div className="flex flex-wrap justify-between gap-3 pt-1">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() =>
-                    setForm({
-                      ...form,
-                      days: [
-                        ...form.days,
-                        { ...emptyDay(), label: `Giorno ${form.days.length + 1}` },
-                      ],
-                    })
-                  }
-                >
-                  <Plus size={15} /> Aggiungi giorno
-                </Button>
+              <div className="flex flex-col gap-3 pt-1 md:flex-row md:items-center md:justify-between">
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() =>
+                      setForm({
+                        ...form,
+                        days: [
+                          ...form.days,
+                          { ...emptyDay(), label: `Giorno ${form.days.length + 1}` },
+                        ],
+                      })
+                    }
+                  >
+                    <Plus size={15} /> Aggiungi giorno
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => openTemplateDraft({ source: form })}
+                    disabled={!templateDaysFromForm(form).length}
+                  >
+                    <BookOpen size={15} /> Salva template
+                  </Button>
+                  {templateEditingId && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => openTemplateDraft({ source: form, id: templateEditingId })}
+                      disabled={!templateDaysFromForm(form).length}
+                    >
+                      <Save size={15} /> Aggiorna template
+                    </Button>
+                  )}
+                </div>
                 <Button
                   type="submit"
                   disabled={saveWorkout.isPending || !form.title.trim()}
@@ -890,6 +1088,55 @@ export default function Workouts() {
           </Card>
         </div>
       )}
+
+      <Modal
+        open={!!templateDraft}
+        onClose={() => setTemplateDraft(null)}
+        title={templateDraft?.id ? "Aggiorna template" : "Salva template"}
+        footer={(
+          <>
+            <Button type="button" variant="ghost" onClick={() => setTemplateDraft(null)}>
+              Annulla
+            </Button>
+            <Button type="submit" form="template-form" disabled={saveTemplate.isPending || !templateDraft?.name?.trim()}>
+              <Save size={16} />
+              {saveTemplate.isPending ? "Salvo…" : "Salva template"}
+            </Button>
+          </>
+        )}
+      >
+        {templateDraft && (
+          <form id="template-form" className="space-y-4" onSubmit={submitTemplateDraft}>
+            <label className="block">
+              <span className="mb-1.5 block text-xs uppercase tracking-wide text-text-muted">
+                Nome template
+              </span>
+              <Input
+                value={templateDraft.name}
+                onChange={(e) => setTemplateDraft((draft) => ({ ...draft, name: e.target.value }))}
+                placeholder="es. Forza full body · Base"
+                autoFocus
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1.5 block text-xs uppercase tracking-wide text-text-muted">
+                Descrizione
+              </span>
+              <Textarea
+                value={templateDraft.description}
+                onChange={(e) => setTemplateDraft((draft) => ({ ...draft, description: e.target.value }))}
+                placeholder="Quando usare questo template, focus, note per adattarlo..."
+                rows={3}
+              />
+            </label>
+            <div className="rounded-md border border-border bg-bg/50 p-3 text-xs leading-5 text-text-muted">
+              Verranno salvati {templateDraft.days.length} giorni e{" "}
+              {templateDraft.days.reduce((sum, day) => sum + (day.items?.length || 0), 0)} esercizi.
+              Potrai caricare il template su qualsiasi cliente e modificarlo prima di assegnarlo.
+            </div>
+          </form>
+        )}
+      </Modal>
     </div>
   );
 }

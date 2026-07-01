@@ -173,6 +173,15 @@ model WorkoutItem {
   order        Int        @default(0)
 }
 
+model WorkoutTemplate {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  days        Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 model WorkoutSession {
   id                 String           @id @default(uuid())
   client             Client           @relation(fields: [clientId], references: [id])
