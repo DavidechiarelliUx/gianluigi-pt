@@ -42,8 +42,8 @@ export default {
         "glow-soft": "0 0 8px rgba(57,255,20,0.2)",
       },
       fontFamily: {
-        display: ["Archivo", "Inter", "system-ui", "sans-serif"],
-        body: ["Inter", "system-ui", "sans-serif"],
+        display: ["Impact", "Arial Black", "system-ui", "sans-serif"],
+        body: ["system-ui", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "sans-serif"],
       },
       fontSize: {
         hero: ["clamp(2.5rem, 8vw, 4.5rem)", { lineHeight: "1.05", letterSpacing: "-0.02em" }],

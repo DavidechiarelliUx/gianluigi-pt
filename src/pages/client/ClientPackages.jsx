@@ -344,6 +344,14 @@ export default function ClientPackages() {
                   </div>
                 )}
 
+                <p className="rounded-xl p-3 text-[11px] leading-5 text-text-muted" style={{ background: "#0d0d0d", border: "1px solid #1e1e1e" }}>
+                  Il checkout usa i dati del tuo account per creare l'ordine e completare il pagamento con Stripe.
+                  Proseguendo confermi di aver letto la{" "}
+                  <a className="text-accent hover:underline" href="/privacy-policy" target="_blank" rel="noopener noreferrer">
+                    privacy policy
+                  </a>.
+                </p>
+
                 <Button
                   type="submit"
                   className="w-full"

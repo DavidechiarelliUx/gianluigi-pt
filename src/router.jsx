@@ -11,6 +11,8 @@ const ContactPage = lazy(() => import("./pages/ContactPage.jsx"));
 const Packages = lazy(() => import("./pages/Packages.jsx"));
 const CheckoutSuccess = lazy(() => import("./pages/CheckoutSuccess.jsx"));
 const InstallApp = lazy(() => import("./pages/InstallApp.jsx"));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy.jsx"));
+const CookiePolicy = lazy(() => import("./pages/CookiePolicy.jsx"));
 const Styleguide = lazy(() => import("./styleguide/Styleguide.jsx"));
 const DashboardLayout = lazy(() =>
   import("./pages/dashboard/DashboardLayout.jsx").then((m) => ({ default: m.DashboardLayout }))
@@ -57,6 +59,8 @@ export const router = createBrowserRouter([
   { path: "/pacchetti", element: wrap(<Packages />) },
   { path: "/checkout/success", element: wrap(<CheckoutSuccess />) },
   { path: "/installa-app", element: wrap(<InstallApp />) },
+  { path: "/privacy-policy", element: wrap(<PrivacyPolicy />) },
+  { path: "/cookie-policy", element: wrap(<CookiePolicy />) },
   {
     path: "/dashboard",
     element: wrap(

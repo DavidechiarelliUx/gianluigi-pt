@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { motion } from "framer-motion";
 import { Calendar, MessageCircle, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
@@ -28,12 +28,12 @@ export function Contact() {
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     reset,
     formState: { errors },
   } = useForm({ resolver: zodResolver(contactSchema), defaultValues: DEFAULTS });
 
-  const requestType = watch("requestType");
+  const requestType = useWatch({ control, name: "requestType" });
 
   const onSubmit = async (data) => {
     setStatus("loading");
@@ -185,8 +185,17 @@ export function Contact() {
         <div>
           <label className="flex items-start gap-2 text-sm text-text-muted">
             <input type="checkbox" className="mt-0.5 accent-[hsl(var(--accent))]" {...register("privacy")} />
-            <span>Accetto la privacy policy e il trattamento dei dati. *</span>
+            <span>
+              Ho letto la{" "}
+              <a className="text-accent hover:underline" href="/privacy-policy" target="_blank" rel="noopener noreferrer">
+                privacy policy
+              </a>{" "}
+              e autorizzo il trattamento dei dati necessari a rispondere alla mia richiesta. *
+            </span>
           </label>
+          <p className="mt-2 text-xs leading-5 text-text-muted">
+            Inserisci solo informazioni pertinenti alla consulenza. Evita dati sanitari non necessari.
+          </p>
           <FieldError msg={errors.privacy?.message} />
         </div>
 

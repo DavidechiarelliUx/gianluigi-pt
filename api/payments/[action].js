@@ -4,6 +4,7 @@ import { prisma } from "../../server/lib/prisma.js";
 import { requireAuth } from "../../server/lib/guards.js";
 import { methodNotAllowed, parseJsonBody } from "../../server/lib/body.js";
 import { appUrl, sendClientInviteEmail, sendExistingClientPaymentEmail } from "../../server/lib/mailer.js";
+import { rateLimit, requireSameOrigin } from "../../server/lib/security.js";
 
 export const config = {
   api: {
@@ -394,6 +395,8 @@ async function products(req, res) {
 
 async function checkout(req, res) {
   if (req.method !== "POST") return methodNotAllowed(res, ["POST"]);
+  if (!requireSameOrigin(req, res)) return;
+  if (!rateLimit(req, res, { key: "payments-checkout", limit: 10, windowMs: 10 * 60_000 })) return;
   const body = await readJsonBody(req);
   if (!body) return res.status(400).json({ ok: false, error: "Body non valido" });
 
@@ -719,6 +722,7 @@ async function handleInvoiceFailed(invoice) {
 
 async function verifySession(req, res) {
   if (req.method !== "GET") return methodNotAllowed(res, ["GET"]);
+  if (!rateLimit(req, res, { key: "payments-verify", limit: 20, windowMs: 10 * 60_000 })) return;
   const sessionId = String(req.query.session_id || "");
   if (!sessionId.startsWith("cs_")) {
     return res.status(400).json({ ok: false, error: "Sessione Stripe non valida" });

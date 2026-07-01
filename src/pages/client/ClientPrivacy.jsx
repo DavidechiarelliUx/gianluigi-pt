@@ -21,7 +21,7 @@ const SECTIONS = [
   {
     icon: Trash2,
     title: "Cancellazione dati",
-    text: "Puoi richiedere la cancellazione del tuo account e di tutti i dati associati in qualsiasi momento scrivendo a gianluigi@gianluigipt.it. I dati vengono rimossi entro 30 giorni.",
+    text: "Puoi richiedere accesso, rettifica o cancellazione scrivendo a gianluigi@gianluigipt.it. Alcuni dati possono essere conservati per obblighi fiscali o tutela di diritti.",
   },
   {
     icon: Mail,
@@ -105,9 +105,14 @@ export default function ClientPrivacy() {
         variants={fadeUp} initial="hidden" animate="show" custom={5}
         className="text-center text-[11px] text-text-muted"
       >
-        <p>Titolare del trattamento: Gianluigi [Cognome]</p>
-        <p className="mt-0.5">gianluigi@gianluigipt.it · P.IVA 00000000000</p>
-        <p className="mt-2 text-[10px]">Ultimo aggiornamento: giugno 2025</p>
+        <p>Titolare del trattamento: Gianluigi Chiarelli</p>
+        <p className="mt-0.5">gianluigi@gianluigipt.it · P.IVA da inserire</p>
+        <p className="mt-1">
+          <a className="text-accent hover:underline" href="/privacy-policy" target="_blank" rel="noopener noreferrer">Privacy policy completa</a>
+          {" · "}
+          <a className="text-accent hover:underline" href="/cookie-policy" target="_blank" rel="noopener noreferrer">Cookie policy</a>
+        </p>
+        <p className="mt-2 text-[10px]">Ultimo aggiornamento: luglio 2026</p>
       </motion.div>
     </div>
   );

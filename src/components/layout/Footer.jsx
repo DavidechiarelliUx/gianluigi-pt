@@ -40,9 +40,13 @@ export function Footer() {
           })}
         </nav>
 
-        <p className="text-sm text-text-muted">
-          © {new Date().getFullYear()} Gianluigi Chiarelli
-        </p>
+        <div className="flex flex-col items-center gap-2 text-sm text-text-muted sm:items-end">
+          <p>© {new Date().getFullYear()} Gianluigi Chiarelli</p>
+          <div className="flex flex-wrap justify-center gap-3">
+            <a href="/privacy-policy" className="transition-colors hover:text-accent">Privacy</a>
+            <a href="/cookie-policy" className="transition-colors hover:text-accent">Cookie</a>
+          </div>
+        </div>
       </Container>
     </footer>
   );

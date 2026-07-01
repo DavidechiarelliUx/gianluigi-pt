@@ -2,11 +2,14 @@ import { prisma } from "../../server/lib/prisma.js";
 import { authCookie, clearCookie, hashPassword, signToken, verifyPassword } from "../../server/lib/auth.js";
 import { getAuth } from "../../server/lib/guards.js";
 import { methodNotAllowed, parseJsonBody } from "../../server/lib/body.js";
+import { rateLimit, requireSameOrigin } from "../../server/lib/security.js";
 
 const isEmail = (s) => typeof s === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
 
 async function login(req, res) {
   if (req.method !== "POST") return methodNotAllowed(res, ["POST"]);
+  if (!requireSameOrigin(req, res)) return;
+  if (!rateLimit(req, res, { key: "auth-login", limit: 8, windowMs: 10 * 60_000 })) return;
 
   const body = parseJsonBody(req);
   if (!body) return res.status(400).json({ ok: false, error: "Body non valido" });
@@ -48,6 +51,7 @@ async function login(req, res) {
 
 async function logout(req, res) {
   if (req.method !== "POST") return methodNotAllowed(res, ["POST"]);
+  if (!requireSameOrigin(req, res)) return;
   res.setHeader("Set-Cookie", clearCookie());
   return res.status(200).json({ ok: true });
 }
@@ -91,6 +95,8 @@ async function me(req, res) {
 
 async function setPassword(req, res) {
   if (req.method !== "POST") return methodNotAllowed(res, ["POST"]);
+  if (!requireSameOrigin(req, res)) return;
+  if (!rateLimit(req, res, { key: "auth-set-password", limit: 6, windowMs: 10 * 60_000 })) return;
 
   const body = parseJsonBody(req);
   if (!body) return res.status(400).json({ ok: false, error: "Body non valido" });

@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { rateLimit, requireSameOrigin } from "../server/lib/security.js";
 
 /* Etichette tipo richiesta (self-contained, niente import da ../src) */
 const LABELS = {
@@ -28,6 +29,8 @@ export default async function handler(req, res) {
     res.setHeader("Allow", "POST, OPTIONS");
     return res.status(405).json({ ok: false, error: "Metodo non consentito" });
   }
+  if (!requireSameOrigin(req, res)) return;
+  if (!rateLimit(req, res, { key: "contact", limit: 5, windowMs: 10 * 60_000 })) return;
 
   // Body (può arrivare già parsato o come stringa)
   let body = req.body;

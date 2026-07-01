@@ -362,6 +362,14 @@ export default function Packages() {
 
               {error && <p className="rounded-sm border border-danger/40 bg-danger/10 p-3 text-sm text-danger">{error}</p>}
 
+              <p className="rounded-md border border-border bg-surface-2 p-3 text-xs leading-5 text-text-muted">
+                I dati inseriti vengono usati per creare l'ordine, gestire il pagamento con Stripe e attivare
+                l'accesso alla piattaforma. Proseguendo confermi di aver letto la{" "}
+                <a className="text-accent hover:underline" href="/privacy-policy" target="_blank" rel="noopener noreferrer">
+                  privacy policy
+                </a>.
+              </p>
+
               <Button className="w-full" type="submit" disabled={!selectedPackage || status === "loading"}>
                 {status === "loading" ? <Loader2 className="animate-spin" size={18} /> : <ShieldCheck size={18} />}
                 Vai al pagamento

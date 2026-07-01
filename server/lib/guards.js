@@ -1,4 +1,10 @@
 import { getTokenFromReq, verifyToken } from "./auth.js";
+import { requireSameOrigin } from "./security.js";
+
+function checkMutatingOrigin(req, res) {
+  if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return true;
+  return requireSameOrigin(req, res);
+}
 
 /**
  * Restituisce l'identità dal cookie ({ userId, role, clientId }) o null.
@@ -14,6 +20,7 @@ export function getAuth(req) {
 
 /** Richiede autenticazione; se manca, risponde 401 e ritorna null. */
 export function requireAuth(req, res) {
+  if (!checkMutatingOrigin(req, res)) return null;
   const auth = getAuth(req);
   if (!auth) {
     res.status(401).json({ ok: false, error: "Non autenticato" });
@@ -24,6 +31,7 @@ export function requireAuth(req, res) {
 
 /** Richiede ruolo admin; risponde 401/403 se non valido. */
 export function requireAdmin(req, res) {
+  if (!checkMutatingOrigin(req, res)) return null;
   const auth = getAuth(req);
   if (!auth) {
     res.status(401).json({ ok: false, error: "Non autenticato" });
