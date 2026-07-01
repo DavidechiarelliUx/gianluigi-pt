@@ -1,6 +1,7 @@
 import { prisma } from "../../server/lib/prisma.js";
 import { requireAdmin } from "../../server/lib/guards.js";
 import { parseJsonBody, methodNotAllowed } from "../../server/lib/body.js";
+import { normalizeWorkoutItemTarget } from "../../server/lib/workoutTarget.js";
 
 const includeWorkout = {
   client: { include: { user: { select: { fullName: true, email: true } } } },
@@ -21,10 +22,7 @@ function cleanTemplateDays(days = []) {
             .filter((item) => item?.exerciseId)
             .map((item) => ({
               exerciseId: String(item.exerciseId),
-              sets: Number(item.sets) || 3,
-              reps: String(item.reps || "8-10"),
-              restSeconds: item.restSeconds === "" || item.restSeconds == null ? null : Number(item.restSeconds) || null,
-              notes: item.notes ? String(item.notes).trim() : null,
+              ...normalizeWorkoutItemTarget(item),
             }))
         : [],
     }))
@@ -111,10 +109,7 @@ async function replaceDays(tx, workoutId, days = []) {
         items: {
           create: (day.items || []).map((item, itemIndex) => ({
             exerciseId: item.exerciseId,
-            sets: Number(item.sets) || 3,
-            reps: String(item.reps || "8-10"),
-            restSeconds: item.restSeconds ? Number(item.restSeconds) : null,
-            notes: item.notes?.trim() || null,
+            ...normalizeWorkoutItemTarget(item),
             order: itemIndex,
           })),
         },

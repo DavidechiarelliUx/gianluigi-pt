@@ -30,6 +30,11 @@ import {
 } from "../../components/exercises/exercise-data";
 import { useToast } from "../../hooks/useToast";
 import { apiFetch } from "../../lib/api";
+import {
+  defaultTargetForExercise,
+  formatWorkoutTarget,
+  isDefaultStrengthTarget,
+} from "../../lib/workoutTarget";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -367,6 +372,15 @@ function WorkoutItemRow({ item, itemIndex, dayIndex, exercises, onSetItem, onRem
   const [previewOpen, setPreviewOpen] = useState(false);
   const selectedExercise = exercises.find((e) => e.id === item.exerciseId) || null;
   const mg = selectedExercise ? resolveMuscleGroup(selectedExercise) : null;
+  const targetPreview = formatWorkoutTarget({ ...item, exerciseName: selectedExercise?.name });
+  const handleExerciseChange = (id) => {
+    const exercise = exercises.find((e) => e.id === id) || null;
+    const suggestedTarget = exercise ? defaultTargetForExercise(exercise.name) : null;
+    onSetItem(dayIndex, itemIndex, {
+      exerciseId: id,
+      ...(suggestedTarget && isDefaultStrengthTarget(item) ? suggestedTarget : {}),
+    });
+  };
 
   return (
     <div
@@ -379,7 +393,7 @@ function WorkoutItemRow({ item, itemIndex, dayIndex, exercises, onSetItem, onRem
       <ExercisePicker
         exercises={exercises}
         value={item.exerciseId}
-        onChange={(id) => onSetItem(dayIndex, itemIndex, { exerciseId: id })}
+        onChange={handleExerciseChange}
       />
 
       {selectedExercise && (
@@ -402,7 +416,7 @@ function WorkoutItemRow({ item, itemIndex, dayIndex, exercises, onSetItem, onRem
         </div>
       )}
 
-      {/* Sets / Reps / Rest */}
+      {/* Target / Rest */}
       <div className="grid grid-cols-3 gap-2">
         <label className="block">
           <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-text-muted">
@@ -418,12 +432,12 @@ function WorkoutItemRow({ item, itemIndex, dayIndex, exercises, onSetItem, onRem
         </label>
         <label className="block">
           <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-            Rip
+            Target
           </span>
           <Input
             value={item.reps}
             onChange={(e) => onSetItem(dayIndex, itemIndex, { reps: e.target.value })}
-            placeholder="8-10"
+            placeholder="8-10 · 10 min"
           />
         </label>
         <label className="block">
@@ -438,6 +452,11 @@ function WorkoutItemRow({ item, itemIndex, dayIndex, exercises, onSetItem, onRem
             placeholder="90"
           />
         </label>
+      </div>
+
+      <div className="rounded-lg border border-accent/20 bg-accent/5 px-3 py-2 text-xs text-text-muted">
+        <span className="font-semibold text-accent">Target:</span> {targetPreview.fullLabel}
+        <span className="block pt-0.5 text-[11px]">Esempi: 3x25, 8-10, 10 min, 45 sec.</span>
       </div>
 
       {/* Notes + trash */}

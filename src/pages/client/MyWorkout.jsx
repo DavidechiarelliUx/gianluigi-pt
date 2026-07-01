@@ -9,11 +9,13 @@ import { getExerciseIllustrationId, getExerciseMuscleGroup } from "../../compone
 import { useAuth } from "../../hooks/useAuth";
 import { useToast } from "../../hooks/useToast";
 import { apiFetch } from "../../lib/api";
+import { formatWorkoutTarget } from "../../lib/workoutTarget";
 
 function itemToExercise(item) {
+  const target = formatWorkoutTarget(item);
   return {
     name: item.exercise.name,
-    setsReps: `${item.sets} x ${item.reps}`,
+    setsReps: target.fullLabel,
     rest: item.restSeconds ? `${item.restSeconds}s` : "",
     restSeconds: item.restSeconds || 0,
     videoUrl: item.exercise.videoUrl,

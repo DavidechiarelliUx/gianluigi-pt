@@ -1,6 +1,7 @@
 import { prisma } from "../../server/lib/prisma.js";
 import { requireAdmin } from "../../server/lib/guards.js";
 import { parseJsonBody, methodNotAllowed } from "../../server/lib/body.js";
+import { normalizeWorkoutItemTarget } from "../../server/lib/workoutTarget.js";
 import {
   clientAppCtaLabel,
   clientAppLoginLink,
@@ -88,10 +89,7 @@ export default async function handler(req, res) {
                 items: {
                   create: (day.items || []).map((item, itemIndex) => ({
                     exerciseId: item.exerciseId,
-                    sets: Number(item.sets) || 3,
-                    reps: String(item.reps || "8-10"),
-                    restSeconds: item.restSeconds ? Number(item.restSeconds) : null,
-                    notes: item.notes?.trim() || null,
+                    ...normalizeWorkoutItemTarget(item),
                     order: itemIndex,
                   })),
                 },

@@ -27,6 +27,7 @@ import {
 } from "../../components/exercises/exercise-data";
 import { useToast } from "../../hooks/useToast";
 import { apiFetch } from "../../lib/api";
+import { formatWorkoutTarget } from "../../lib/workoutTarget";
 import { useClientLayout } from "./ClientLayoutContext";
 
 // ─── sessionStorage helpers — sopravvivono alla navigazione ──────────────────
@@ -166,6 +167,7 @@ function ExerciseNode({ item, index, status, onClick, nodeRef }) {
   const isLeft       = index % 2 === 0;
   const illustrationId = resolveIllustrationId(item);
   const muscleGroup  = resolveMuscleGroup(item);
+  const target = formatWorkoutTarget(item);
   const { bg, color } = muscleGroup ? getMuscleGroupColor(muscleGroup) : { bg: "rgba(255,255,255,0.05)", color: "#555" };
 
   const textColor =
@@ -256,7 +258,7 @@ function ExerciseNode({ item, index, status, onClick, nodeRef }) {
             {item.exercise.name}
           </p>
           <p className="mt-0.5 text-[10px] leading-snug" style={{ color: subColor }}>
-            {item.sets} × {item.reps}
+            {target.shortLabel}
             {item.restSeconds ? ` · rec ${item.restSeconds}s` : ""}
           </p>
           {muscleGroup && status !== "locked" && (
@@ -357,6 +359,7 @@ function ExerciseSheet({ item, log, onClose, onSave }) {
   const isAlreadyDone = !!log?.completed;
   const illustrationId = resolveIllustrationId(item);
   const muscleGroup    = resolveMuscleGroup(item);
+  const target = formatWorkoutTarget(item);
 
   const [activeSetIdx, setActiveSetIdx] = useState(0);
   const [setLoads, setSetLoads]         = useState(Array(totalSets).fill(""));
@@ -432,7 +435,7 @@ function ExerciseSheet({ item, log, onClose, onSave }) {
             {item.exercise.name}
           </h2>
           <p className="mt-1 text-sm" style={{ color: "#888" }}>
-            {item.sets} serie × {item.reps} rip
+            {target.fullLabel}
             {item.restSeconds ? ` · rec ${item.restSeconds}s` : ""}
           </p>
         </div>
@@ -472,9 +475,9 @@ function ExerciseSheet({ item, log, onClose, onSave }) {
 
             <div>
               <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "#39FF14" }}>
-                Serie {activeSetIdx + 1} di {totalSets}
+                {target.setWord[0].toUpperCase() + target.setWord.slice(1)} {activeSetIdx + 1} di {totalSets}
               </p>
-              <p className="font-display text-xl font-black text-white">{item.reps} ripetizioni</p>
+              <p className="font-display text-xl font-black text-white">{target.actionLabel}</p>
             </div>
 
             {/* Intra-set rest */}
@@ -508,7 +511,7 @@ function ExerciseSheet({ item, log, onClose, onSave }) {
 
             <label className="block">
               <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide" style={{ color: "#888" }}>
-                Carico — Serie {activeSetIdx + 1}
+                {target.type === "time" ? "Intensita / note" : "Carico"} — {target.setWord[0].toUpperCase() + target.setWord.slice(1)} {activeSetIdx + 1}
               </span>
               <Input
                 inputMode="text"
@@ -525,7 +528,7 @@ function ExerciseSheet({ item, log, onClose, onSave }) {
             {!intraRest && (
               <Button className="w-full" onClick={handleSetDone}>
                 <CheckCircle2 size={18} />
-                {isLastSet ? "Ultima serie — Completa" : `Serie ${activeSetIdx + 1} completata`}
+                {isLastSet ? `Ultimo ${target.setWord} — Completa` : `${target.setWord[0].toUpperCase() + target.setWord.slice(1)} ${activeSetIdx + 1} completato`}
               </Button>
             )}
           </div>
@@ -539,14 +542,14 @@ function ExerciseSheet({ item, log, onClose, onSave }) {
               style={{ background: "rgba(57,255,20,0.08)", border: "1px solid rgba(57,255,20,0.25)" }}
             >
               <p className="font-bold" style={{ color: "#39FF14" }}>
-                ✓ {totalSets} {totalSets === 1 ? "serie completata" : "serie completate"}!
+                ✓ {totalSets} {totalSets === 1 ? `${target.setWord} completato` : `${target.setWordPlural} completati`}!
               </p>
             </div>
 
             {totalSets > 1 && setLoads.some(Boolean) && (
               <div className="space-y-1">
                 <p className="text-[10px] font-semibold uppercase tracking-widest text-text-muted">
-                  Carichi per serie
+                  {target.type === "time" ? "Note per blocco" : "Carichi per serie"}
                 </p>
                 {setLoads.map((load, i) => (
                   <div
@@ -554,7 +557,7 @@ function ExerciseSheet({ item, log, onClose, onSave }) {
                     className="flex items-center justify-between rounded-lg px-3 py-2"
                     style={{ background: "#0d0d0d", border: "1px solid #1a1a1a" }}
                   >
-                    <span className="text-xs text-text-muted">Serie {i + 1}</span>
+                    <span className="text-xs text-text-muted">{target.setWord[0].toUpperCase() + target.setWord.slice(1)} {i + 1}</span>
                     <span className="text-xs font-semibold text-white">{load || "—"}</span>
                   </div>
                 ))}
