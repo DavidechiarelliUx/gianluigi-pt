@@ -103,6 +103,21 @@ export const EXERCISE_CATALOG = [
   { name: "Panca inclinata manubri", muscleGroup: "Petto", slug: "incline-dumbbell-press" },
   { name: "Chiusure a libro", muscleGroup: "Core", slug: "knee-tuck-crunch" },
   { name: "Curl bicipiti ST", muscleGroup: "Bicipiti", slug: "suspension-trainer-biceps-curl" },
+  { name: "Skip", muscleGroup: "Cardio", slug: "high-knees" },
+  { name: "Squat con bilanciere", muscleGroup: "Gambe", slug: "barbell-squat" },
+  { name: "Elastico per spalle", muscleGroup: "Riscaldamento", slug: "shoulder-band-warmup" },
+  { name: "Aperture toraciche", muscleGroup: "Riscaldamento", slug: "thoracic-open-book" },
+  { name: "Chest press", muscleGroup: "Petto", slug: "chest-press" },
+  { name: "Pullover ai cavi", muscleGroup: "Dorso", slug: "cable-pullover" },
+  { name: "Dead bug", muscleGroup: "Core", slug: "dead-bug" },
+  { name: "Bird dog", muscleGroup: "Core", slug: "bird-dog" },
+  { name: "Band pull apart", muscleGroup: "Postura", slug: "band-pull-apart" },
+  { name: "Wall slide", muscleGroup: "Postura", slug: "wall-slide" },
+  { name: "Broad jump", muscleGroup: "Cardio", slug: "broad-jump" },
+  { name: "Salti monopodici", muscleGroup: "Cardio", slug: "single-leg-hops" },
+  { name: "Trap bar deadlift", muscleGroup: "Gambe", slug: "trap-bar-deadlift" },
+  { name: "Pallof press", muscleGroup: "Core", slug: "pallof-press" },
+  { name: "Romanian Deadlift", muscleGroup: "Gambe", slug: "stiff-leg-deadlift" },
 ];
 
 export const EXERCISE_SLUG_BY_NAME = new Map(EXERCISE_CATALOG.map((exercise) => [exercise.name, exercise.slug]));
