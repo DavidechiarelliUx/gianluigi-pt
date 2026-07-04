@@ -524,12 +524,22 @@ function ExerciseSheet({ item, log, lastMaximal, onClose, onSave }) {
                 }}
               />
               {lastMaximal && (
-                <p className="mt-1.5 text-[11px]" style={{ color: "#666" }}>
-                  Ultima volta:{" "}
-                  {[lastMaximal.loadUsed, lastMaximal.repsDone ? `${lastMaximal.repsDone} reps` : null]
-                    .filter(Boolean)
-                    .join(" · ") || "—"}
-                </p>
+                <div className="mt-2">
+                  <span
+                    className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide"
+                    style={{
+                      background: "rgba(57,255,20,0.15)",
+                      border: "1px solid rgba(57,255,20,0.5)",
+                      color: "#39FF14",
+                      boxShadow: "0 0 8px rgba(57,255,20,0.2)",
+                    }}
+                  >
+                    ⚡ Ultima rip:{" "}
+                    {[lastMaximal.loadUsed, lastMaximal.repsDone ? `${lastMaximal.repsDone} reps` : null]
+                      .filter(Boolean)
+                      .join(" · ") || "—"}
+                  </span>
+                </div>
               )}
             </label>
 
