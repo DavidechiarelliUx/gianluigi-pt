@@ -102,6 +102,19 @@ import cableHammerCurlImage from "../../assets/exercises/cable-hammer-curl.webp"
 import inclineDumbbellPressImage from "../../assets/exercises/incline-dumbbell-press.webp";
 import kneeTuckCrunchImage from "../../assets/exercises/knee-tuck-crunch.webp";
 import suspensionTrainerBicepsCurlImage from "../../assets/exercises/suspension-trainer-biceps-curl.webp";
+import barbellSquatImage from "../../assets/exercises/barbell-squat.webp";
+import shoulderBandWarmupImage from "../../assets/exercises/shoulder-band-warmup.webp";
+import thoracicOpenBookImage from "../../assets/exercises/thoracic-open-book.webp";
+import chestPressImage from "../../assets/exercises/chest-press.webp";
+import cablePulloverImage from "../../assets/exercises/cable-pullover.webp";
+import deadBugImage from "../../assets/exercises/dead-bug.webp";
+import birdDogImage from "../../assets/exercises/bird-dog.webp";
+import bandPullApartImage from "../../assets/exercises/band-pull-apart.webp";
+import wallSlideImage from "../../assets/exercises/wall-slide.webp";
+import broadJumpImage from "../../assets/exercises/broad-jump.webp";
+import singleLegHopsImage from "../../assets/exercises/single-leg-hops.webp";
+import trapBarDeadliftImage from "../../assets/exercises/trap-bar-deadlift.webp";
+import pallofPressImage from "../../assets/exercises/pallof-press.webp";
 
 export const EXERCISE_ILLUSTRATIONS = [
   { id: "push-up",                     label: "Piegamenti",                        muscleGroup: "Petto",      image: pushUpImage },
@@ -208,6 +221,20 @@ export const EXERCISE_ILLUSTRATIONS = [
   { id: "incline-dumbbell-press",       label: "Panca inclinata manubri",           muscleGroup: "Petto",      image: inclineDumbbellPressImage },
   { id: "knee-tuck-crunch",             label: "Chiusure a libro",                  muscleGroup: "Core",       image: kneeTuckCrunchImage },
   { id: "suspension-trainer-biceps-curl", label: "Curl bicipiti ST",                muscleGroup: "Bicipiti",   image: suspensionTrainerBicepsCurlImage },
+  { id: "skip",                         label: "Skip",                              muscleGroup: "Cardio",         image: highKneesImage },
+  { id: "barbell-squat",                label: "Squat con bilanciere",              muscleGroup: "Gambe",          image: barbellSquatImage },
+  { id: "shoulder-band-warmup",         label: "Elastico per spalle",               muscleGroup: "Riscaldamento",  image: shoulderBandWarmupImage },
+  { id: "thoracic-open-book",           label: "Aperture toraciche",                muscleGroup: "Riscaldamento",  image: thoracicOpenBookImage },
+  { id: "chest-press",                  label: "Chest press",                       muscleGroup: "Petto",          image: chestPressImage },
+  { id: "cable-pullover",               label: "Pullover ai cavi",                  muscleGroup: "Dorso",          image: cablePulloverImage },
+  { id: "dead-bug",                     label: "Dead bug",                          muscleGroup: "Core",           image: deadBugImage },
+  { id: "bird-dog",                     label: "Bird dog",                          muscleGroup: "Core",           image: birdDogImage },
+  { id: "band-pull-apart",              label: "Band pull apart",                   muscleGroup: "Postura",        image: bandPullApartImage },
+  { id: "wall-slide",                   label: "Wall slide",                        muscleGroup: "Postura",        image: wallSlideImage },
+  { id: "broad-jump",                   label: "Broad jump",                        muscleGroup: "Cardio",         image: broadJumpImage },
+  { id: "single-leg-hops",              label: "Salti monopodici",                  muscleGroup: "Cardio",         image: singleLegHopsImage },
+  { id: "trap-bar-deadlift",            label: "Trap bar deadlift",                 muscleGroup: "Gambe",          image: trapBarDeadliftImage },
+  { id: "pallof-press",                 label: "Pallof press",                      muscleGroup: "Core",           image: pallofPressImage },
 ];
 
 export const EXERCISE_ILLUSTRATION_MAP = new Map(
@@ -410,6 +437,38 @@ const EXERCISE_ALIASES = new Map(
     ["chiusure a libro gambe piegate", "knee-tuck-crunch"],
     ["chiusure a libro", "knee-tuck-crunch"],
     ["knee tuck crunch", "knee-tuck-crunch"],
+    ["skip", "skip"],
+    ["squat con bilanciere", "barbell-squat"],
+    ["squat bilanciere", "barbell-squat"],
+    ["barbell squat", "barbell-squat"],
+    ["elastico per spalle", "shoulder-band-warmup"],
+    ["elastico spalle", "shoulder-band-warmup"],
+    ["band shoulder warmup", "shoulder-band-warmup"],
+    ["aperture toraciche", "thoracic-open-book"],
+    ["apertura toracica", "thoracic-open-book"],
+    ["open book", "thoracic-open-book"],
+    ["thoracic open book", "thoracic-open-book"],
+    ["chest press", "chest-press"],
+    ["chest press machine", "chest-press"],
+    ["pullover ai cavi", "cable-pullover"],
+    ["pullover cavi", "cable-pullover"],
+    ["cable pullover", "cable-pullover"],
+    ["dead bug", "dead-bug"],
+    ["bird dog", "bird-dog"],
+    ["bird dob", "bird-dog"],
+    ["band pull", "band-pull-apart"],
+    ["postura band pull", "band-pull-apart"],
+    ["band pull apart", "band-pull-apart"],
+    ["wall side", "wall-slide"],
+    ["wall slide", "wall-slide"],
+    ["wall slides", "wall-slide"],
+    ["broad jump", "broad-jump"],
+    ["salti monopodici", "single-leg-hops"],
+    ["salto monopodico", "single-leg-hops"],
+    ["single leg hops", "single-leg-hops"],
+    ["trap bar deadlift", "trap-bar-deadlift"],
+    ["stacco trap bar", "trap-bar-deadlift"],
+    ["pallof press", "pallof-press"],
   ].map(([label, id]) => [normalize(label), id])
 );
 
