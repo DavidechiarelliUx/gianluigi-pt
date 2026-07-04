@@ -1,4 +1,4 @@
-const MINUTE_RE = /(?:^|\s)(min|mins|minuto|minuti|\')(?:\s|$)/i;
+const MINUTE_RE = /(?:^|\s)(min|mins|minuto|minuti|')(?:\s|$)/i;
 const SECOND_RE = /(?:^|\s)(sec|secs|secondo|secondi|s|")(?=\s|$)/i;
 const COMPOUND_RE = /^\s*(\d+)\s*[x×]\s*(.+?)\s*$/i;
 const NUMBER_RE = /^\s*\d+(?:[.,]\d+)?\s*$/;

@@ -26,7 +26,7 @@ import { DataList, DataTable, EmptyState, Modal, StatusBadge } from "../../compo
 import { useToast } from "../../hooks/useToast";
 import { apiFetch } from "../../lib/api";
 
-const EMPTY_FORM = { fullName: "", email: "", phone: "", goal: "", notes: "" };
+const EMPTY_FORM = { fullName: "", email: "", phone: "", goal: "", notes: "", appAccess: true };
 
 const money = (cents = 0, currency = "eur") =>
   new Intl.NumberFormat("it-IT", { style: "currency", currency: currency.toUpperCase() }).format((cents || 0) / 100);
@@ -893,6 +893,18 @@ export default function Clients() {
           <Input placeholder="Telefono" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
           <Input placeholder="Obiettivo" value={form.goal} onChange={(e) => setForm({ ...form, goal: e.target.value })} />
           <Textarea placeholder="Note operative" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+          <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-border bg-surface-2 p-3">
+            <input
+              type="checkbox"
+              checked={form.appAccess}
+              onChange={(e) => setForm({ ...form, appAccess: e.target.checked })}
+              className="h-4 w-4 accent-accent"
+            />
+            <div>
+              <p className="text-sm font-semibold">Attiva accesso app subito</p>
+              <p className="text-xs text-text-muted">Se deselezionato, il cliente può registrarsi ma non accedere alle schede.</p>
+            </div>
+          </label>
         </form>
       </Modal>
     </div>

@@ -721,6 +721,18 @@ export default function Workouts() {
       ),
     }));
 
+  // Inserisce un nuovo esercizio vuoto DOPO la posizione afterIndex (-1 = in cima)
+  const insertItem = (di, afterIndex) =>
+    setForm((f) => ({
+      ...f,
+      days: f.days.map((d, i) => {
+        if (i !== di) return d;
+        const newItems = [...d.items];
+        newItems.splice(afterIndex + 1, 0, emptyItem());
+        return { ...d, items: newItems };
+      }),
+    }));
+
   const submit = (e) => {
     e.preventDefault();
     if (!clientId) return toast({ type: "error", title: "Seleziona un cliente" });
@@ -1033,18 +1045,45 @@ export default function Workouts() {
                     </Button>
                   </div>
 
-                  {/* Exercise items */}
-                  <div className="space-y-2">
+                  {/* Exercise items with insert-between buttons */}
+                  <div className="space-y-1">
+                    {/* Bottone inserisci in cima (quando ci sono già esercizi) */}
+                    {day.items.length > 0 && (
+                      <div className="flex justify-center">
+                        <button
+                          type="button"
+                          onClick={() => insertItem(di, -1)}
+                          className="group flex items-center gap-1 rounded-full px-3 py-0.5 text-[11px] font-semibold uppercase tracking-wide transition-all hover:opacity-100"
+                          style={{ background: "transparent", color: "#39FF14", opacity: 0.35, border: "1px dashed rgba(57,255,20,0.4)" }}
+                          title="Inserisci esercizio in cima"
+                        >
+                          <Plus size={11} /> Inserisci qui
+                        </button>
+                      </div>
+                    )}
                     {day.items.map((item, ii) => (
-                      <WorkoutItemRow
-                        key={ii}
-                        item={item}
-                        itemIndex={ii}
-                        dayIndex={di}
-                        exercises={exercises}
-                        onSetItem={setItem}
-                        onRemove={removeItem}
-                      />
+                      <div key={ii}>
+                        <WorkoutItemRow
+                          item={item}
+                          itemIndex={ii}
+                          dayIndex={di}
+                          exercises={exercises}
+                          onSetItem={setItem}
+                          onRemove={removeItem}
+                        />
+                        {/* Bottone inserisci dopo ogni esercizio */}
+                        <div className="flex justify-center py-0.5">
+                          <button
+                            type="button"
+                            onClick={() => insertItem(di, ii)}
+                            className="group flex items-center gap-1 rounded-full px-3 py-0.5 text-[11px] font-semibold uppercase tracking-wide transition-all hover:opacity-100"
+                            style={{ background: "transparent", color: "#39FF14", opacity: 0.3, border: "1px dashed rgba(57,255,20,0.35)" }}
+                            title={`Inserisci esercizio dopo la posizione ${ii + 1}`}
+                          >
+                            <Plus size={11} /> Inserisci qui
+                          </button>
+                        </div>
+                      </div>
                     ))}
                   </div>
 
@@ -1053,7 +1092,7 @@ export default function Workouts() {
                     variant="secondary"
                     onClick={() => setDay(di, { items: [...day.items, emptyItem()] })}
                   >
-                    <Plus size={14} /> Aggiungi esercizio
+                    <Plus size={14} /> Aggiungi in fondo
                   </Button>
                 </div>
               ))}
@@ -1079,19 +1118,19 @@ export default function Workouts() {
                   <Button
                     type="button"
                     variant="ghost"
-                    onClick={() => openTemplateDraft({ source: form })}
+                    onClick={() => openTemplateDraft({ source: form, id: templateEditingId || null })}
                     disabled={!templateDaysFromForm(form).length}
                   >
-                    <BookOpen size={15} /> Salva template
+                    <BookOpen size={15} /> {templateEditingId ? "Aggiorna template" : "Salva template"}
                   </Button>
                   {templateEditingId && (
                     <Button
                       type="button"
                       variant="secondary"
-                      onClick={() => openTemplateDraft({ source: form, id: templateEditingId })}
+                      onClick={() => openTemplateDraft({ source: form, id: null })}
                       disabled={!templateDaysFromForm(form).length}
                     >
-                      <Save size={15} /> Aggiorna template
+                      <Save size={15} /> Salva come nuovo
                     </Button>
                   )}
                 </div>

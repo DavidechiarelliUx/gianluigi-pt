@@ -354,7 +354,7 @@ function RestTimer({ initialSeconds, nextExerciseName, onSkip, onDone }) {
 
 // ─── ExerciseSheet — set-by-set tracking ──────────────────────────────────────
 
-function ExerciseSheet({ item, log, onClose, onSave }) {
+function ExerciseSheet({ item, log, lastMaximal, onClose, onSave }) {
   const totalSets    = Math.min(10, Math.max(1, parseInt(String(item.sets ?? 1), 10) || 1));
   const isAlreadyDone = !!log?.completed;
   const illustrationId = resolveIllustrationId(item);
@@ -523,6 +523,14 @@ function ExerciseSheet({ item, log, onClose, onSave }) {
                   setSetLoads(next);
                 }}
               />
+              {lastMaximal && (
+                <p className="mt-1.5 text-[11px]" style={{ color: "#666" }}>
+                  Ultima volta:{" "}
+                  {[lastMaximal.loadUsed, lastMaximal.repsDone ? `${lastMaximal.repsDone} reps` : null]
+                    .filter(Boolean)
+                    .join(" · ") || "—"}
+                </p>
+              )}
             </label>
 
             {!intraRest && (
@@ -867,7 +875,8 @@ export default function WorkoutPath() {
     queryFn:  () => apiFetch("/api/client/active-workout"),
   });
 
-  const workout    = workoutQuery.data?.workout;
+  const workout              = workoutQuery.data?.workout;
+  const lastMaximalByItemId  = workoutQuery.data?.lastMaximalByItemId ?? {};
   const activeDay  = useMemo(() => {
     if (!workout?.days?.length) return null;
     return workout.days.find((d) => d.id === activeDayId) || workout.days[0];
@@ -1181,6 +1190,7 @@ export default function WorkoutPath() {
               <ExerciseSheet
                 item={sheetItem}
                 log={logs[sheetItem.id]}
+                lastMaximal={lastMaximalByItemId[sheetItem.id] ?? null}
                 onClose={() => setSheetItem(null)}
                 onSave={handleSave}
               />

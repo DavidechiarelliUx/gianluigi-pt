@@ -302,7 +302,23 @@ async function activeWorkout(req, res, auth) {
       take: 52,
       include: { itemLogs: true },
     });
-    return res.status(200).json({ ok: true, workout, sessions, access: "granted" });
+
+    // Mappa: workoutItemId → ultimo massimale (sessioni già ordinate dalla più recente)
+    const lastMaximalByItemId = {};
+    for (const session of sessions) {
+      for (const log of session.itemLogs || []) {
+        if (!log.workoutItemId) continue;
+        if ((log.loadUsed || log.repsDone) && !lastMaximalByItemId[log.workoutItemId]) {
+          lastMaximalByItemId[log.workoutItemId] = {
+            loadUsed: log.loadUsed || null,
+            repsDone: log.repsDone || null,
+            date: session.date,
+          };
+        }
+      }
+    }
+
+    return res.status(200).json({ ok: true, workout, sessions, lastMaximalByItemId, access: "granted" });
   } catch (err) {
     console.error("GET /api/client/active-workout:", err);
     return res.status(500).json({ ok: false, error: "Errore interno" });

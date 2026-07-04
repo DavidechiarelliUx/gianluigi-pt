@@ -137,10 +137,12 @@ export default async function handler(req, res) {
   if (req.method === "POST") {
     const body = parseJsonBody(req);
     if (!body) return res.status(400).json({ ok: false, error: "Body non valido" });
-    const { email, fullName, phone, goal, notes } = body || {};
+    const { email, fullName, phone, goal, notes, appAccess } = body || {};
     if (!isEmail(email) || !fullName?.trim()) {
       return res.status(400).json({ ok: false, error: "Email e nome completo sono obbligatori" });
     }
+    // appAccess: true (default) = accesso app attivo, false = accesso disabilitato alla creazione
+    const accessEnabled = appAccess !== false;
 
     try {
       // Controlla se l'email esiste già
@@ -167,6 +169,8 @@ export default async function handler(req, res) {
             phone: phone?.trim() || null,
             goal: goal?.trim() || null,
             notes: notes?.trim() || null,
+            accessDisabledAt: accessEnabled ? null : new Date(),
+            accessDisabledReason: accessEnabled ? null : "Disabilitato alla creazione dal trainer",
           },
         });
         return { user, client };
