@@ -99,22 +99,78 @@ async function workoutTemplates(req, res) {
 }
 
 async function replaceDays(tx, workoutId, days = []) {
-  await tx.workoutDay.deleteMany({ where: { workoutId } });
+  // Leggo la struttura corrente per fare un diff e preservare gli ID degli item esistenti.
+  // Questo è fondamentale per non rompere il collegamento tra WorkoutItemLog storici
+  // e gli esercizi correnti (lastMaximalByItemId usa workoutItemId).
+  const currentDays = await tx.workoutDay.findMany({
+    where: { workoutId },
+    orderBy: { order: "asc" },
+    include: { items: { orderBy: { order: "asc" } } },
+  });
+
   for (const [dayIndex, day] of days.entries()) {
-    await tx.workoutDay.create({
-      data: {
-        workoutId,
-        label: day.label?.trim() || `Giorno ${dayIndex + 1}`,
-        order: dayIndex,
-        items: {
-          create: (day.items || []).map((item, itemIndex) => ({
-            exerciseId: item.exerciseId,
-            ...normalizeWorkoutItemTarget(item),
-            order: itemIndex,
-          })),
+    const currentDay = currentDays[dayIndex];
+
+    if (currentDay) {
+      // Aggiorna label e ordine del giorno esistente
+      await tx.workoutDay.update({
+        where: { id: currentDay.id },
+        data: { label: day.label?.trim() || `Giorno ${dayIndex + 1}`, order: dayIndex },
+      });
+
+      // Diff items: abbina per exerciseId (primo match non ancora usato)
+      const usedIds = new Set();
+      for (const [itemIndex, newItem] of (day.items || []).entries()) {
+        const match = currentDay.items.find(
+          (ci) => ci.exerciseId === newItem.exerciseId && !usedIds.has(ci.id),
+        );
+        if (match) {
+          usedIds.add(match.id);
+          // Update in-place — l'ID del WorkoutItem rimane lo stesso ✓
+          await tx.workoutItem.update({
+            where: { id: match.id },
+            data: { ...normalizeWorkoutItemTarget(newItem), order: itemIndex },
+          });
+        } else {
+          // Nuovo esercizio — crea un nuovo item
+          await tx.workoutItem.create({
+            data: {
+              workoutDayId: currentDay.id,
+              exerciseId: newItem.exerciseId,
+              ...normalizeWorkoutItemTarget(newItem),
+              order: itemIndex,
+            },
+          });
+        }
+      }
+      // Cancella solo gli item rimossi (non quelli aggiornati in-place)
+      const toDelete = currentDay.items.filter((ci) => !usedIds.has(ci.id)).map((ci) => ci.id);
+      if (toDelete.length) {
+        await tx.workoutItem.deleteMany({ where: { id: { in: toDelete } } });
+      }
+    } else {
+      // Giorno completamente nuovo
+      await tx.workoutDay.create({
+        data: {
+          workoutId,
+          label: day.label?.trim() || `Giorno ${dayIndex + 1}`,
+          order: dayIndex,
+          items: {
+            create: (day.items || []).map((item, itemIndex) => ({
+              exerciseId: item.exerciseId,
+              ...normalizeWorkoutItemTarget(item),
+              order: itemIndex,
+            })),
+          },
         },
-      },
-    });
+      });
+    }
+  }
+
+  // Cancella i giorni in eccesso (se il numero di giorni è diminuito)
+  if (currentDays.length > days.length) {
+    const excessIds = currentDays.slice(days.length).map((d) => d.id);
+    await tx.workoutDay.deleteMany({ where: { id: { in: excessIds } } });
   }
 }
 
