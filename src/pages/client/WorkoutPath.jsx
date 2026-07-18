@@ -983,14 +983,16 @@ export default function WorkoutPath() {
   );
   const pct = items.length ? Math.round((doneCount / items.length) * 100) : 0;
 
-  const alreadyTrainedToday = useMemo(() => {
+  const alreadyTrainedThisWeek = useMemo(() => {
     const sessions = workoutQuery.data?.sessions ?? [];
     if (!sessions.length) return false;
-    const todayTs = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); })();
-    return sessions.some((s) => {
-      const d = new Date(s.date); d.setHours(0, 0, 0, 0);
-      return d.getTime() === todayTs;
-    });
+    // Lunedì della settimana corrente alle 00:00:00
+    const now = new Date();
+    const daysFromMonday = now.getDay() === 0 ? 6 : now.getDay() - 1;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - daysFromMonday);
+    monday.setHours(0, 0, 0, 0);
+    return sessions.some((s) => new Date(s.date) >= monday);
   }, [workoutQuery.data?.sessions]);
 
   const nodeStatus = useCallback(
@@ -1207,14 +1209,14 @@ export default function WorkoutPath() {
         </div>
 
         {/* "Già allenato oggi" banner */}
-        {alreadyTrainedToday && (
+        {alreadyTrainedThisWeek && (
           <motion.div
             initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
             className="rounded-xl px-4 py-3"
             style={{ background: "rgba(57,255,20,0.07)", border: "1px solid rgba(57,255,20,0.25)" }}
           >
             <p className="flex items-center gap-2 text-sm font-semibold" style={{ color: "#39FF14" }}>
-              <CheckCircle2 size={15} /> Hai già completato l&apos;allenamento di oggi!
+              <CheckCircle2 size={15} /> Hai già completato questo allenamento questa settimana!
             </p>
             <p className="mt-0.5 text-xs text-text-muted">
               Puoi comunque aggiungere un&apos;altra sessione o modificare i dati.
