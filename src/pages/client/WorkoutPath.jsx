@@ -84,6 +84,14 @@ function resolveMuscleGroup(item) {
   return item.exercise.muscleGroup || getExerciseMuscleGroup(item.exercise.name);
 }
 
+// Rileva durata (in secondi) dall'eventuale stringa di reps: "60s", "5 min" ecc.
+function parseExerciseDuration(repsStr) {
+  const m = /(\d+)\s*(s\b|sec|min|minuti|m\b)/i.exec(String(repsStr || ""));
+  if (!m) return null;
+  const v = parseInt(m[1]);
+  return /min|m$/i.test(m[2]) ? v * 60 : v;
+}
+
 // ─── GymBackground ────────────────────────────────────────────────────────────
 
 function GymBackground() {
@@ -171,8 +179,9 @@ function ExerciseNode({ item, index, status, onClick, nodeRef }) {
   const { bg, color } = muscleGroup ? getMuscleGroupColor(muscleGroup) : { bg: "rgba(255,255,255,0.05)", color: "#555" };
 
   const textColor =
-    status === "done"   ? "#39FF14"
-    : status === "active" ? "#ffffff"
+    status === "done"    ? "#39FF14"
+    : status === "skipped" ? "#555"
+    : status === "active"  ? "#ffffff"
     : "#2e2e2e";
 
   const subColor = status === "locked" ? "#1e1e1e" : "#555";
@@ -247,6 +256,15 @@ function ExerciseNode({ item, index, status, onClick, nodeRef }) {
               <Lock size={20} color="#252525" />
             </div>
           )}
+
+          {status === "skipped" && (
+            <div
+              className="flex h-16 w-16 items-center justify-center rounded-full border"
+              style={{ background: "#111", borderColor: "#2a2a2a", opacity: 0.6 }}
+            >
+              <SkipForward size={20} color="#444" />
+            </div>
+          )}
         </button>
 
         {/* ── Text label ── */}
@@ -277,25 +295,32 @@ function ExerciseNode({ item, index, status, onClick, nodeRef }) {
 
 // ─── Full-screen rest timer ────────────────────────────────────────────────────
 
+// Singleton AudioContext — creato al primo tap (iOS richiede user gesture)
+let _audioCtx = null;
+function getAudioCtx() {
+  if (!_audioCtx) {
+    try { _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch { return null; }
+  }
+  if (_audioCtx.state === "suspended") { _audioCtx.resume().catch(() => {}); }
+  return _audioCtx;
+}
+
 function playTimerEndSound() {
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const beep = (freq, start, duration) => {
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    const beep = (freq, start, dur) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.frequency.value = freq;
-      osc.type = "sine";
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = freq; osc.type = "sine";
       gain.gain.setValueAtTime(0, ctx.currentTime + start);
       gain.gain.linearRampToValueAtTime(0.45, ctx.currentTime + start + 0.01);
-      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + start + duration);
+      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + start + dur);
       osc.start(ctx.currentTime + start);
-      osc.stop(ctx.currentTime + start + duration + 0.05);
+      osc.stop(ctx.currentTime + start + dur + 0.05);
     };
-    beep(880, 0, 0.15);
-    beep(880, 0.2, 0.15);
-    beep(1100, 0.4, 0.3);
+    beep(880, 0, 0.15); beep(880, 0.2, 0.15); beep(1100, 0.4, 0.3);
   } catch { /* browser senza AudioContext */ }
 }
 
@@ -382,9 +407,71 @@ function RestTimer({ initialSeconds, nextExerciseName, onSkip, onDone }) {
   );
 }
 
+// ─── ExerciseSetTimer — countdown inline per esercizi a tempo ─────────────────
+
+function ExerciseSetTimer({ totalSeconds, onComplete }) {
+  const [remaining, setRemaining] = useState(totalSeconds);
+  const [running, setRunning] = useState(false);
+  const intRef = useRef(null);
+
+  useEffect(() => {
+    if (!running) return;
+    intRef.current = setInterval(() => {
+      setRemaining((r) => {
+        if (r <= 1) {
+          clearInterval(intRef.current);
+          setRunning(false);
+          onComplete?.(totalSeconds);
+          playTimerEndSound();
+          return 0;
+        }
+        return r - 1;
+      });
+    }, 1000);
+    return () => clearInterval(intRef.current);
+  }, [running, totalSeconds, onComplete]);
+
+  const pct = (remaining / totalSeconds) * 100;
+
+  return (
+    <div
+      className="rounded-xl p-4 text-center space-y-3"
+      style={{ background: "#0d0d0d", border: "1px solid #1a1a1a" }}
+    >
+      <div className="font-display text-4xl font-black tabular-nums" style={{ color: "#39FF14" }}>
+        {formatSeconds(remaining)}
+      </div>
+      <div className="h-1.5 overflow-hidden rounded-full" style={{ background: "#1a1a1a" }}>
+        <div
+          className="h-full rounded-full"
+          style={{ background: "#39FF14", width: `${pct}%`, transition: "width 1s linear" }}
+        />
+      </div>
+      <div className="flex justify-center gap-2">
+        <button
+          type="button"
+          onClick={() => { clearInterval(intRef.current); setRemaining(totalSeconds); setRunning(false); }}
+          className="rounded-lg px-3 py-1.5 text-xs font-bold"
+          style={{ background: "#1a1a1a", color: "#555" }}
+        >
+          Reset
+        </button>
+        <button
+          type="button"
+          onClick={() => setRunning((r) => !r)}
+          className="rounded-lg px-6 py-1.5 text-sm font-bold"
+          style={{ background: running ? "#333" : "#39FF14", color: running ? "#aaa" : "#000" }}
+        >
+          {running ? "Pausa" : remaining < totalSeconds ? "Riprendi" : "Avvia"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── ExerciseSheet — set-by-set tracking ──────────────────────────────────────
 
-function ExerciseSheet({ item, log, lastMaximal, onClose, onSave }) {
+function ExerciseSheet({ item, log, lastMaximal, onClose, onSave, onSkip }) {
   const totalSets    = Math.min(10, Math.max(1, parseInt(String(item.sets ?? 1), 10) || 1));
   const isAlreadyDone = !!log?.completed;
   const illustrationId = resolveIllustrationId(item);
@@ -399,6 +486,11 @@ function ExerciseSheet({ item, log, lastMaximal, onClose, onSave }) {
   const [editLoad, setEditLoad] = useState(log?.loadUsed ?? "");
   const [rpe, setRpe]           = useState(log?.rpe ?? "");
   const [notes, setNotes]       = useState(log?.notes ?? "");
+
+  // Tipo carico: "kg" | "min" | "body"
+  const defaultLoadType = parseExerciseDuration(item.reps) !== null ? "min" : "kg";
+  const [loadType, setLoadType] = useState(defaultLoadType);
+  const exerciseDuration = parseExerciseDuration(item.reps); // secondi, null se non a tempo
 
   const restTotal = item.restSeconds || 60;
 
@@ -421,8 +513,12 @@ function ExerciseSheet({ item, log, lastMaximal, onClose, onSave }) {
     } else {
       const all = [...setLoads];
       all[activeSetIdx] = setLoads[activeSetIdx];
-      const nonEmpty = all.filter(Boolean);
-      setEditLoad(nonEmpty.join(" / "));
+      const suffix = loadType === "kg" ? " kg" : loadType === "min" ? " min" : "";
+      const formatted = all.map((v) => {
+        if (!v) return loadType === "body" ? "corpo libero" : "";
+        return `${v}${suffix}`;
+      });
+      setEditLoad(formatted.filter(Boolean).join(" / ") || (loadType === "body" ? "corpo libero" : ""));
       setPhase("summary");
     }
   };
@@ -539,20 +635,69 @@ function ExerciseSheet({ item, log, lastMaximal, onClose, onSave }) {
               </div>
             )}
 
-            <label className="block">
-              <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide" style={{ color: "#888" }}>
-                {target.type === "time" ? "Intensita / note" : "Carico"} — {target.setWord[0].toUpperCase() + target.setWord.slice(1)} {activeSetIdx + 1}
-              </span>
-              <Input
-                inputMode="text"
-                placeholder="es. 60kg · elastico · corpo libero"
-                value={setLoads[activeSetIdx]}
-                onChange={(e) => {
-                  const next = [...setLoads];
-                  next[activeSetIdx] = e.target.value;
-                  setSetLoads(next);
-                }}
-              />
+            <div className="space-y-3">
+              {/* ── Tipo carico ── */}
+              <div>
+                <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide" style={{ color: "#888" }}>
+                  Tipo carico — {target.setWord[0].toUpperCase() + target.setWord.slice(1)} {activeSetIdx + 1}
+                </span>
+                <div className="flex gap-1 rounded-xl p-1" style={{ background: "#111", border: "1px solid #1a1a1a" }}>
+                  {[["kg", "⚖️ Peso"], ["min", "⏱ Minuti"], ["body", "— Corpo"]].map(([type, label]) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setLoadType(type)}
+                      className="flex-1 rounded-lg py-2 text-xs font-bold transition-all"
+                      style={{
+                        background: loadType === type ? "#39FF14" : "transparent",
+                        color: loadType === type ? "#000" : "#555",
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* ── Timer inline per esercizi a tempo ── */}
+              {loadType === "min" && exerciseDuration && (
+                <ExerciseSetTimer
+                  totalSeconds={exerciseDuration}
+                  onComplete={(secs) => {
+                    const mins = Math.round(secs / 60 * 10) / 10;
+                    const next = [...setLoads];
+                    next[activeSetIdx] = String(mins);
+                    setSetLoads(next);
+                  }}
+                />
+              )}
+
+              {/* ── Input numerico (nascosto per corpo libero) ── */}
+              {loadType !== "body" && (
+                <label className="block">
+                  <div className="flex gap-2 items-center">
+                    <Input
+                      inputMode="decimal"
+                      placeholder={loadType === "min" ? "es. 3" : "es. 60"}
+                      value={setLoads[activeSetIdx]}
+                      onChange={(e) => {
+                        const next = [...setLoads];
+                        next[activeSetIdx] = e.target.value;
+                        setSetLoads(next);
+                      }}
+                      className="flex-1"
+                    />
+                    <span className="shrink-0 text-sm font-bold" style={{ color: "#555" }}>
+                      {loadType === "min" ? "min" : "kg"}
+                    </span>
+                  </div>
+                </label>
+              )}
+              {loadType === "body" && (
+                <div className="rounded-lg px-3 py-2.5 text-sm font-semibold text-center" style={{ background: "#111", color: "#555" }}>
+                  Corpo libero / nessun carico
+                </div>
+              )}
               {lastMaximal && (
                 <div className="mt-2 space-y-1.5">
                   {/* Ultima rip badge */}
@@ -600,20 +745,32 @@ function ExerciseSheet({ item, log, lastMaximal, onClose, onSave }) {
               {/* Note trainer */}
               {item.notes && (
                 <div
-                  className="mt-2 rounded-lg px-3 py-2 text-[11px] leading-relaxed"
+                  className="rounded-lg px-3 py-2 text-[11px] leading-relaxed"
                   style={{ background: "rgba(57,255,20,0.05)", border: "1px solid rgba(57,255,20,0.2)", color: "#aaa" }}
                 >
                   <span className="font-semibold" style={{ color: "#39FF14" }}>💬 Trainer: </span>
                   {item.notes}
                 </div>
               )}
-            </label>
+            </div>
 
             {!intraRest && (
               <Button className="w-full" onClick={handleSetDone}>
                 <CheckCircle2 size={18} />
                 {isLastSet ? `Ultimo ${target.setWord} — Completa` : `${target.setWord[0].toUpperCase() + target.setWord.slice(1)} ${activeSetIdx + 1} completato`}
               </Button>
+            )}
+
+            {/* Salta esercizio */}
+            {onSkip && !intraRest && (
+              <button
+                type="button"
+                onClick={() => onSkip(item)}
+                className="w-full text-center text-xs font-semibold py-1"
+                style={{ color: "#444" }}
+              >
+                ↩ Salta esercizio
+              </button>
             )}
           </div>
         )}
@@ -997,6 +1154,7 @@ export default function WorkoutPath() {
 
   const nodeStatus = useCallback(
     (item, idx) => {
+      if (logs[item.id]?.skipped) return "skipped";
       if (logs[item.id]?.completed) return "done";
       const prevDone = idx === 0 || logs[items[idx - 1]?.id]?.completed;
       return prevDone ? "active" : "locked";
@@ -1034,6 +1192,20 @@ export default function WorkoutPath() {
     [items, updateLog, toast]
   );
 
+  const handleSkip = useCallback(
+    (item) => {
+      updateLog(item.id, { completed: true, skipped: true, loadUsed: null, rpe: null });
+      setSheetItem(null);
+      toast({ type: "info", title: "Esercizio saltato" });
+      const idx    = items.findIndex((i) => i.id === item.id);
+      const isLast = idx === items.length - 1;
+      if (isLast) {
+        setTimeout(() => dispatchSession({ type: "SET_PHASE", value: "done" }), 400);
+      }
+    },
+    [items, updateLog, toast]
+  );
+
   const handleRestDone = useCallback(() => {
     const nextItemId = restConfig?.nextItemId;
     setRestConfig(null);
@@ -1063,10 +1235,11 @@ export default function WorkoutPath() {
           workoutId:    workout.id,
           workoutDayId: activeDay.id,
           feedbackNotes,
-          logs: items.map((item) => ({
-            workoutItemId: item.id,
-            ...(logs[item.id] || {}),
-          })),
+          logs: items.map((item) => {
+            const log = logs[item.id] || {};
+            if (log.skipped) return { workoutItemId: item.id, completed: false, loadUsed: null, rpe: null };
+            return { workoutItemId: item.id, ...log };
+          }),
         },
       }),
     onSuccess: async () => {
@@ -1271,6 +1444,7 @@ export default function WorkoutPath() {
                 lastMaximal={lastMaximalByItemId[sheetItem.id] ?? null}
                 onClose={() => setSheetItem(null)}
                 onSave={handleSave}
+                onSkip={handleSkip}
               />
             </>
           )}

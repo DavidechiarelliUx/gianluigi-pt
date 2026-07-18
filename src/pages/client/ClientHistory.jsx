@@ -304,13 +304,27 @@ export default function ClientHistory() {
   const { toast } = useToast();
   const [metricForm, setMetricForm] = useState(emptyMetric);
   const [checkinOpen, setCheckinOpen] = useState(false);
+  const [selectedDayId, setSelectedDayId] = useState(null); // null = "Tutti"
+
 
   const workoutQuery  = useQuery({ queryKey: ["client", "active-workout"], queryFn: () => apiFetch("/api/client/active-workout") });
   const progressQuery = useQuery({ queryKey: ["client", "progress"],        queryFn: () => apiFetch("/api/client/progress") });
   const metricsQuery  = useQuery({ queryKey: ["client", "metrics"],         queryFn: () => apiFetch("/api/client/metrics") });
 
   const sessions  = useMemo(() => workoutQuery.data?.sessions  || [], [workoutQuery.data]);
-  const exercises = useMemo(() => progressQuery.data?.exercises || [], [progressQuery.data]);
+  const allExercises = useMemo(() => progressQuery.data?.exercises || [], [progressQuery.data]);
+
+  // Giorni della scheda attiva per i tab filtro
+  const workoutDays = useMemo(() => workoutQuery.data?.workout?.days || [], [workoutQuery.data]);
+
+  // Esercizi filtrati per il giorno selezionato
+  const exercises = useMemo(() => {
+    if (!selectedDayId) return allExercises;
+    const day = workoutDays.find((d) => d.id === selectedDayId);
+    if (!day) return allExercises;
+    const namesInDay = new Set(day.items.map((it) => it.exercise?.name).filter(Boolean));
+    return allExercises.filter((e) => namesInDay.has(e.name));
+  }, [allExercises, workoutDays, selectedDayId]);
   const metrics   = metricsQuery.data?.metrics   || [];
   const latestMetric = metrics[0];
 
@@ -389,6 +403,37 @@ export default function ClientHistory() {
             Progressi esercizi
           </h2>
         </div>
+
+        {/* Day filter tabs */}
+        {workoutDays.length > 1 && (
+          <div className="flex gap-1.5 overflow-x-auto pb-1 hide-scrollbar">
+            <button
+              onClick={() => setSelectedDayId(null)}
+              className="shrink-0 rounded-full px-3 py-1.5 text-[11px] font-bold whitespace-nowrap"
+              style={{
+                background: !selectedDayId ? "#39FF14" : "#111",
+                color: !selectedDayId ? "#000" : "#555",
+                border: !selectedDayId ? "none" : "1px solid #1e1e1e",
+              }}
+            >
+              Tutti
+            </button>
+            {workoutDays.map((day) => (
+              <button
+                key={day.id}
+                onClick={() => setSelectedDayId(day.id)}
+                className="shrink-0 rounded-full px-3 py-1.5 text-[11px] font-bold whitespace-nowrap"
+                style={{
+                  background: selectedDayId === day.id ? "#39FF14" : "#111",
+                  color: selectedDayId === day.id ? "#000" : "#555",
+                  border: selectedDayId === day.id ? "none" : "1px solid #1e1e1e",
+                }}
+              >
+                {day.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {exercises.length ? (
           <div className="space-y-2">
