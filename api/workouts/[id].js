@@ -201,14 +201,16 @@ export default async function handler(req, res) {
       const current = await prisma.workout.findUnique({ where: { id } });
       if (!current) return res.status(404).json({ ok: false, error: "Scheda non trovata" });
 
-      const workout = await prisma.$transaction(async (tx) => {
+      // Transazione breve: solo le 2 query atomiche (status + update workout).
+      // replaceDays viene eseguito FUORI dalla transaction perché fa molte
+      // query sequenziali e supererebbe il timeout di 5 s su Neon→Vercel.
+      await prisma.$transaction(async (tx) => {
         if (status === "active") {
           await tx.workout.updateMany({
             where: { clientId: current.clientId, status: "active", NOT: { id } },
             data: { status: "archived", archivedAt: new Date() },
           });
         }
-
         await tx.workout.update({
           where: { id },
           data: {
@@ -219,11 +221,12 @@ export default async function handler(req, res) {
               status === "archived" ? new Date() : status === "active" ? null : current.archivedAt,
           },
         });
-
-        if (Array.isArray(days)) await replaceDays(tx, id, days);
-        return tx.workout.findUnique({ where: { id }, include: includeWorkout });
       });
 
+      // Aggiorna i giorni/esercizi fuori dalla transaction
+      if (Array.isArray(days)) await replaceDays(prisma, id, days);
+
+      const workout = await prisma.workout.findUnique({ where: { id }, include: includeWorkout });
       return res.status(200).json({ ok: true, workout });
     } catch (err) {
       console.error("PUT /api/workouts/[id]:", err);
