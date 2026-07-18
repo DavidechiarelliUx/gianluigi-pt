@@ -295,13 +295,29 @@ function ExerciseNode({ item, index, status, onClick, nodeRef }) {
 
 // ─── Full-screen rest timer ────────────────────────────────────────────────────
 
-// Singleton AudioContext — creato al primo tap (iOS richiede user gesture)
+// Singleton AudioContext — va sbloccato durante un gesto utente (requisito iOS)
 let _audioCtx = null;
-function getAudioCtx() {
-  if (!_audioCtx) {
-    try { _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch { return null; }
+
+function unlockAudio() {
+  if (_audioCtx) {
+    if (_audioCtx.state === "suspended") _audioCtx.resume().catch(() => {});
+    return;
   }
-  if (_audioCtx.state === "suspended") { _audioCtx.resume().catch(() => {}); }
+  try {
+    _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    // Riproduce buffer silenzioso per sbloccare il contesto su iOS
+    const buf = _audioCtx.createBuffer(1, 1, 22050);
+    const src = _audioCtx.createBufferSource();
+    src.buffer = buf;
+    src.connect(_audioCtx.destination);
+    src.start(0);
+    if (_audioCtx.state === "suspended") _audioCtx.resume().catch(() => {});
+  } catch { /* browser senza AudioContext */ }
+}
+
+function getAudioCtx() {
+  if (!_audioCtx) return null; // non ancora sbloccato
+  if (_audioCtx.state === "suspended") _audioCtx.resume().catch(() => {});
   return _audioCtx;
 }
 
@@ -861,6 +877,34 @@ function ExerciseSheet({ item, log, lastMaximal, onClose, onSave, onSkip }) {
               <p className="text-xs text-text-muted">Esercizio già completato — modifica se necessario</p>
             </div>
 
+            {/* Badge sessione precedente (stessa logica della fase sets) */}
+            {lastMaximal && (
+              <div className="space-y-1.5">
+                {(lastMaximal.loadUsed || lastMaximal.repsDone) && (
+                  <span
+                    className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide"
+                    style={{ background: "rgba(57,255,20,0.15)", border: "1px solid rgba(57,255,20,0.5)", color: "#39FF14", boxShadow: "0 0 8px rgba(57,255,20,0.2)" }}
+                  >
+                    ⚡ Ultima rip:{" "}
+                    {[lastMaximal.loadUsed, lastMaximal.repsDone ? `${lastMaximal.repsDone} reps` : null].filter(Boolean).join(" · ")}
+                  </span>
+                )}
+                {lastMaximal.perceivedDifficulty && (
+                  <span
+                    className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide"
+                    style={{ background: "rgba(255,165,0,0.12)", border: "1px solid rgba(255,165,0,0.35)", color: "#FFA500" }}
+                  >
+                    🔥 Sforzo: {lastMaximal.perceivedDifficulty}/10
+                  </span>
+                )}
+                {lastMaximal.notes && (
+                  <div className="rounded-lg px-3 py-2 text-[11px] leading-relaxed" style={{ background: "#111", border: "1px solid #222", color: "#aaa" }}>
+                    <span className="font-semibold" style={{ color: "#666" }}>📝 Nota prec.: </span>{lastMaximal.notes}
+                  </div>
+                )}
+              </div>
+            )}
+
             <label className="block">
               <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide" style={{ color: "#888" }}>
                 Carico usato
@@ -1096,6 +1140,17 @@ export default function WorkoutPath() {
   const [syncReady, setSyncReady] = useState(false);
 
   const nodeRefs = useRef({});
+
+  // Sblocca AudioContext su primo tap (requisito iOS per Web Audio API)
+  useEffect(() => {
+    const unlock = () => unlockAudio();
+    document.addEventListener("touchstart", unlock, { once: true, passive: true });
+    document.addEventListener("click", unlock, { once: true });
+    return () => {
+      document.removeEventListener("touchstart", unlock);
+      document.removeEventListener("click", unlock);
+    };
+  }, []);
 
   // Hide tab bar when sheet or rest timer is active
   useEffect(() => {

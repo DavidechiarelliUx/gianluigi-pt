@@ -158,16 +158,18 @@ async function progress(req, res, auth) {
     }
 
     const exercises = [...byExercise.values()]
-      .map((e) => ({
-        ...e,
-        improvement: e.history.filter((h) => h.loadNumber != null).length >= 2
-          ? e.history.filter((h) => h.loadNumber != null).at(-1).loadNumber -
-            e.history.filter((h) => h.loadNumber != null)[0].loadNumber
-          : null,
-      }))
-      .sort((a, b) => (b.bestLoad || 0) - (a.bestLoad || 0))
-      .slice(0, 8);
+      .map((e) => {
+        const loadHist = e.history.filter((h) => h.loadNumber != null);
+        return {
+          ...e,
+          improvement: loadHist.length >= 2
+            ? loadHist[loadHist.length - 1].loadNumber - loadHist[0].loadNumber
+            : null,
+        };
+      })
+      .sort((a, b) => (b.bestLoad || 0) - (a.bestLoad || 0));
 
+    res.setHeader("Cache-Control", "no-store");
     return res.status(200).json({ ok: true, exercises });
   } catch (err) {
     console.error("GET /api/client/progress:", err);
@@ -296,30 +298,61 @@ async function activeWorkout(req, res, auth) {
         },
       },
     });
-    const sessions = await prisma.workoutSession.findMany({
+    const rawSessions = await prisma.workoutSession.findMany({
       where: { clientId: auth.clientId, status: "completed" },
       orderBy: { date: "desc" },
       take: 52,
-      include: { itemLogs: true },
+      include: {
+        itemLogs: true,
+        // Snapshot del workout per mappare exerciseId → workoutItemId anche dopo modifiche scheda
+        workout: { select: { days: { select: { items: { select: { id: true, exerciseId: true } } } } } },
+      },
     });
 
-    // Mappa: workoutItemId → ultimo massimale (sessioni già ordinate dalla più recente)
+    // Mappa exerciseId → itemId corrente (scheda attiva)
+    const exerciseToCurrentItemId = {};
+    for (const day of workout?.days || []) {
+      for (const item of day.items || []) {
+        if (item.exerciseId) exerciseToCurrentItemId[item.exerciseId] = item.id;
+      }
+    }
+
+    // Mappa storica: vecchio workoutItemId → exerciseId (dal workout della sessione)
+    const histItemToExerciseId = {};
+    for (const s of rawSessions) {
+      for (const day of s.workout?.days || []) {
+        for (const item of day.items || []) {
+          if (item.id && item.exerciseId) histItemToExerciseId[item.id] = item.exerciseId;
+        }
+      }
+    }
+
+    // Mappa: itemId CORRENTE → ultimo massimale (con fallback via exerciseId per schede modificate)
     const lastMaximalByItemId = {};
-    for (const session of sessions) {
-      for (const log of session.itemLogs || []) {
+    for (const s of rawSessions) {
+      for (const log of s.itemLogs || []) {
         if (!log.workoutItemId) continue;
-        if ((log.loadUsed || log.repsDone || log.perceivedDifficulty || log.notes) && !lastMaximalByItemId[log.workoutItemId]) {
-          lastMaximalByItemId[log.workoutItemId] = {
+        if (!(log.loadUsed || log.repsDone || log.perceivedDifficulty || log.notes)) continue;
+        const exerciseId = histItemToExerciseId[log.workoutItemId];
+        const resolvedId = (exerciseId && exerciseToCurrentItemId[exerciseId])
+          ? exerciseToCurrentItemId[exerciseId]
+          : log.workoutItemId;
+        if (!lastMaximalByItemId[resolvedId]) {
+          lastMaximalByItemId[resolvedId] = {
             loadUsed: log.loadUsed || null,
             repsDone: log.repsDone || null,
             perceivedDifficulty: log.perceivedDifficulty || null,
             notes: log.notes || null,
-            date: session.date,
+            date: s.date,
           };
         }
       }
     }
 
+    // Stacca workout dalle sessioni (il client non ne ha bisogno)
+    const sessions = rawSessions.map(({ workout: _w, ...rest }) => rest);
+
+    res.setHeader("Cache-Control", "no-store");
     return res.status(200).json({ ok: true, workout, sessions, lastMaximalByItemId, access: "granted" });
   } catch (err) {
     console.error("GET /api/client/active-workout:", err);

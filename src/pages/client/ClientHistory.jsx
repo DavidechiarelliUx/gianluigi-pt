@@ -89,7 +89,7 @@ function Sparkline({ history }) {
         </linearGradient>
       </defs>
       <polygon
-        points={`${coords[0].x},${H} ${polyline} ${coords.at(-1).x},${H}`}
+        points={`${coords[0].x},${H} ${polyline} ${coords[coords.length - 1].x},${H}`}
         fill="url(#spark-fill)"
       />
       <polyline
@@ -140,8 +140,8 @@ function ExerciseCard({ exercise }) {
   const { bg, color } = mgColor(exercise.muscleGroup);
   const loadPts = exercise.history.filter((h) => h.loadNumber != null);
   const firstLoad = loadPts[0]?.loadUsed ?? null;
-  const lastLoad  = loadPts.at(-1)?.loadUsed ?? exercise.history.at(-1)?.loadUsed ?? null;
-  const lastDate  = exercise.history.at(-1)?.date ?? null;
+  const lastLoad  = (loadPts.length ? loadPts[loadPts.length - 1] : null)?.loadUsed ?? (exercise.history.length ? exercise.history[exercise.history.length - 1] : null)?.loadUsed ?? null;
+  const lastDate  = (exercise.history.length ? exercise.history[exercise.history.length - 1] : null)?.date ?? null;
   const avgRpe    = (() => {
     const rpes = exercise.history.map((h) => h.rpe).filter(Boolean);
     return rpes.length ? (rpes.reduce((s, v) => s + v, 0) / rpes.length).toFixed(1) : null;
