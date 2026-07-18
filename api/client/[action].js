@@ -308,10 +308,12 @@ async function activeWorkout(req, res, auth) {
     for (const session of sessions) {
       for (const log of session.itemLogs || []) {
         if (!log.workoutItemId) continue;
-        if ((log.loadUsed || log.repsDone) && !lastMaximalByItemId[log.workoutItemId]) {
+        if ((log.loadUsed || log.repsDone || log.perceivedDifficulty || log.notes) && !lastMaximalByItemId[log.workoutItemId]) {
           lastMaximalByItemId[log.workoutItemId] = {
             loadUsed: log.loadUsed || null,
             repsDone: log.repsDone || null,
+            perceivedDifficulty: log.perceivedDifficulty || null,
+            notes: log.notes || null,
             date: session.date,
           };
         }

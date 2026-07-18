@@ -277,12 +277,42 @@ function ExerciseNode({ item, index, status, onClick, nodeRef }) {
 
 // ─── Full-screen rest timer ────────────────────────────────────────────────────
 
+function playTimerEndSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const beep = (freq, start, duration) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = freq;
+      osc.type = "sine";
+      gain.gain.setValueAtTime(0, ctx.currentTime + start);
+      gain.gain.linearRampToValueAtTime(0.45, ctx.currentTime + start + 0.01);
+      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + start + duration);
+      osc.start(ctx.currentTime + start);
+      osc.stop(ctx.currentTime + start + duration + 0.05);
+    };
+    beep(880, 0, 0.15);
+    beep(880, 0.2, 0.15);
+    beep(1100, 0.4, 0.3);
+  } catch { /* browser senza AudioContext */ }
+}
+
 function RestTimer({ initialSeconds, nextExerciseName, onSkip, onDone }) {
   const [remaining, setRemaining] = useState(initialSeconds);
   const [total, setTotal]         = useState(initialSeconds);
+  const doneCalledRef             = useRef(false);
 
   useEffect(() => {
-    if (remaining <= 0) { onDone(); return; }
+    if (remaining <= 0) {
+      if (!doneCalledRef.current) {
+        doneCalledRef.current = true;
+        playTimerEndSound();
+        setTimeout(onDone, 600);
+      }
+      return;
+    }
     const t = setTimeout(() => setRemaining((r) => r - 1), 1000);
     return () => clearTimeout(t);
   }, [remaining, onDone]);
@@ -524,21 +554,57 @@ function ExerciseSheet({ item, log, lastMaximal, onClose, onSave }) {
                 }}
               />
               {lastMaximal && (
-                <div className="mt-2">
-                  <span
-                    className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide"
-                    style={{
-                      background: "rgba(57,255,20,0.15)",
-                      border: "1px solid rgba(57,255,20,0.5)",
-                      color: "#39FF14",
-                      boxShadow: "0 0 8px rgba(57,255,20,0.2)",
-                    }}
-                  >
-                    ⚡ Ultima rip:{" "}
-                    {[lastMaximal.loadUsed, lastMaximal.repsDone ? `${lastMaximal.repsDone} reps` : null]
-                      .filter(Boolean)
-                      .join(" · ") || "—"}
-                  </span>
+                <div className="mt-2 space-y-1.5">
+                  {/* Ultima rip badge */}
+                  {(lastMaximal.loadUsed || lastMaximal.repsDone) && (
+                    <span
+                      className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide"
+                      style={{
+                        background: "rgba(57,255,20,0.15)",
+                        border: "1px solid rgba(57,255,20,0.5)",
+                        color: "#39FF14",
+                        boxShadow: "0 0 8px rgba(57,255,20,0.2)",
+                      }}
+                    >
+                      ⚡ Ultima rip:{" "}
+                      {[lastMaximal.loadUsed, lastMaximal.repsDone ? `${lastMaximal.repsDone} reps` : null]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
+                  )}
+                  {/* RPE percepito */}
+                  {lastMaximal.perceivedDifficulty && (
+                    <span
+                      className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide"
+                      style={{
+                        background: "rgba(255,165,0,0.12)",
+                        border: "1px solid rgba(255,165,0,0.35)",
+                        color: "#FFA500",
+                      }}
+                    >
+                      🔥 Sforzo percepito: {lastMaximal.perceivedDifficulty}/10
+                    </span>
+                  )}
+                  {/* Note cliente */}
+                  {lastMaximal.notes && (
+                    <div
+                      className="rounded-lg px-3 py-2 text-[11px] leading-relaxed"
+                      style={{ background: "#111", border: "1px solid #222", color: "#aaa" }}
+                    >
+                      <span className="font-semibold" style={{ color: "#666" }}>📝 Tua nota: </span>
+                      {lastMaximal.notes}
+                    </div>
+                  )}
+                </div>
+              )}
+              {/* Note trainer */}
+              {item.notes && (
+                <div
+                  className="mt-2 rounded-lg px-3 py-2 text-[11px] leading-relaxed"
+                  style={{ background: "rgba(57,255,20,0.05)", border: "1px solid rgba(57,255,20,0.2)", color: "#aaa" }}
+                >
+                  <span className="font-semibold" style={{ color: "#39FF14" }}>💬 Trainer: </span>
+                  {item.notes}
                 </div>
               )}
             </label>
