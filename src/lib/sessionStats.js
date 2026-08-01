@@ -41,15 +41,43 @@ function trainedDaysByWeek(sessions) {
 }
 
 /**
- * Settimane consecutive in cui sono stati allenati almeno `expectedDays`
- * giorni distinti. La settimana in corso non puo' rompere lo streak: se non
- * e' ancora completa il conteggio riparte dalla settimana precedente.
+ * Obiettivo settimanale in vigore in ogni settimana, letto da `planDays` delle
+ * sessioni di quella settimana. Senza questo, passare da una scheda da 3 giorni
+ * a una da 4 renderebbe "incomplete" a posteriori tutte le settimane gia'
+ * chiuse, azzerando uno streak guadagnato sul campo.
+ *
+ * Se la scheda cambia a meta' settimana vale l'obiettivo piu' basso: il cliente
+ * non puo' essere penalizzato per una sostituzione decisa dal trainer.
+ */
+function weeklyTargets(sessions) {
+  const targets = new Map();
+  for (const session of sessions) {
+    const planDays = Number(session.planDays);
+    if (!Number.isFinite(planDays) || planDays < 1) continue;
+    const week = weekKey(session.date);
+    const current = targets.get(week);
+    if (current === undefined || planDays < current) targets.set(week, planDays);
+  }
+  return targets;
+}
+
+/**
+ * Settimane consecutive in cui sono stati allenati tutti i giorni previsti
+ * dalla scheda di quella settimana. La settimana in corso non puo' rompere lo
+ * streak: se non e' ancora completa il conteggio riparte da quella precedente.
+ *
+ * `expectedDays` e' il fallback per le settimane senza `planDays` (dati vecchi):
+ * di norma i giorni della scheda attiva.
  */
 export function calcWeeklyStreak(sessions, expectedDays = 1) {
   if (!sessions?.length) return 0;
-  const target = Math.max(1, Number(expectedDays) || 1);
+  const fallback = Math.max(1, Number(expectedDays) || 1);
   const byWeek = trainedDaysByWeek(sessions);
-  const isComplete = (week) => (byWeek.get(week)?.size || 0) >= target;
+  const targets = weeklyTargets(sessions);
+  const isComplete = (week) => {
+    const trained = byWeek.get(week)?.size || 0;
+    return trained > 0 && trained >= (targets.get(week) ?? fallback);
+  };
 
   const currentWeek = weekKey(new Date());
   let streak = isComplete(currentWeek) ? 1 : 0;

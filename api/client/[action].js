@@ -349,8 +349,13 @@ async function activeWorkout(req, res, auth) {
       }
     }
 
-    // Stacca workout dalle sessioni (il client non ne ha bisogno)
-    const sessions = rawSessions.map(({ workout: _w, ...rest }) => rest);
+    // Stacca workout dalle sessioni (il client non ne ha bisogno), ma conserva
+    // quanti giorni aveva la scheda usata: serve alla streak per valutare ogni
+    // settimana con l'obiettivo in vigore allora, non con quello di oggi.
+    const sessions = rawSessions.map(({ workout: w, ...rest }) => ({
+      ...rest,
+      planDays: w?.days?.length ?? null,
+    }));
 
     res.setHeader("Cache-Control", "no-store");
     return res.status(200).json({ ok: true, workout, sessions, lastMaximalByItemId, access: "granted" });
