@@ -250,6 +250,12 @@ async function messages(req, res) {
 
 // ─── GET /api/admin/subscription-expiring ────────────────────────────────────
 
+/** Ordinamento per "accesso che vale di piu'": senza scadenza > scadenza piu' lontana. */
+function subscriptionRank(sub) {
+  if (!sub.currentPeriodEnd) return Number.MAX_SAFE_INTEGER;
+  return new Date(sub.currentPeriodEnd).getTime();
+}
+
 async function subscriptionExpiring(req, res) {
   if (req.method !== "GET") return methodNotAllowed(res, ["GET"]);
 
@@ -275,7 +281,22 @@ async function subscriptionExpiring(req, res) {
       // Subscription table not yet migrated — return empty array
     }
 
-    return res.status(200).json({ ok: true, subscriptions });
+    // Un cliente che rinnova si ritrova con piu' righe attive (la vecchia scaduta
+    // + quella nuova): in panoramica va mostrato una volta sola, con l'accesso
+    // che vale davvero, cioe' quello che scade piu' tardi.
+    const latestByUser = new Map();
+    for (const sub of subscriptions) {
+      const key = sub.userId;
+      const current = latestByUser.get(key);
+      if (!current || subscriptionRank(sub) > subscriptionRank(current)) {
+        latestByUser.set(key, sub);
+      }
+    }
+    const deduped = [...latestByUser.values()].sort(
+      (a, b) => subscriptionRank(a) - subscriptionRank(b)
+    );
+
+    return res.status(200).json({ ok: true, subscriptions: deduped });
   } catch (err) {
     console.error("GET /api/admin/subscription-expiring:", err);
     return res.status(500).json({ ok: false, error: "Errore interno" });

@@ -19,6 +19,7 @@ import { Card } from "../../components/ui/Card";
 import { EmptyState } from "../../components/app";
 import { useAuth } from "../../hooks/useAuth";
 import { apiFetch } from "../../lib/api";
+import { calcWeeklyStreak, isCountedSession } from "../../lib/sessionStats";
 
 // ─── Utilities ───────────────────────────────────────────────────────────────
 
@@ -28,40 +29,6 @@ function greeting() {
   if (h < 12) return "Buongiorno";
   if (h < 18) return "Buon pomeriggio";
   return "Buonasera";
-}
-
-function isFullSession(session) {
-  const logs = session.itemLogs || [];
-  return logs.length > 0 && logs.every((log) => log.completed);
-}
-
-function weekKey(value) {
-  const d = new Date(value);
-  d.setHours(0, 0, 0, 0);
-  const day = (d.getDay() + 6) % 7;
-  d.setDate(d.getDate() - day);
-  return d.getTime();
-}
-
-function calcStreak(sessions, expectedDays = 1) {
-  if (!sessions.length) return 0;
-  const target = Math.max(1, Number(expectedDays) || 1);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const currentWeek = weekKey(today);
-  const byWeek = new Map();
-  for (const session of sessions) {
-    const key = weekKey(session.date);
-    byWeek.set(key, (byWeek.get(key) || 0) + 1);
-  }
-
-  let streak = 0;
-  for (;;) {
-    const expectedWeek = currentWeek - streak * 7 * 86400000;
-    if ((byWeek.get(expectedWeek) || 0) >= target) streak++;
-    else break;
-  }
-  return streak;
 }
 
 function weekDays(sessions) {
@@ -248,18 +215,27 @@ export default function ClientHome() {
   );
   const nextLive = liveSessions[0];
 
-  const fullSessions = useMemo(() => sessions.filter(isFullSession), [sessions]);
+  // Tutte le sessioni valide (qualsiasi scheda): base per streak e calendario.
+  const doneSessions = useMemo(() => sessions.filter(isCountedSession), [sessions]);
+  // Solo le sessioni svolte con la scheda attualmente attiva.
+  const planSessions = useMemo(
+    () => (workout ? doneSessions.filter((s) => s.workoutId === workout.id) : doneSessions),
+    [doneSessions, workout]
+  );
   const expectedWeekSessions = workout?.days?.length || 1;
-  const streak = useMemo(() => calcStreak(fullSessions, expectedWeekSessions), [fullSessions, expectedWeekSessions]);
-  const week = useMemo(() => weekDays(fullSessions), [fullSessions]);
-  const totalSessions = fullSessions.length;
-  const lastSession = fullSessions[0];
+  const streak = useMemo(
+    () => calcWeeklyStreak(doneSessions, expectedWeekSessions),
+    [doneSessions, expectedWeekSessions]
+  );
+  const week = useMemo(() => weekDays(doneSessions), [doneSessions]);
+  const totalSessions = planSessions.length;
+  const lastSession = doneSessions[0];
   const lastDone = lastSession?.itemLogs?.filter((l) => l.completed).length ?? 0;
   const lastTotal = lastSession?.itemLogs?.length ?? 0;
 
   // Oggi: ci sono sessioni di oggi?
   const todayTs = (() => { const d = new Date(); d.setHours(0,0,0,0); return d.getTime(); })();
-  const trainedToday = fullSessions.some((s) => {
+  const trainedToday = doneSessions.some((s) => {
     const d = new Date(s.date); d.setHours(0,0,0,0);
     return d.getTime() === todayTs;
   });
@@ -331,7 +307,7 @@ export default function ClientHome() {
       >
         {[
           { icon: Flame, value: streak, label: "streak sett." },
-          { icon: Dumbbell, value: totalSessions, label: "sessioni" },
+          { icon: Dumbbell, value: totalSessions, label: "sess. scheda" },
           { icon: TrendingUp, value: workout?.days?.length ?? "—", label: "giorni piano" },
         ].map(({ icon: Icon, value, label }) => (
           <div

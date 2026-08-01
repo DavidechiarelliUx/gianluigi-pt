@@ -8,6 +8,7 @@ import { Textarea } from "../../components/ui/Textarea";
 import { EmptyState } from "../../components/app";
 import { useToast } from "../../hooks/useToast";
 import { apiFetch } from "../../lib/api";
+import { calcWeeklyStreak, isCountedSession } from "../../lib/sessionStats";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -22,29 +23,6 @@ function daysAgo(value) {
   if (diff === 0) return "oggi";
   if (diff === 1) return "ieri";
   return `${diff}gg fa`;
-}
-
-function weekKey(date) {
-  const d = new Date(date);
-  const offset = d.getDay() === 0 ? 6 : d.getDay() - 1;
-  const mon = new Date(d);
-  mon.setDate(d.getDate() - offset);
-  mon.setHours(0, 0, 0, 0);
-  return mon.getTime();
-}
-
-function calcStreak(sessions) {
-  if (!sessions.length) return 0;
-  const weeks = [...new Set(sessions.map((s) => weekKey(s.date)))].sort((a, b) => b - a);
-  const thisWeek = weekKey(new Date());
-  const lastWeek = thisWeek - 7 * 86400000;
-  if (weeks[0] !== thisWeek && weeks[0] !== lastWeek) return 0;
-  let streak = 1;
-  for (let i = 1; i < weeks.length; i++) {
-    if (weeks[i - 1] - weeks[i] === 7 * 86400000) streak++;
-    else break;
-  }
-  return streak;
 }
 
 const MG_COLORS = {
@@ -334,7 +312,11 @@ export default function ClientHistory() {
     return vals.length ? (vals.reduce((s, v) => s + v, 0) / vals.length).toFixed(1) : null;
   }, [sessions]);
 
-  const streak = useMemo(() => calcStreak(sessions), [sessions]);
+  // Stessa formula della Home: settimane consecutive con tutti i giorni della scheda.
+  const streak = useMemo(
+    () => calcWeeklyStreak(sessions.filter(isCountedSession), workoutDays.length || 1),
+    [sessions, workoutDays]
+  );
 
   const bestImprovement = useMemo(() => {
     const exWithImp = exercises.filter((e) => e.improvement != null && e.improvement > 0);

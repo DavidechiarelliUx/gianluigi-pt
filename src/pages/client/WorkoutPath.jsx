@@ -27,6 +27,7 @@ import {
 } from "../../components/exercises/exercise-data";
 import { useToast } from "../../hooks/useToast";
 import { apiFetch } from "../../lib/api";
+import { isCountedSession, weekKey } from "../../lib/sessionStats";
 import { formatWorkoutTarget } from "../../lib/workoutTarget";
 import { useClientLayout } from "./ClientLayoutContext";
 
@@ -1195,17 +1196,22 @@ export default function WorkoutPath() {
   );
   const pct = items.length ? Math.round((doneCount / items.length) * 100) : 0;
 
+  // Vale solo per QUESTO giorno di scheda: allenare il giorno A lunedì non deve
+  // marcare come "già fatto" anche il giorno B. Si azzera il lunedì successivo.
+  const currentWorkoutId = workout?.id;
+  const currentDayId = activeDay?.id;
   const alreadyTrainedThisWeek = useMemo(() => {
     const sessions = workoutQuery.data?.sessions ?? [];
-    if (!sessions.length) return false;
-    // Lunedì della settimana corrente alle 00:00:00
-    const now = new Date();
-    const daysFromMonday = now.getDay() === 0 ? 6 : now.getDay() - 1;
-    const monday = new Date(now);
-    monday.setDate(now.getDate() - daysFromMonday);
-    monday.setHours(0, 0, 0, 0);
-    return sessions.some((s) => new Date(s.date) >= monday);
-  }, [workoutQuery.data?.sessions]);
+    if (!sessions.length || !currentWorkoutId || !currentDayId) return false;
+    const monday = weekKey(new Date());
+    return sessions.some(
+      (s) =>
+        s.workoutId === currentWorkoutId &&
+        s.workoutDayId === currentDayId &&
+        new Date(s.date).getTime() >= monday &&
+        isCountedSession(s)
+    );
+  }, [workoutQuery.data?.sessions, currentWorkoutId, currentDayId]);
 
   const nodeStatus = useCallback(
     (item, idx) => {
