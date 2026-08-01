@@ -147,7 +147,10 @@ async function progress(req, res, auth) {
           byExercise.set(name, { name, muscleGroup: item.exercise.muscleGroup, bestLoad: null, latestLoad: null, completedSessions: 0, history: [] });
         }
         const entry = byExercise.get(name);
-        const loadNumber = parseLoad(log.loadUsed);
+        // Solo i carichi veri entrano nella progressione: i minuti della cyclette
+        // non sono kg, e prima parseLoad() leggeva "10min" come un carico di 10.
+        const unit = log.loadUnit ?? item.loadType;
+        const loadNumber = unit === "weight" ? log.loadValue ?? parseLoad(log.loadUsed) : null;
         if (log.completed) entry.completedSessions += 1;
         if (loadNumber != null) {
           entry.latestLoad = loadNumber;
@@ -305,37 +308,45 @@ async function activeWorkout(req, res, auth) {
       include: {
         itemLogs: true,
         // Snapshot del workout per mappare exerciseId → workoutItemId anche dopo modifiche scheda
-        workout: { select: { days: { select: { items: { select: { id: true, exerciseId: true } } } } } },
+        workout: { select: { days: { select: { items: { select: { id: true, exerciseId: true, loadType: true } } } } } },
       },
     });
 
-    // Mappa exerciseId → itemId corrente (scheda attiva)
+    // Chiave esercizio+tipo di carico: il riscaldamento a corpo libero e la serie
+    // allenante a peso sono lo stesso esercizio ma storie separate, e senza il
+    // tipo la riga di riscaldamento mostrerebbe i kg della serie pesante.
+    const key = (exerciseId, loadType) => `${exerciseId}::${loadType || "weight"}`;
+
     const exerciseToCurrentItemId = {};
     for (const day of workout?.days || []) {
       for (const item of day.items || []) {
-        if (item.exerciseId) exerciseToCurrentItemId[item.exerciseId] = item.id;
+        if (item.exerciseId) exerciseToCurrentItemId[key(item.exerciseId, item.loadType)] = item.id;
       }
     }
 
-    // Mappa storica: vecchio workoutItemId → exerciseId (dal workout della sessione)
-    const histItemToExerciseId = {};
+    // Mappa storica: vecchio workoutItemId → { exerciseId, loadType }.
+    // I log nuovi portano exerciseId denormalizzato e non hanno bisogno di questa.
+    const histItem = {};
     for (const s of rawSessions) {
       for (const day of s.workout?.days || []) {
         for (const item of day.items || []) {
-          if (item.id && item.exerciseId) histItemToExerciseId[item.id] = item.exerciseId;
+          if (item.id && item.exerciseId) histItem[item.id] = { exerciseId: item.exerciseId, loadType: item.loadType };
         }
       }
     }
 
-    // Mappa: itemId CORRENTE → ultimo massimale (con fallback via exerciseId per schede modificate)
+    // Mappa: itemId CORRENTE → ultimo massimale
     const lastMaximalByItemId = {};
     for (const s of rawSessions) {
       for (const log of s.itemLogs || []) {
         if (!log.workoutItemId) continue;
+        if (log.skipped) continue;
         if (!(log.loadUsed || log.repsDone || log.perceivedDifficulty || log.notes)) continue;
-        const exerciseId = histItemToExerciseId[log.workoutItemId];
-        const resolvedId = (exerciseId && exerciseToCurrentItemId[exerciseId])
-          ? exerciseToCurrentItemId[exerciseId]
+        const hist = histItem[log.workoutItemId];
+        const exerciseId = log.exerciseId || hist?.exerciseId;
+        const loadType = log.loadUnit || hist?.loadType;
+        const resolvedId = exerciseId
+          ? exerciseToCurrentItemId[key(exerciseId, loadType)] ?? log.workoutItemId
           : log.workoutItemId;
         if (!lastMaximalByItemId[resolvedId]) {
           lastMaximalByItemId[resolvedId] = {
@@ -352,9 +363,11 @@ async function activeWorkout(req, res, auth) {
     // Stacca workout dalle sessioni (il client non ne ha bisogno), ma conserva
     // quanti giorni aveva la scheda usata: serve alla streak per valutare ogni
     // settimana con l'obiettivo in vigore allora, non con quello di oggi.
+    // planDays e' ora congelato sulla sessione; il conteggio dalla scheda resta
+    // come fallback per le sessioni salvate prima della migration.
     const sessions = rawSessions.map(({ workout: w, ...rest }) => ({
       ...rest,
-      planDays: w?.days?.length ?? null,
+      planDays: rest.planDays ?? w?.days?.length ?? null,
     }));
 
     res.setHeader("Cache-Control", "no-store");
@@ -392,26 +405,37 @@ async function sessions(req, res, auth) {
     });
     if (!workout) return res.status(404).json({ ok: false, error: "Scheda attiva non trovata" });
 
-    const itemIds = new Set(workout.days.flatMap((d) => d.items.map((i) => i.id)));
-    const safeLogs = logs.filter((log) => itemIds.has(log.workoutItemId));
+    // Il tipo di carico e l'esercizio arrivano dalla scheda, non dal client:
+    // il payload non puo' dichiarare di aver fatto un esercizio diverso.
+    const itemById = new Map(workout.days.flatMap((d) => d.items).map((i) => [i.id, i]));
+    const safeLogs = logs.filter((log) => itemById.has(log.workoutItemId));
 
     const session = await prisma.workoutSession.create({
       data: {
         clientId: auth.clientId,
         workoutId,
         workoutDayId,
+        planDays: workout.days.length,
         status: "completed",
         feedbackDifficulty: feedbackDifficulty ? Number(feedbackDifficulty) : null,
         feedbackNotes: feedbackNotes?.trim() || null,
         itemLogs: {
-          create: safeLogs.map((log) => ({
-            workoutItemId: log.workoutItemId,
-            completed: !!log.completed,
-            loadUsed: log.loadUsed?.trim() || null,
-            repsDone: log.repsDone?.trim() || null,
-            perceivedDifficulty: log.rpe ? Number(log.rpe) : null,
-            notes: log.notes?.trim() || null,
-          })),
+          create: safeLogs.map((log) => {
+            const item = itemById.get(log.workoutItemId);
+            const value = Number(String(log.loadValue ?? "").replace(",", "."));
+            return {
+              workoutItemId: log.workoutItemId,
+              exerciseId: item.exerciseId,
+              completed: !!log.completed,
+              skipped: !!log.skipped,
+              loadUsed: log.loadUsed?.trim() || null,
+              loadValue: item.loadType === "body" || !Number.isFinite(value) || value <= 0 ? null : value,
+              loadUnit: item.loadType,
+              repsDone: log.repsDone?.trim() || null,
+              perceivedDifficulty: log.rpe ? Number(log.rpe) : null,
+              notes: log.notes?.trim() || null,
+            };
+          }),
         },
       },
       include: { itemLogs: true },

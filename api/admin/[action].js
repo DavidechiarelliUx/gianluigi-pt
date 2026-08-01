@@ -134,8 +134,8 @@ async function exercises(req, res) {
       EXERCISE_CATALOG.map((exercise) =>
         prisma.exercise.upsert({
           where: { name: exercise.name },
-          update: { muscleGroup: exercise.muscleGroup, defaultNotes: exercise.slug },
-          create: { name: exercise.name, muscleGroup: exercise.muscleGroup, defaultNotes: exercise.slug },
+          update: { muscleGroup: exercise.muscleGroup, defaultNotes: exercise.slug, loadType: exercise.loadType },
+          create: { name: exercise.name, muscleGroup: exercise.muscleGroup, defaultNotes: exercise.slug, loadType: exercise.loadType },
         })
       )
     );

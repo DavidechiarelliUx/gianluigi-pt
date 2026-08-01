@@ -1,4 +1,5 @@
 const COMPOUND_RE = /^\s*(\d+)\s*[x×]\s*(.+?)\s*$/i;
+const LOAD_TYPES = new Set(["weight", "time", "body"]);
 
 export function normalizeWorkoutItemTarget(item = {}) {
   const rawReps = String(item.reps || "8-10").trim();
@@ -10,5 +11,7 @@ export function normalizeWorkoutItemTarget(item = {}) {
     reps,
     restSeconds: item.restSeconds === "" || item.restSeconds == null ? null : Number(item.restSeconds) || null,
     notes: item.notes ? String(item.notes).trim() : null,
+    // Valore libero dal client: se non è uno dei tre ammessi si ricade su 'weight'.
+    loadType: LOAD_TYPES.has(item.loadType) ? item.loadType : "weight",
   };
 }

@@ -121,15 +121,20 @@ async function replaceDays(tx, workoutId, days = []) {
       // Diff items: abbina per exerciseId (primo match non ancora usato)
       const usedIds = new Set();
       for (const [itemIndex, newItem] of (day.items || []).entries()) {
-        const match = currentDay.items.find(
-          (ci) => ci.exerciseId === newItem.exerciseId && !usedIds.has(ci.id),
-        );
+        // Prima si cerca la corrispondenza esatta esercizio+tipo di carico: senza
+        // questo, "Face pull riscaldamento (corpo)" e "Face pull (peso)" nello
+        // stesso giorno si scambierebbero gli ID, e con essi lo storico.
+        const normalized = normalizeWorkoutItemTarget(newItem);
+        const free = (ci) => !usedIds.has(ci.id) && ci.exerciseId === newItem.exerciseId;
+        const match =
+          currentDay.items.find((ci) => free(ci) && ci.loadType === normalized.loadType) ||
+          currentDay.items.find(free);
         if (match) {
           usedIds.add(match.id);
           // Update in-place — l'ID del WorkoutItem rimane lo stesso ✓
           await tx.workoutItem.update({
             where: { id: match.id },
-            data: { ...normalizeWorkoutItemTarget(newItem), order: itemIndex },
+            data: { ...normalized, order: itemIndex },
           });
         } else {
           // Nuovo esercizio — crea un nuovo item

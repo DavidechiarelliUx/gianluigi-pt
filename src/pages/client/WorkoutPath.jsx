@@ -504,9 +504,9 @@ function ExerciseSheet({ item, log, lastMaximal, onClose, onSave, onSkip }) {
   const [rpe, setRpe]           = useState(log?.rpe ?? "");
   const [notes, setNotes]       = useState(log?.notes ?? "");
 
-  // Tipo carico: "kg" | "min" | "body"
-  const defaultLoadType = parseExerciseDuration(item.reps) !== null ? "min" : "kg";
-  const [loadType, setLoadType] = useState(defaultLoadType);
+  // Tipo carico: deciso dal trainer sulla riga di scheda, il cliente non sceglie.
+  // Il fallback sull'esercizio copre le righe salvate prima della migration.
+  const loadType = item.loadType ?? item.exercise?.loadType ?? "weight";
   const exerciseDuration = parseExerciseDuration(item.reps); // secondi, null se non a tempo
 
   const restTotal = item.restSeconds || 60;
@@ -530,7 +530,7 @@ function ExerciseSheet({ item, log, lastMaximal, onClose, onSave, onSkip }) {
     } else {
       const all = [...setLoads];
       all[activeSetIdx] = setLoads[activeSetIdx];
-      const suffix = loadType === "kg" ? " kg" : loadType === "min" ? " min" : "";
+      const suffix = loadType === "weight" ? " kg" : loadType === "time" ? " min" : "";
       const formatted = all.map((v) => {
         if (!v) return loadType === "body" ? "corpo libero" : "";
         return `${v}${suffix}`;
@@ -653,31 +653,17 @@ function ExerciseSheet({ item, log, lastMaximal, onClose, onSave, onSkip }) {
             )}
 
             <div className="space-y-3">
-              {/* ── Tipo carico ── */}
-              <div>
-                <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide" style={{ color: "#888" }}>
-                  Tipo carico — {target.setWord[0].toUpperCase() + target.setWord.slice(1)} {activeSetIdx + 1}
+              {/* ── Serie in corso ── */}
+              <span className="block text-xs font-semibold uppercase tracking-wide" style={{ color: "#888" }}>
+                {target.setWord[0].toUpperCase() + target.setWord.slice(1)} {activeSetIdx + 1}
+                <span style={{ color: "#555" }}>
+                  {" · "}
+                  {loadType === "time" ? "a tempo" : loadType === "body" ? "corpo libero" : "carico in kg"}
                 </span>
-                <div className="flex gap-1 rounded-xl p-1" style={{ background: "#111", border: "1px solid #1a1a1a" }}>
-                  {[["kg", "⚖️ Peso"], ["min", "⏱ Minuti"], ["body", "— Corpo"]].map(([type, label]) => (
-                    <button
-                      key={type}
-                      type="button"
-                      onClick={() => setLoadType(type)}
-                      className="flex-1 rounded-lg py-2 text-xs font-bold transition-all"
-                      style={{
-                        background: loadType === type ? "#39FF14" : "transparent",
-                        color: loadType === type ? "#000" : "#555",
-                      }}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              </span>
 
               {/* ── Timer inline per esercizi a tempo ── */}
-              {loadType === "min" && exerciseDuration && (
+              {loadType === "time" && exerciseDuration && (
                 <ExerciseSetTimer
                   totalSeconds={exerciseDuration}
                   onComplete={(secs) => {
@@ -695,7 +681,7 @@ function ExerciseSheet({ item, log, lastMaximal, onClose, onSave, onSkip }) {
                   <div className="flex gap-2 items-center">
                     <Input
                       inputMode="decimal"
-                      placeholder={loadType === "min" ? "es. 3" : "es. 60"}
+                      placeholder={loadType === "time" ? "es. 3" : "es. 60"}
                       value={setLoads[activeSetIdx]}
                       onChange={(e) => {
                         const next = [...setLoads];
@@ -705,7 +691,7 @@ function ExerciseSheet({ item, log, lastMaximal, onClose, onSave, onSkip }) {
                       className="flex-1"
                     />
                     <span className="shrink-0 text-sm font-bold" style={{ color: "#555" }}>
-                      {loadType === "min" ? "min" : "kg"}
+                      {loadType === "time" ? "min" : "kg"}
                     </span>
                   </div>
                 </label>
@@ -1298,8 +1284,13 @@ export default function WorkoutPath() {
           feedbackNotes,
           logs: items.map((item) => {
             const log = logs[item.id] || {};
-            if (log.skipped) return { workoutItemId: item.id, completed: false, loadUsed: null, rpe: null };
-            return { workoutItemId: item.id, ...log };
+            if (log.skipped) {
+              return { workoutItemId: item.id, completed: false, skipped: true, loadUsed: null, rpe: null };
+            }
+            // loadValue: primo numero del carico registrato. L'unità la decide il
+            // server dalla riga di scheda, il client non la dichiara.
+            const first = String(log.loadUsed ?? "").replace(",", ".").match(/(\d+(?:\.\d+)?)/);
+            return { workoutItemId: item.id, ...log, skipped: false, loadValue: first ? first[1] : null };
           }),
         },
       }),

@@ -38,7 +38,7 @@ import {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const emptyItem = () => ({ exerciseId: "", sets: 3, reps: "8-10", restSeconds: 90, notes: "" });
+const emptyItem = () => ({ exerciseId: "", sets: 3, reps: "8-10", restSeconds: 90, notes: "", loadType: "weight" });
 const emptyDay  = () => ({ label: "Giorno A", items: [emptyItem()] });
 const emptyWorkout = () => ({ title: "", description: "", days: [emptyDay()] });
 
@@ -57,6 +57,7 @@ function normalizeWorkout(w) {
         reps:        it.reps,
         restSeconds: it.restSeconds || "",
         notes:       it.notes || "",
+        loadType:    it.loadType || "weight",
       })),
     })),
   };
@@ -75,6 +76,7 @@ function normalizeTemplate(template) {
             reps: it.reps,
             restSeconds: it.restSeconds || "",
             notes: it.notes || "",
+            loadType: it.loadType || "weight",
           })),
         }))
       : [emptyDay()],
@@ -93,6 +95,7 @@ function templateDaysFromForm(source) {
           reps: item.reps,
           restSeconds: item.restSeconds || null,
           notes: item.notes || null,
+          loadType: item.loadType || "weight",
         })),
     }))
     .filter((day) => day.items.length > 0);
@@ -378,6 +381,9 @@ function WorkoutItemRow({ item, itemIndex, dayIndex, exercises, onSetItem, onRem
     const suggestedTarget = exercise ? defaultTargetForExercise(exercise.name) : null;
     onSetItem(dayIndex, itemIndex, {
       exerciseId: id,
+      // Pre-compilazione dal catalogo: resta modificabile riga per riga, perché
+      // lo stesso esercizio può essere riscaldamento a corpo e poi serie a peso.
+      loadType: exercise?.loadType || "weight",
       ...(suggestedTarget && isDefaultStrengthTarget(item) ? suggestedTarget : {}),
     });
   };
@@ -452,6 +458,36 @@ function WorkoutItemRow({ item, itemIndex, dayIndex, exercises, onSetItem, onRem
             placeholder="90"
           />
         </label>
+      </div>
+
+      {/* Tipo carico — decide cosa registra il cliente durante l'allenamento */}
+      <div>
+        <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+          Cosa registra il cliente
+        </span>
+        <div className="flex gap-1 rounded-lg border border-border bg-bg p-1">
+          {[
+            ["weight", "⚖️ Peso (kg)"],
+            ["time", "⏱ Tempo"],
+            ["body", "— Corpo libero"],
+          ].map(([type, label]) => {
+            const active = (item.loadType || "weight") === type;
+            return (
+              <button
+                key={type}
+                type="button"
+                onClick={() => onSetItem(dayIndex, itemIndex, { loadType: type })}
+                className="flex-1 rounded-md py-1.5 text-[11px] font-bold transition-all"
+                style={{
+                  background: active ? "#39FF14" : "transparent",
+                  color: active ? "#0a0a0a" : "hsl(var(--text-muted))",
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="rounded-lg border border-accent/20 bg-accent/5 px-3 py-2 text-xs text-text-muted">
