@@ -1,6 +1,7 @@
 import {
   Clock3,
   ExternalLink,
+  Gift,
   Mail,
   MessageCircle,
   RefreshCw,
@@ -143,7 +144,7 @@ const FILTERS = [
 
 // ─── SubscriptionCard ─────────────────────────────────────────────────────────
 
-function SubscriptionCard({ sub, onSendReminder, sendingId, sentIds }) {
+function SubscriptionCard({ sub, onSendReminder, sendingId, sentIds, onGiftMonth, giftingId }) {
   const name     = sub.user?.fullName || sub.user?.email || "Cliente";
   const email    = sub.user?.email;
   const phone    = sub.user?.client?.phone;
@@ -151,6 +152,7 @@ function SubscriptionCard({ sub, onSendReminder, sendingId, sentIds }) {
   const wa       = phone ? `https://wa.me/${phone.replace(/\D/g, "")}` : null;
   const isSent    = sentIds?.has(sub.id);
   const isSending = sendingId === sub.id;
+  const isGifting = giftingId === sub.id;
   const isUrgent  = sub.urgency === "urgent" || sub.urgency === "expired";
   const planName  = sub.product?.name || "Abbonamento";
 
@@ -297,6 +299,21 @@ function SubscriptionCard({ sub, onSendReminder, sendingId, sentIds }) {
             <ExternalLink size={12} /> Email
           </Button>
         )}
+        {onGiftMonth && (
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => onGiftMonth(sub)}
+            disabled={isGifting}
+            title="Aggiunge un mese di accesso nell'app (non tocca Stripe)"
+          >
+            {isGifting ? (
+              <><Clock3 size={12} className="animate-spin" /> Regalo…</>
+            ) : (
+              <><Gift size={12} /> Regala 1 mese</>
+            )}
+          </Button>
+        )}
         {clientId && (
           <Button
             size="sm"
@@ -313,7 +330,7 @@ function SubscriptionCard({ sub, onSendReminder, sendingId, sentIds }) {
 
 // ─── SubscriptionTimeline ─────────────────────────────────────────────────────
 
-export function SubscriptionTimeline({ subscriptions, onSendReminder, sendingId, sentIds }) {
+export function SubscriptionTimeline({ subscriptions, onSendReminder, sendingId, sentIds, onGiftMonth, giftingId }) {
   const [filter, setFilter] = useState(30);
   // useState lazy initializer: Date.now is called once outside the render hot path
   const [now] = useState(Date.now);
@@ -438,6 +455,8 @@ export function SubscriptionTimeline({ subscriptions, onSendReminder, sendingId,
                 onSendReminder={onSendReminder}
                 sendingId={sendingId}
                 sentIds={sentIds}
+                onGiftMonth={onGiftMonth}
+                giftingId={giftingId}
               />
             ))}
           </AnimatePresence>

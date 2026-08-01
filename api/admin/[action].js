@@ -303,6 +303,60 @@ async function subscriptionExpiring(req, res) {
   }
 }
 
+// ─── POST /api/admin/gift-month ───────────────────────────────────────────────
+
+/**
+ * Regala mesi di accesso estendendo currentPeriodEnd.
+ *
+ * Se l'abbonamento e' gia' scaduto si parte da oggi, non dalla data passata:
+ * regalare un mese a chi e' scaduto tre settimane fa deve dare un mese pieno.
+ * Riattiva anche gli stati past_due, altrimenti il regalo non sbloccherebbe
+ * l'accesso (getClientEntitlements guarda solo active/trialing).
+ */
+async function giftMonth(req, res) {
+  if (req.method !== "POST") return methodNotAllowed(res, ["POST"]);
+
+  const body = parseJsonBody(req);
+  const { subscriptionId } = body || {};
+  const months = Math.min(12, Math.max(1, Number(body?.months) || 1));
+  if (!subscriptionId) return res.status(400).json({ ok: false, error: "subscriptionId obbligatorio" });
+
+  try {
+    const sub = await prisma.subscription.findUnique({
+      where: { id: subscriptionId },
+      include: { user: { select: { fullName: true, email: true } } },
+    });
+    if (!sub) return res.status(404).json({ ok: false, error: "Abbonamento non trovato" });
+
+    const now = new Date();
+    const from = sub.currentPeriodEnd && new Date(sub.currentPeriodEnd) > now
+      ? new Date(sub.currentPeriodEnd)
+      : now;
+    const newEnd = new Date(from);
+    newEnd.setMonth(newEnd.getMonth() + months);
+
+    const updated = await prisma.subscription.update({
+      where: { id: subscriptionId },
+      data: {
+        currentPeriodEnd: newEnd,
+        ...(sub.status === "past_due" ? { status: "active" } : {}),
+      },
+    });
+
+    return res.status(200).json({
+      ok: true,
+      months,
+      wasExpired: from === now,
+      previousEnd: sub.currentPeriodEnd,
+      currentPeriodEnd: updated.currentPeriodEnd,
+      clientName: sub.user?.fullName ?? null,
+    });
+  } catch (err) {
+    console.error("POST /api/admin/gift-month:", err);
+    return res.status(500).json({ ok: false, error: "Errore interno" });
+  }
+}
+
 // ─── POST /api/admin/send-renewal-reminder ────────────────────────────────────
 
 async function sendRenewalReminder(req, res) {
@@ -481,6 +535,7 @@ export default function handler(req, res) {
   if (action === "messages")              return messages(req, res);
   if (action === "subscription-expiring") return subscriptionExpiring(req, res);
   if (action === "send-renewal-reminder") return sendRenewalReminder(req, res);
+  if (action === "gift-month")            return giftMonth(req, res);
   if (action === "products")              return products(req, res);
   if (action === "live-credits")          return liveCredits(req, res);
   return res.status(404).json({ ok: false, error: "Endpoint admin non trovato" });

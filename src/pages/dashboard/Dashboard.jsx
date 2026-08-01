@@ -63,6 +63,7 @@ export default function Dashboard() {
   const { toast } = useToast();
   const [sentReminders, setSentReminders] = useState(new Set());
   const [sendingReminderFor, setSendingReminderFor] = useState(null);
+  const [giftingFor, setGiftingFor] = useState(null);
 
   const summaryQuery    = useQuery({ queryKey: ["dashboard", "summary"],               queryFn: () => apiFetch("/api/admin/summary") });
   const ordersQuery     = useQuery({ queryKey: ["payments", "orders"],                  queryFn: () => apiFetch("/api/payments/orders") });
@@ -136,6 +137,45 @@ export default function Dashboard() {
     });
   };
 
+  // Regala un mese di accesso
+  const giftMonth = useMutation({
+    mutationFn: ({ subscriptionId }) =>
+      apiFetch("/api/admin/gift-month", { method: "POST", body: { subscriptionId, months: 1 } }),
+    onMutate: ({ subscriptionId }) => setGiftingFor(subscriptionId),
+    onSuccess: async (res) => {
+      setGiftingFor(null);
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["admin", "subscription-expiring"] }),
+        qc.invalidateQueries({ queryKey: ["dashboard", "summary"] }),
+        qc.invalidateQueries({ queryKey: ["clients"] }),
+      ]);
+      toast({
+        type: "success",
+        title: "Mese regalato 🎁",
+        description: `${res.clientName ?? "Cliente"} — accesso fino al ${new Date(
+          res.currentPeriodEnd
+        ).toLocaleDateString("it-IT", { day: "2-digit", month: "long", year: "numeric" })}`,
+      });
+    },
+    onError: (err) => {
+      setGiftingFor(null);
+      toast({ type: "error", title: "Regalo non riuscito", description: err.message });
+    },
+  });
+
+  const handleGiftMonth = (sub) => {
+    const name = sub.user?.fullName || sub.user?.email || "questo cliente";
+    const expired = (sub.daysLeft ?? 0) <= 0;
+    const ok = window.confirm(
+      `Regalare un mese di accesso a ${name}?\n\n` +
+        (expired
+          ? "L'abbonamento è scaduto: il mese parte da oggi."
+          : "Il mese viene aggiunto alla scadenza attuale.") +
+        "\n\nAttenzione: estende l'accesso nell'app, non tocca l'addebito su Stripe."
+    );
+    if (ok) giftMonth.mutate({ subscriptionId: sub.id });
+  };
+
   // ── KPI definition ────────────────────────────────────────────────────────
   const kpis = [
     {
@@ -207,6 +247,8 @@ export default function Dashboard() {
         onSendReminder={handleSendReminder}
         sendingId={sendingReminderFor}
         sentIds={sentReminders}
+        onGiftMonth={handleGiftMonth}
+        giftingId={giftingFor}
       />
 
       {/* ── Operatività ── */}
