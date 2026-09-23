@@ -1,0 +1,56 @@
+.live-credit-summary { display: flex; align-items: center; gap: 12px; padding: 16px; border-radius: 9px; background: var(--ui-accent-soft); }
+.live-credit-icon { width: 42px; height: 42px; flex: none; display: flex; align-items: center; justify-content: center; border-radius: 9px; background: var(--ui-surface); color: var(--ui-accent-ink); }
+.live-credit-summary > div { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+.live-credit-summary > div > span { color: var(--ui-accent-ink); font-size: 10px; font-weight: 800; }
+.live-credit-summary strong { font-size: 24px; line-height: 1; }
+.live-credit-summary small { color: var(--ui-muted); font-size: 12px; font-weight: 600; }
+.live-credit-summary > button { width: 36px; height: 36px; flex: none; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 50%; background: var(--ui-accent); color: var(--ui-on-accent); }
+.live-buy { padding: 14px; margin-top: 10px; border-radius: 8px; background: var(--ui-surface); }
+.live-buy > div:first-child { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.live-buy > div:first-child strong { font-size: 14px; }
+.live-buy > div:first-child button { padding: 3px; border: 0; background: none; color: var(--ui-muted); font-size: 11px; }
+.live-buy > p { margin: 4px 0 15px; color: var(--ui-muted); font-size: 11px; }
+.live-buy-controls { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.live-buy-controls > strong { font-size: 19px; }
+.live-stepper { display: flex; align-items: center; gap: 6px; }
+.live-stepper button { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--ui-line-strong); border-radius: 7px; background: var(--ui-bg); color: var(--ui-ink); }
+.live-stepper strong { min-width: 24px; text-align: center; }
+.live-buy-button { display: flex; align-items: center; justify-content: center; gap: 7px; width: 100%; min-height: 42px; margin-top: 14px; border: 0; border-radius: 7px; background: var(--ui-accent); color: var(--ui-on-accent); font-size: 12px; font-weight: 750; }
+.live-notice { display: flex; align-items: center; gap: 6px; margin: 11px 0 0; color: var(--ui-accent-ink); font-size: 11px; font-weight: 750; }
+.live-booked-list, .live-available-list { display: flex; flex-direction: column; gap: 10px; }
+.live-booked { padding: 17px; border: 1px solid var(--ui-accent); border-radius: 9px; background: var(--ui-surface); }
+.live-booked-top { display: flex; align-items: center; justify-content: space-between; }
+.live-booked-icon { width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: var(--ui-accent-soft); color: var(--ui-accent-ink); }
+.live-booked-status { display: inline-flex; align-items: center; gap: 4px; color: var(--ui-accent-ink); font-size: 10px; font-weight: 800; }
+.live-booked h3 { margin-top: 14px; font-size: 18px; }
+.live-booked > p { display: flex; align-items: center; gap: 6px; margin: 8px 0 11px; color: var(--ui-muted); font-size: 12px; text-transform: capitalize; }
+.live-countdown { display: flex; gap: 17px; padding: 11px 0; border-top: 1px solid var(--ui-line); border-bottom: 1px solid var(--ui-line); }
+.live-countdown span { display: flex; flex-direction: column; gap: 2px; color: var(--ui-muted); font-size: 10px; }
+.live-countdown strong { color: var(--ui-ink); font-size: 19px; line-height: 1; }
+.live-booked-meta { display: flex; gap: 13px; color: var(--ui-muted); font-size: 11px; }
+.live-booked-meta span:first-child { display: inline-flex; align-items: center; gap: 4px; }
+.live-booked-meta { margin-top: 12px; }
+.live-booked-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 17px; }
+.live-booked-actions > span { display: inline-flex; align-items: center; gap: 6px; color: var(--ui-muted); font-size: 11px; }
+.live-booked-actions > span svg { color: var(--ui-accent-ink); flex: none; }
+.live-booked-actions button { min-height: 39px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 0 13px; border: 0; border-radius: 7px; background: var(--ui-accent); color: var(--ui-on-accent); font-size: 11px; font-weight: 750; }
+.live-booked-actions button { border: 1px solid var(--ui-line-strong); background: var(--ui-bg); color: var(--ui-muted); }
+.live-available { display: flex; align-items: center; gap: 10px; min-height: 94px; padding: 12px; border-radius: 8px; background: var(--ui-surface); }
+.live-date-box { width: 42px; height: 51px; flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 7px; background: var(--ui-accent-soft); color: var(--ui-accent-ink); }
+.live-date-box strong { font-size: 19px; line-height: 1; }
+.live-date-box small { margin-top: 3px; font-size: 9px; font-weight: 800; }
+.live-available-copy { min-width: 0; flex: 1; }
+.live-available-copy > span { color: var(--ui-accent-ink); font-size: 9px; font-weight: 800; }
+.live-available h3 { margin: 3px 0; font-size: 13px; }
+.live-available p { margin: 0; color: var(--ui-muted); font-size: 10px; text-transform: capitalize; }
+.live-available-copy > small { display: inline-flex; align-items: center; gap: 3px; margin-top: 4px; color: var(--ui-muted); font-size: 10px; }
+.live-book-button { width: 31px; height: 31px; flex: none; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 7px; background: var(--ui-accent); color: var(--ui-on-accent); }
+.live-book-button:disabled { background: var(--ui-soft); color: var(--ui-muted); }
+.live-book-button span { font-size: 8px; font-weight: 800; }
+.live-empty { color: var(--ui-muted); font-size: 12px; }
+
+@media (max-width: 355px) {
+  .live-booked-actions { flex-wrap: wrap; }
+  .live-available { gap: 7px; padding: 10px; }
+  .live-available p { font-size: 9px; }
+}
