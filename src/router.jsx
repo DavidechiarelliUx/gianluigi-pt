@@ -26,16 +26,16 @@ const PackagesAdmin = lazy(() => import("./pages/dashboard/PackagesAdmin.jsx"));
 const ClientLayout = lazy(() =>
   import("./pages/client/ClientLayout.jsx").then((m) => ({ default: m.ClientLayout }))
 );
-const ClientHome = lazy(() => import("./pages/client/ClientHome.jsx"));
+const ClientHome = lazy(() => import("./pages/client/ClientHomeScreen.jsx"));
 const WorkoutPath = lazy(() => import("./pages/client/WorkoutPath.jsx"));
 const MyWorkout = lazy(() => import("./pages/client/MyWorkout.jsx"));
 const ClientHistory = lazy(() => import("./pages/client/ClientHistory.jsx"));
-const ClientProfile = lazy(() => import("./pages/client/ClientProfile.jsx"));
-const ClientLive = lazy(() => import("./pages/client/ClientLive.jsx"));
-const ClientSupport = lazy(() => import("./pages/client/ClientSupport.jsx"));
+const ClientProfile = lazy(() => import("./pages/client/ClientProfileScreen.jsx"));
+const ClientLive = lazy(() => import("./pages/client/ClientLiveScreen.jsx"));
+const ClientSupport = lazy(() => import("./pages/client/ClientSettingsScreen.jsx"));
 const ClientInstallApp = lazy(() => import("./pages/client/ClientInstallApp.jsx"));
-const ClientContact = lazy(() => import("./pages/client/ClientContact.jsx"));
-const ClientPrivacy = lazy(() => import("./pages/client/ClientPrivacy.jsx"));
+const ClientContact = lazy(() => import("./pages/client/ClientContactScreen.jsx"));
+const ClientPrivacy = lazy(() => import("./pages/client/ClientPrivacyScreen.jsx"));
 const ClientPackages = lazy(() => import("./pages/client/ClientPackages.jsx"));
 
 import { RoleRoute } from "./components/RouteGuards.jsx";
@@ -87,7 +87,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: wrap(<ClientHome />) },
       { path: "allenamento", element: wrap(<WorkoutPath />) },
-      { path: "scheda", element: wrap(<MyWorkout />) },     // legacy, tenuto per compatibilità
+      { path: "scheda", element: wrap(<MyWorkout />) },
       { path: "storico", element: wrap(<ClientHistory />) },
       { path: "profilo", element: wrap(<ClientProfile />) },
       { path: "live", element: wrap(<ClientLive />) },

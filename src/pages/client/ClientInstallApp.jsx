@@ -41,7 +41,7 @@ export default function ClientInstallApp() {
   const navigate = useNavigate();
 
   return (
-    <div className="space-y-6 pb-8">
+    <div className="client-install space-y-6 pb-8">
       {/* Header */}
       <div className="flex items-center gap-3">
         <button
@@ -61,12 +61,12 @@ export default function ClientInstallApp() {
       {/* Hero */}
       <motion.div
         variants={fadeUp} initial="hidden" animate="show" custom={0}
-        className="rounded-2xl p-5 text-center"
-        style={{ background: "rgba(57,255,20,0.06)", border: "1px solid rgba(57,255,20,0.2)" }}
+        className="rounded-lg p-5 text-center"
+        style={{ background: "var(--client-accent-soft)", border: "1px solid var(--client-line)" }}
       >
-        <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl"
-          style={{ background: "rgba(57,255,20,0.1)", border: "1px solid rgba(57,255,20,0.25)" }}>
-          <Smartphone size={32} className="text-accent" />
+        <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-lg"
+          style={{ background: "var(--client-surface)", border: "1px solid var(--client-line)" }}>
+          <Smartphone size={32} style={{ color: "var(--client-accent-ink)" }} />
         </div>
         <h2 className="font-display text-lg font-bold uppercase">
           Nessuno store necessario
@@ -88,12 +88,12 @@ export default function ClientInstallApp() {
               <motion.div
                 key={s.step}
                 variants={fadeUp} initial="hidden" animate="show" custom={1 + i * 0.5}
-                className="flex items-start gap-3 rounded-xl p-4"
-                style={{ background: "#111", border: "1px solid #1e1e1e" }}
+                className="flex items-start gap-3 rounded-lg p-4"
+                style={{ background: "var(--client-surface)", border: "1px solid var(--client-line)" }}
               >
                 <div
                   className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black"
-                  style={{ background: "#39FF14", color: "#0a0a0a" }}
+                  style={{ background: "var(--client-accent)", color: "var(--client-on-accent)" }}
                 >
                   {s.step}
                 </div>
@@ -101,7 +101,7 @@ export default function ClientInstallApp() {
                   <p className="font-display text-sm font-bold uppercase">{s.title}</p>
                   <p className="mt-0.5 text-xs leading-relaxed text-text-muted">{s.text}</p>
                 </div>
-                <Icon size={18} className="shrink-0 text-accent opacity-60" />
+                <Icon size={18} className="shrink-0 opacity-70" style={{ color: "var(--client-accent-ink)" }} />
               </motion.div>
             );
           })}
@@ -111,8 +111,8 @@ export default function ClientInstallApp() {
       {/* Android */}
       <motion.div
         variants={fadeUp} initial="hidden" animate="show" custom={3}
-        className="rounded-xl p-4"
-        style={{ background: "#111", border: "1px solid #1e1e1e" }}
+        className="rounded-lg p-4"
+        style={{ background: "var(--client-surface)", border: "1px solid var(--client-line)" }}
       >
         <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-text-muted">
           Android (Chrome)
@@ -127,12 +127,12 @@ export default function ClientInstallApp() {
       {/* Pro tip */}
       <motion.div
         variants={fadeUp} initial="hidden" animate="show" custom={3.5}
-        className="rounded-xl p-4"
-        style={{ background: "rgba(57,255,20,0.04)", border: "1px solid rgba(57,255,20,0.15)" }}
+        className="rounded-lg p-4"
+        style={{ background: "var(--client-accent-soft)", border: "1px solid var(--client-line)" }}
       >
         <p className="text-xs leading-relaxed" style={{ color: "hsl(var(--text-muted))" }}>
-          <span className="font-bold" style={{ color: "#39FF14" }}>💡 Aggiornamenti automatici</span>{" "}
-          — Non serve fare nulla. Ogni volta che apri l'app, carichi automaticamente l'ultima versione.
+          <span className="font-bold" style={{ color: "var(--client-accent-ink)" }}>Aggiornamenti automatici</span>{" "}
+          Non serve fare nulla. Ogni volta che apri l'app, carichi automaticamente l'ultima versione.
         </p>
       </motion.div>
     </div>

@@ -1,518 +1,489 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { motion, AnimatePresence } from "framer-motion";
-import { CalendarCheck, ChevronDown, Flame, Ruler, Save, TrendingUp, Zap } from "lucide-react";
+import { CalendarCheck, ChevronDown, Dumbbell, Flame, Plus, Ruler, Save, TrendingUp, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { Textarea } from "../../components/ui/Textarea";
 import { EmptyState } from "../../components/app";
 import { useToast } from "../../hooks/useToast";
 import { apiFetch } from "../../lib/api";
-import { calcWeeklyStreak, isCountedSession } from "../../lib/sessionStats";
+import { calcWeeklyStreak, dayKey, isCountedSession, weekKey } from "../../lib/sessionStats";
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+const numberFormat = new Intl.NumberFormat("it-IT", { maximumFractionDigits: 1 });
+const shortDateFormat = new Intl.DateTimeFormat("it-IT", { day: "numeric", month: "short" });
+const longDateFormat = new Intl.DateTimeFormat("it-IT", { day: "numeric", month: "long", year: "numeric" });
+const metricFields = [
+  { key: "weightKg", label: "Peso", unit: "kg" },
+  { key: "waistCm", label: "Vita", unit: "cm" },
+  { key: "chestCm", label: "Torace", unit: "cm" },
+  { key: "hipsCm", label: "Fianchi", unit: "cm" },
+];
+const emptyMetric = { weightKg: "", waistCm: "", chestCm: "", hipsCm: "", notes: "" };
 
-const emptyMetric = { weightKg: "", waistCm: "", chestCm: "", hipsCm: "", photoUrl: "", notes: "" };
+const formatNumber = (value) => numberFormat.format(value);
+const shortDate = (value) => shortDateFormat.format(new Date(value));
+const longDate = (value) => longDateFormat.format(new Date(value));
 
-function shortDate(value) {
-  return new Date(value).toLocaleDateString("it-IT", { day: "2-digit", month: "short" });
+function weeklyActivity(sessions, expectedDays) {
+  const monday = new Date(weekKey(new Date()));
+  return Array.from({ length: 4 }, (_, index) => {
+    const start = new Date(monday);
+    start.setDate(start.getDate() - (3 - index) * 7);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 7);
+    const inWeek = sessions.filter((session) => {
+      const date = new Date(session.date);
+      return date >= start && date < end;
+    });
+    const days = new Set(inWeek.map((session) => dayKey(session.date)));
+    const targets = inWeek.map((session) => Number(session.planDays)).filter((value) => value > 0);
+    return { start, count: days.size, target: targets.length ? Math.min(...targets) : expectedDays, current: index === 3 };
+  });
 }
 
-function daysAgo(value) {
-  const diff = Math.floor((Date.now() - new Date(value).getTime()) / 86400000);
-  if (diff === 0) return "oggi";
-  if (diff === 1) return "ieri";
-  return `${diff}gg fa`;
-}
-
-const MG_COLORS = {
-  petto: { bg: "rgba(239,68,68,0.15)", color: "#f87171" },
-  schiena: { bg: "rgba(59,130,246,0.15)", color: "#60a5fa" },
-  gambe: { bg: "rgba(234,179,8,0.15)", color: "#facc15" },
-  spalle: { bg: "rgba(168,85,247,0.15)", color: "#c084fc" },
-  braccia: { bg: "rgba(249,115,22,0.15)", color: "#fb923c" },
-  core: { bg: "rgba(20,184,166,0.15)", color: "#2dd4bf" },
-  cardio: { bg: "rgba(236,72,153,0.15)", color: "#f472b6" },
-};
-function mgColor(mg) {
-  return MG_COLORS[String(mg || "").toLowerCase()] || { bg: "rgba(255,255,255,0.07)", color: "#888" };
-}
-
-// ─── Sparkline SVG ────────────────────────────────────────────────────────────
-
-function Sparkline({ history }) {
-  const pts = history.filter((h) => h.loadNumber != null);
-  if (pts.length < 2) return null;
-
-  const W = 300;
-  const H = 36;
-  const PAD = 3;
-  const minY = Math.min(...pts.map((p) => p.loadNumber));
-  const maxY = Math.max(...pts.map((p) => p.loadNumber));
-  const rangeY = maxY - minY || 1;
-
-  const coords = pts.map((p, i) => ({
-    x: PAD + (i / (pts.length - 1)) * (W - PAD * 2),
-    y: H - PAD - ((p.loadNumber - minY) / rangeY) * (H - PAD * 2),
-  }));
-
-  const polyline = coords.map((c) => `${c.x},${c.y}`).join(" ");
+function TrendChart({ points, unit, color, label }) {
+  const values = points.map((point) => point.value);
+  const low = Math.min(...values);
+  const high = Math.max(...values);
+  const pad = Math.max((high - low) * 0.18, unit === "kg" ? 1 : 0.5);
+  const min = low - pad;
+  const max = high + pad;
+  const xAt = (index) => 37 + (index / Math.max(1, points.length - 1)) * 272;
+  const yAt = (value) => 91 - ((value - min) / (max - min)) * 73;
+  const path = points.map((point, index) => (index ? "L " : "M ") + xAt(index) + " " + yAt(point.value)).join(" ");
 
   return (
-    <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
-      <defs>
-        <linearGradient id="spark-fill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#39FF14" stopOpacity="0.25" />
-          <stop offset="100%" stopColor="#39FF14" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <polygon
-        points={`${coords[0].x},${H} ${polyline} ${coords[coords.length - 1].x},${H}`}
-        fill="url(#spark-fill)"
-      />
-      <polyline
-        points={polyline}
-        fill="none"
-        stroke="#39FF14"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      {coords.map((c, i) => (
-        <circle
-          key={i}
-          cx={c.x}
-          cy={c.y}
-          r={i === coords.length - 1 ? 3.5 : 2}
-          fill={i === coords.length - 1 ? "#39FF14" : "#1a1a1a"}
-          stroke="#39FF14"
-          strokeWidth="1.5"
-        />
-      ))}
-    </svg>
-  );
-}
-
-// ─── KPI Tile ─────────────────────────────────────────────────────────────────
-
-function KpiTile({ icon: Icon, label, value, sub, color = "#39FF14" }) {
-  return (
-    <div
-      className="flex flex-col gap-1 rounded-xl p-3"
-      style={{ background: "#0d0d0d", border: "1px solid #1e1e1e" }}
-    >
-      <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest" style={{ color: "#555" }}>
-        <Icon size={11} /> {label}
+    <div>
+      <svg viewBox="0 0 320 106" className="h-32 w-full" role="img" aria-label={label}>
+        {[0, 1, 2].map((index) => {
+          const y = 18 + index * 36.5;
+          return (
+            <g key={index}>
+              <line x1="37" x2="309" y1={y} y2={y} stroke="hsl(var(--border))" />
+              <text x="32" y={y + 4} textAnchor="end" fill="hsl(var(--text-muted))" fontSize="11">
+                {formatNumber(max - (index / 2) * (max - min))}
+              </text>
+            </g>
+          );
+        })}
+        <path d={path} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+        {points.map((point, index) => (
+          <circle key={point.date + index} cx={xAt(index)} cy={yAt(point.value)} r={index === points.length - 1 ? 4 : 2.5} fill={color} />
+        ))}
+      </svg>
+      <div className="flex justify-between pl-9 pr-3 text-xs text-text-muted">
+        <span>{shortDate(points[0].date)}</span>
+        <span>{shortDate(points[points.length - 1].date)}</span>
       </div>
-      <div className="font-display text-2xl font-black leading-none" style={{ color }}>
-        {value}
-      </div>
-      {sub && <div className="text-[10px] leading-tight" style={{ color: "#555" }}>{sub}</div>}
     </div>
   );
 }
 
-// ─── Exercise Card ────────────────────────────────────────────────────────────
-
-function ExerciseCard({ exercise }) {
-  const { bg, color } = mgColor(exercise.muscleGroup);
-  const loadPts = exercise.history.filter((h) => h.loadNumber != null);
-  const firstLoad = loadPts[0]?.loadUsed ?? null;
-  const lastLoad  = (loadPts.length ? loadPts[loadPts.length - 1] : null)?.loadUsed ?? (exercise.history.length ? exercise.history[exercise.history.length - 1] : null)?.loadUsed ?? null;
-  const lastDate  = (exercise.history.length ? exercise.history[exercise.history.length - 1] : null)?.date ?? null;
-  const avgRpe    = (() => {
-    const rpes = exercise.history.map((h) => h.rpe).filter(Boolean);
-    return rpes.length ? (rpes.reduce((s, v) => s + v, 0) / rpes.length).toFixed(1) : null;
-  })();
-
-  const imp = exercise.improvement;
-  const impLabel = imp != null ? `${imp >= 0 ? "+" : ""}${imp} kg` : null;
-  const impColor = imp == null ? null : imp >= 0 ? "#39FF14" : "#f87171";
+function WeeklyOverview({ sessions, expectedDays, streak, onStart }) {
+  const weeks = weeklyActivity(sessions, expectedDays);
+  const current = weeks[3];
+  const scale = Math.max(1, ...weeks.map((week) => Math.max(week.count, week.target || 0)));
 
   return (
-    <div
-      className="rounded-xl p-4 space-y-3"
-      style={{ background: "#0a0a0a", border: "1px solid #1a1a1a" }}
-    >
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="font-display text-sm font-black uppercase leading-tight text-white">
-            {exercise.name}
-          </h3>
-          <div className="mt-1 flex flex-wrap items-center gap-1.5">
-            {exercise.muscleGroup && (
-              <span
-                className="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide"
-                style={{ background: bg, color }}
-              >
-                {exercise.muscleGroup}
-              </span>
-            )}
-            <span className="text-[10px]" style={{ color: "#444" }}>
-              {exercise.completedSessions} sessioni
-              {lastDate ? ` · ${daysAgo(lastDate)}` : ""}
-            </span>
-          </div>
-        </div>
-        {impLabel && (
-          <span
-            className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-black"
-            style={{ background: `${impColor}18`, color: impColor, border: `1px solid ${impColor}40` }}
-          >
-            {impLabel}
-          </span>
-        )}
+    <section className="-mx-6 border-y border-border bg-surface/70 px-6 py-5" aria-labelledby="weeks-title">
+      <div>
+        <h2 id="weeks-title" className="font-body text-base font-bold text-text">Costanza</h2>
+        <p className="mt-1 text-sm text-text-muted">
+          <span className="font-semibold text-text">{current.count} {current.count === 1 ? "allenamento" : "allenamenti"}</span> questa settimana
+          {current.target > 0 ? " su " + current.target + " previsti" : ""}
+        </p>
       </div>
-
-      {/* Milestones */}
-      {(firstLoad || lastLoad || exercise.bestLoad) && (
-        <div className="grid grid-cols-3 gap-1.5">
-          {[
-            { label: "Inizio", value: firstLoad },
-            { label: "Attuale", value: lastLoad, highlight: true },
-            { label: "Best", value: exercise.bestLoad ? `${exercise.bestLoad} kg` : null },
-          ].map(({ label, value, highlight }) => (
-            <div
-              key={label}
-              className="rounded-lg px-2 py-1.5 text-center"
-              style={{
-                background: highlight ? "rgba(57,255,20,0.08)" : "#111",
-                border: highlight ? "1px solid rgba(57,255,20,0.25)" : "1px solid #1a1a1a",
-              }}
-            >
-              <div className="text-[9px] uppercase tracking-wide" style={{ color: "#444" }}>{label}</div>
+      <div className="mt-5 grid grid-cols-4 gap-3" aria-label="Allenamenti nelle ultime quattro settimane">
+        {weeks.map((week) => (
+          <div key={week.start.toISOString()} className="min-w-0 text-center">
+            <div className="flex h-24 flex-col justify-end">
+              <span className="mb-1 text-sm font-semibold text-text">{week.count}</span>
               <div
-                className="mt-0.5 font-display text-xs font-black"
-                style={{ color: highlight ? "#39FF14" : "#666" }}
-              >
-                {value ?? "—"}
-              </div>
+                className={"mx-auto w-full max-w-12 rounded-t-sm " + (week.count ? (week.current ? "bg-chart-3" : "bg-accent/80") : "bg-surface-2")}
+                style={{ height: Math.max(8, (week.count / scale) * 68) + "px" }}
+              />
             </div>
-          ))}
-        </div>
-      )}
-
-      {/* Sparkline */}
-      {loadPts.length >= 2 && (
-        <div>
-          <div className="text-[9px] uppercase tracking-widest mb-1" style={{ color: "#333" }}>
-            Progressione carico
+            <div className={"border-t pt-2 text-xs " + (week.current ? "border-chart-3 font-semibold text-text" : "border-border text-text-muted")}>
+              {week.current ? "Questa" : shortDate(week.start)}
+            </div>
           </div>
-          <Sparkline history={exercise.history} />
+        ))}
+      </div>
+      {sessions.length ? (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-xs">
+          <p className="text-text-muted">Ultimo allenamento: {longDate(sessions[0].date)}</p>
+          {streak > 0 && (
+            <span className="flex items-center gap-1 text-warning">
+              <Flame size={14} aria-hidden="true" /> {streak} {streak === 1 ? "settimana" : "settimane"} di fila
+            </span>
+          )}
         </div>
+      ) : (
+        <Button size="sm" onClick={onStart} className="mt-5">
+          <Dumbbell size={16} aria-hidden="true" /> Vai alla scheda
+        </Button>
       )}
-
-      {/* Footer */}
-      {avgRpe && (
-        <div className="flex items-center gap-1.5 text-[10px]" style={{ color: "#555" }}>
-          <Flame size={10} style={{ color: "#FFA500" }} />
-          RPE medio: <span style={{ color: "#FFA500" }}>{avgRpe}/10</span>
-        </div>
-      )}
-    </div>
+    </section>
   );
 }
 
-// ─── Session Pill ─────────────────────────────────────────────────────────────
-
-function SessionPill({ session }) {
-  const [open, setOpen] = useState(false);
-  const completed = session.itemLogs.filter((l) => l.completed).length;
-  const total = session.itemLogs.length;
-  const hasNote = !!session.feedbackNotes;
+function ExerciseRow({ exercise, open, onToggle }) {
+  const history = exercise.history.filter((entry) => entry.completed);
+  const loads = history.filter((entry) => Number.isFinite(entry.loadNumber));
+  const first = loads[0];
+  const latest = loads[loads.length - 1];
+  const latestEntry = history.at(-1);
+  const best = loads.length ? Math.max(...loads.map((entry) => entry.loadNumber)) : null;
+  const change = loads.length >= 2 ? latest.loadNumber - first.loadNumber : null;
+  const chartPoints = loads.slice(-12).map((entry) => ({ date: entry.date, value: entry.loadNumber }));
 
   return (
-    <div
-      className="rounded-lg overflow-hidden"
-      style={{ background: "#0a0a0a", border: "1px solid #1a1a1a" }}
-    >
+    <div className="border-b border-border last:border-b-0">
       <button
-        className="flex w-full items-center justify-between gap-3 px-3 py-2.5"
-        onClick={() => hasNote && setOpen((o) => !o)}
+        type="button"
+        className="flex min-h-16 w-full items-center gap-3 py-3 text-left transition-colors hover:bg-surface/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        aria-expanded={open}
+        onClick={onToggle}
       >
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-xs font-bold" style={{ color: "#39FF14" }}>
-            {shortDate(session.date)}
-          </span>
-          <span className="text-[10px] font-semibold" style={{ color: "#444" }}>
-            ✓ {completed}/{total}
-          </span>
-          {session.feedbackDifficulty && (
-            <span className="text-[10px]" style={{ color: "#FFA500" }}>
-              RPE {session.feedbackDifficulty}
-            </span>
-          )}
-          {hasNote && !open && (
-            <span className="truncate max-w-[120px] text-[10px]" style={{ color: "#555" }}>
-              {session.feedbackNotes}
-            </span>
-          )}
+        <div className="min-w-0 flex-1">
+          <p className="break-words text-sm font-semibold text-text">{exercise.name}</p>
+          <p className="mt-0.5 text-xs text-text-muted">
+            {exercise.completedSessions} {exercise.completedSessions === 1 ? "allenamento" : "allenamenti"}
+            {exercise.muscleGroup ? " · " + exercise.muscleGroup : ""}
+          </p>
         </div>
-        {hasNote && (
-          <ChevronDown
-            size={13}
-            style={{ color: "#444", transform: open ? "rotate(180deg)" : "none", transition: "transform .2s" }}
-          />
-        )}
+        <div className="max-w-28 shrink-0 text-right">
+          <p className="truncate text-sm font-bold text-text">{latest ? formatNumber(latest.loadNumber) + " kg" : latestEntry?.loadUsed || "—"}</p>
+          <p className={"mt-0.5 text-xs " + (change > 0 ? "text-accent" : "text-text-muted")}>
+            {change == null ? (latest ? "primo carico" : "ultima registrazione") : (change > 0 ? "+" : "") + formatNumber(change) + " kg dall'inizio"}
+          </p>
+        </div>
+        <ChevronDown size={18} className={"shrink-0 text-text-muted transition-transform " + (open ? "rotate-180" : "")} aria-hidden="true" />
       </button>
-      <AnimatePresence>
-        {open && hasNote && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden"
-          >
-            <div className="px-3 pb-3 text-xs leading-relaxed" style={{ color: "#777", borderTop: "1px solid #1a1a1a" }}>
-              <div className="pt-2">{session.feedbackNotes}</div>
+      {open && (
+        <div className="pb-5 pt-1">
+          {chartPoints.length >= 2 ? (
+            <>
+              <p className="mb-1 text-xs font-semibold text-text-muted">Carico registrato {loads.length > 12 ? "· ultimi 12 allenamenti" : "nel tempo"}</p>
+              <TrendChart
+                points={chartPoints}
+                unit="kg"
+                color="hsl(var(--chart-1))"
+                label={"Carico di " + exercise.name + ": da " + formatNumber(chartPoints[0].value) + " a " + formatNumber(chartPoints.at(-1).value) + " kg"}
+              />
+            </>
+          ) : (
+            <p className="py-3 text-sm text-text-muted">Servono almeno due carichi registrati per vedere l'andamento.</p>
+          )}
+          {latest && (
+            <div className="mt-4 grid grid-cols-3 gap-2 border-y border-border py-3 text-center">
+              {[
+                { label: "Primo", value: first.loadNumber },
+                { label: "Ultimo", value: latest.loadNumber },
+                { label: "Migliore", value: best },
+              ].map(({ label, value }) => (
+                <div key={label}>
+                  <p className="text-xs text-text-muted">{label}</p>
+                  <p className="mt-1 text-sm font-semibold text-text">{formatNumber(value)} kg</p>
+                </div>
+              ))}
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+          <p className="mt-4 text-xs font-semibold text-text-muted">Ultime registrazioni</p>
+          <div className="mt-1 divide-y divide-border">
+            {history.slice(-4).reverse().map((entry, index) => (
+              <div key={entry.date + index} className="flex items-start justify-between gap-3 py-2 text-sm">
+                <span className="shrink-0 text-text-muted">{shortDate(entry.date)}</span>
+                <span className="min-w-0 break-words text-right text-text">
+                  {entry.loadUsed || (entry.loadNumber != null ? formatNumber(entry.loadNumber) + " kg" : "Eseguito")}
+                  {entry.repsDone ? " · " + entry.repsDone + " rip." : ""}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
+function SessionRow({ session, dayLabel }) {
+  const [open, setOpen] = useState(false);
+  const completed = session.itemLogs?.filter((log) => log.completed).length || 0;
+  const skipped = session.itemLogs?.filter((log) => log.skipped).length || 0;
+  const hasDetails = Boolean(session.feedbackNotes || session.feedbackDifficulty);
+  const content = (
+    <>
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-chart-3/10 text-chart-3">
+        <CalendarCheck size={18} aria-hidden="true" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-semibold text-text">{dayLabel}</span>
+        <span className="block text-xs text-text-muted">
+          {shortDate(session.date)} · {completed} {completed === 1 ? "esercizio" : "esercizi"}
+          {skipped ? " · " + skipped + " saltati" : ""}
+        </span>
+      </span>
+      {hasDetails && <ChevronDown size={18} className={"shrink-0 text-text-muted transition-transform " + (open ? "rotate-180" : "")} aria-hidden="true" />}
+    </>
+  );
+  return (
+    <div className="border-b border-border last:border-b-0">
+      {hasDetails ? (
+        <button type="button" className="flex min-h-16 w-full items-center gap-3 py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
+          {content}
+        </button>
+      ) : (
+        <div className="flex min-h-16 items-center gap-3 py-2">{content}</div>
+      )}
+      {open && hasDetails && (
+        <div className="pb-4 pl-12 text-sm text-text-muted">
+          {session.feedbackDifficulty && <p>Sforzo percepito: {session.feedbackDifficulty}/10</p>}
+          {session.feedbackNotes && <p className="mt-1 whitespace-pre-wrap text-text">{session.feedbackNotes}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function ClientHistory() {
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const { toast } = useToast();
-  const [metricForm, setMetricForm] = useState(emptyMetric);
+  const [selectedDayId, setSelectedDayId] = useState("");
+  const [expandedExercise, setExpandedExercise] = useState(null);
+  const [showAllExercises, setShowAllExercises] = useState(false);
+  const [showAllSessions, setShowAllSessions] = useState(false);
+  const [metricField, setMetricField] = useState("weightKg");
   const [checkinOpen, setCheckinOpen] = useState(false);
-  const [selectedDayId, setSelectedDayId] = useState(null); // null = "Tutti"
+  const [metricForm, setMetricForm] = useState(emptyMetric);
+  const [metricError, setMetricError] = useState("");
+  const [mode, setMode] = useState("allenamento");
 
+  const workoutQuery = useQuery({ queryKey: ["client", "active-workout"], queryFn: () => apiFetch("/api/client/active-workout") });
+  const progressQuery = useQuery({ queryKey: ["client", "progress"], queryFn: () => apiFetch("/api/client/progress") });
+  const metricsQuery = useQuery({ queryKey: ["client", "metrics"], queryFn: () => apiFetch("/api/client/metrics") });
 
-  const workoutQuery  = useQuery({ queryKey: ["client", "active-workout"], queryFn: () => apiFetch("/api/client/active-workout") });
-  const progressQuery = useQuery({ queryKey: ["client", "progress"],        queryFn: () => apiFetch("/api/client/progress") });
-  const metricsQuery  = useQuery({ queryKey: ["client", "metrics"],         queryFn: () => apiFetch("/api/client/metrics") });
-
-  const sessions  = useMemo(() => workoutQuery.data?.sessions  || [], [workoutQuery.data]);
-  const allExercises = useMemo(() => progressQuery.data?.exercises || [], [progressQuery.data]);
-
-  // Giorni della scheda attiva per i tab filtro
-  const workoutDays = useMemo(() => workoutQuery.data?.workout?.days || [], [workoutQuery.data]);
-
-  // Esercizi filtrati per il giorno selezionato
+  const sessions = useMemo(() => (workoutQuery.data?.sessions || []).filter(isCountedSession), [workoutQuery.data?.sessions]);
+  const workoutDays = useMemo(() => workoutQuery.data?.workout?.days || [], [workoutQuery.data?.workout?.days]);
+  const allExercises = useMemo(() => {
+    const list = (progressQuery.data?.exercises || []).filter((exercise) => exercise.completedSessions > 0);
+    return [...list].sort((a, b) => {
+      const lastA = a.history.filter((entry) => entry.completed).at(-1)?.date || "";
+      const lastB = b.history.filter((entry) => entry.completed).at(-1)?.date || "";
+      return new Date(lastB) - new Date(lastA);
+    });
+  }, [progressQuery.data?.exercises]);
   const exercises = useMemo(() => {
     if (!selectedDayId) return allExercises;
-    const day = workoutDays.find((d) => d.id === selectedDayId);
+    const day = workoutDays.find((entry) => entry.id === selectedDayId);
     if (!day) return allExercises;
-    const namesInDay = new Set(day.items.map((it) => it.exercise?.name).filter(Boolean));
-    return allExercises.filter((e) => namesInDay.has(e.name));
-  }, [allExercises, workoutDays, selectedDayId]);
-  const metrics   = metricsQuery.data?.metrics   || [];
-  const latestMetric = metrics[0];
-
-  // KPIs
-  const avgRpe = useMemo(() => {
-    const vals = sessions.map((s) => s.feedbackDifficulty).filter(Boolean);
-    return vals.length ? (vals.reduce((s, v) => s + v, 0) / vals.length).toFixed(1) : null;
-  }, [sessions]);
-
-  // Stessa formula della Home: settimane consecutive con tutti i giorni della scheda.
-  const streak = useMemo(
-    () => calcWeeklyStreak(sessions.filter(isCountedSession), workoutDays.length || 1),
-    [sessions, workoutDays]
-  );
-
-  const bestImprovement = useMemo(() => {
-    const exWithImp = exercises.filter((e) => e.improvement != null && e.improvement > 0);
-    if (!exWithImp.length) return null;
-    return exWithImp.reduce((best, e) => (e.improvement > best.improvement ? e : best));
-  }, [exercises]);
+    const names = new Set(day.items.map((item) => item.exercise?.name));
+    return allExercises.filter((exercise) => names.has(exercise.name));
+  }, [allExercises, selectedDayId, workoutDays]);
+  const visibleExercises = showAllExercises ? exercises : exercises.slice(0, 5);
+  const metrics = metricsQuery.data?.metrics || [];
+  const streak = useMemo(() => calcWeeklyStreak(sessions, workoutDays.length || 1), [sessions, workoutDays]);
+  const chartableMetrics = metricFields.filter((field) => metrics.filter((metric) => Number.isFinite(metric[field.key])).length >= 2);
+  const activeMetricField = chartableMetrics.find((field) => field.key === metricField) || chartableMetrics[0];
+  const metricPoints = activeMetricField
+    ? metrics.filter((metric) => Number.isFinite(metric[activeMetricField.key])).slice().reverse().map((metric) => ({ date: metric.date, value: metric[activeMetricField.key] }))
+    : [];
 
   const saveMetric = useMutation({
-    mutationFn: () => apiFetch("/api/client/metrics", { method: "POST", body: metricForm }),
+    mutationFn: (payload) => apiFetch("/api/client/metrics", { method: "POST", body: payload }),
     onSuccess: async () => {
       setMetricForm(emptyMetric);
+      setMetricError("");
       setCheckinOpen(false);
       await qc.invalidateQueries({ queryKey: ["client", "metrics"] });
-      toast({ type: "success", title: "Check-in salvato" });
+      toast({ type: "success", title: "Misure salvate" });
     },
-    onError: (err) => toast({ type: "error", title: "Salvataggio fallito", description: err.message }),
+    onError: (error) => toast({ type: "error", title: "Salvataggio fallito", description: error.message }),
   });
 
-  if (workoutQuery.isLoading || progressQuery.isLoading) {
-    return <EmptyState icon={CalendarCheck} title="Carico progressi…" />;
-  }
+  const handleMetricSubmit = (event) => {
+    event.preventDefault();
+    const payload = { notes: metricForm.notes.trim() };
+    let filled = 0;
+    for (const field of metricFields) {
+      const raw = metricForm[field.key].trim();
+      if (!raw) continue;
+      const value = Number(raw.replace(",", "."));
+      if (!Number.isFinite(value) || value <= 0) {
+        setMetricError("Inserisci un valore valido per " + field.label.toLowerCase() + ".");
+        return;
+      }
+      payload[field.key] = value;
+      filled += 1;
+    }
+    if (!filled) {
+      setMetricError("Inserisci almeno una misura.");
+      return;
+    }
+    setMetricError("");
+    saveMetric.mutate(payload);
+  };
 
   return (
-    <div className="space-y-5">
-      {/* Header */}
-      <div>
-        <h1 className="font-display text-2xl font-extrabold uppercase">Progressi</h1>
-        <p className="text-sm text-text-muted">Dashboard allenamenti e progressione carichi.</p>
-      </div>
+    <div className="client-progress space-y-8 pb-8">
+      <header className="client-screen-header">
+        <div><p>Il tuo percorso</p><h1>Progressi</h1></div>
+      </header>
+      <div className="client-progress-tabs" role="tablist" aria-label="Tipo di progresso"><button role="tab" aria-selected={mode === "allenamento"} className={mode === "allenamento" ? "active" : ""} onClick={() => setMode("allenamento")}>Allenamento</button><button role="tab" aria-selected={mode === "misure"} className={mode === "misure" ? "active" : ""} onClick={() => setMode("misure")}>Misure</button></div>
 
-      {/* ── KPI Dashboard ── */}
-      <div className="grid grid-cols-2 gap-2">
-        <KpiTile
-          icon={CalendarCheck}
-          label="Sessioni"
-          value={sessions.length}
-          sub={sessions.length ? `ultima ${daysAgo(sessions[0].date)}` : "nessuna ancora"}
-        />
-        <KpiTile
-          icon={Flame}
-          label="RPE medio"
-          value={avgRpe ?? "—"}
-          sub="sforzo percepito sessione"
-          color="#FFA500"
-        />
-        <KpiTile
-          icon={Zap}
-          label="Streak"
-          value={streak > 0 ? `${streak} sett.` : "—"}
-          sub={streak >= 2 ? "settimane consecutive" : streak === 1 ? "questa settimana ✓" : "inizia adesso!"}
-          color={streak >= 3 ? "#39FF14" : streak >= 1 ? "#FFA500" : "#555"}
-        />
-        <KpiTile
-          icon={TrendingUp}
-          label="Top progresso"
-          value={bestImprovement ? `+${bestImprovement.improvement}kg` : "—"}
-          sub={bestImprovement?.name ?? "ancora pochi dati"}
-        />
-      </div>
-
-      {/* ── Progressi esercizi ── */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <TrendingUp size={16} style={{ color: "#39FF14" }} />
-          <h2 className="font-display text-sm font-bold uppercase tracking-wide" style={{ color: "#39FF14" }}>
-            Progressi esercizi
-          </h2>
-        </div>
-
-        {/* Day filter tabs */}
-        {workoutDays.length > 1 && (
-          <div className="flex gap-1.5 overflow-x-auto pb-1 hide-scrollbar">
-            <button
-              onClick={() => setSelectedDayId(null)}
-              className="shrink-0 rounded-full px-3 py-1.5 text-[11px] font-bold whitespace-nowrap"
-              style={{
-                background: !selectedDayId ? "#39FF14" : "#111",
-                color: !selectedDayId ? "#000" : "#555",
-                border: !selectedDayId ? "none" : "1px solid #1e1e1e",
-              }}
-            >
-              Tutti
-            </button>
-            {workoutDays.map((day) => (
-              <button
-                key={day.id}
-                onClick={() => setSelectedDayId(day.id)}
-                className="shrink-0 rounded-full px-3 py-1.5 text-[11px] font-bold whitespace-nowrap"
-                style={{
-                  background: selectedDayId === day.id ? "#39FF14" : "#111",
-                  color: selectedDayId === day.id ? "#000" : "#555",
-                  border: selectedDayId === day.id ? "none" : "1px solid #1e1e1e",
-                }}
-              >
-                {day.label}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {exercises.length ? (
-          <div className="space-y-2">
-            {exercises.map((exercise) => (
-              <ExerciseCard key={exercise.name} exercise={exercise} />
-            ))}
-          </div>
-        ) : (
-          <div
-            className="rounded-xl p-5 text-center text-sm"
-            style={{ background: "#0a0a0a", border: "1px solid #1a1a1a", color: "#555" }}
-          >
-            Completa qualche sessione tracciando i carichi per vedere la progressione.
-          </div>
-        )}
-      </div>
-
-      {/* ── Ultime sessioni (compact) ── */}
-      {sessions.length > 0 && (
-        <div className="space-y-2">
-          <h2 className="font-display text-sm font-bold uppercase tracking-wide" style={{ color: "#444" }}>
-            Sessioni recenti
-          </h2>
-          <div className="space-y-1">
-            {sessions.slice(0, 8).map((session) => (
-              <SessionPill key={session.id} session={session} />
-            ))}
-          </div>
-        </div>
+      {mode === "allenamento" && <>
+      {workoutQuery.isLoading ? (
+        <div className="-mx-6 h-52 animate-pulse bg-surface px-6" aria-label="Caricamento allenamenti" />
+      ) : workoutQuery.isError ? (
+        <EmptyState icon={CalendarCheck} title="Allenamenti non disponibili" description="Non siamo riusciti a caricare lo storico. Riprova." action={<Button size="sm" onClick={() => workoutQuery.refetch()}>Riprova</Button>} />
+      ) : (
+        <WeeklyOverview sessions={sessions} expectedDays={workoutDays.length} streak={streak} onStart={() => navigate("/area-cliente/allenamento")} />
       )}
 
-      {/* ── Check-in fisico (collapsibile) ── */}
-      <div
-        className="rounded-xl overflow-hidden"
-        style={{ border: "1px solid #1a1a1a" }}
-      >
-        <button
-          className="flex w-full items-center justify-between gap-3 px-4 py-3"
-          style={{ background: "#0a0a0a" }}
-          onClick={() => setCheckinOpen((o) => !o)}
-        >
-          <div className="flex items-center gap-2">
-            <Ruler size={14} style={{ color: "#555" }} />
-            <span className="text-sm font-bold uppercase tracking-wide" style={{ color: "#555" }}>
-              Check-in fisico
-            </span>
-            {latestMetric && (
-              <span className="text-[10px]" style={{ color: "#444" }}>
-                · {latestMetric.weightKg ? `${latestMetric.weightKg}kg` : ""}
-                {" "}aggiornato {shortDate(latestMetric.date)}
-              </span>
-            )}
-          </div>
-          <ChevronDown
-            size={15}
-            style={{ color: "#444", transform: checkinOpen ? "rotate(180deg)" : "none", transition: "transform .2s" }}
-          />
-        </button>
-
-        <AnimatePresence>
-          {checkinOpen && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.25 }}
-              className="overflow-hidden"
+      <section aria-labelledby="strength-title">
+        <div className="flex items-center gap-2">
+          <TrendingUp size={19} className="text-accent" aria-hidden="true" />
+          <h2 id="strength-title" className="font-body text-base font-bold text-text">Progressi per esercizio</h2>
+        </div>
+        {workoutDays.length > 1 && (
+          <label className="mt-4 flex items-center justify-between gap-3 text-sm text-text-muted">
+            Giorno della scheda
+            <select
+              value={selectedDayId}
+              onChange={(event) => {
+                setSelectedDayId(event.target.value);
+                setExpandedExercise(null);
+                setShowAllExercises(false);
+              }}
+              className="h-10 min-w-0 max-w-[65%] rounded-sm border border-border bg-surface-2 px-3 text-sm text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
-              <div className="space-y-3 px-4 pb-4 pt-3" style={{ background: "#080808", borderTop: "1px solid #1a1a1a" }}>
-                {latestMetric && (
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { label: "Peso", value: latestMetric.weightKg ? `${latestMetric.weightKg} kg` : "—" },
-                      { label: "Vita", value: latestMetric.waistCm ? `${latestMetric.waistCm} cm` : "—" },
-                    ].map(({ label, value }) => (
-                      <div key={label} className="rounded-lg p-2.5 text-center" style={{ background: "#0d0d0d", border: "1px solid #1e1e1e" }}>
-                        <div className="text-[10px] uppercase text-text-muted">{label}</div>
-                        <div className="font-display text-lg font-bold text-accent">{value}</div>
-                      </div>
-                    ))}
+              <option value="">Tutti</option>
+              {workoutDays.map((day) => <option key={day.id} value={day.id}>{day.label}</option>)}
+            </select>
+          </label>
+        )}
+        {progressQuery.isLoading ? (
+          <div className="mt-4 space-y-2" aria-label="Caricamento progressi">
+            {[0, 1, 2].map((index) => <div key={index} className="h-16 animate-pulse rounded-sm bg-surface" />)}
+          </div>
+        ) : progressQuery.isError ? (
+          <EmptyState className="mt-4" icon={TrendingUp} title="Progressi non disponibili" description="Non siamo riusciti a caricare i carichi registrati." action={<Button size="sm" onClick={() => progressQuery.refetch()}>Riprova</Button>} />
+        ) : exercises.length ? (
+          <>
+            <div className="mt-3 border-t border-border">
+              {visibleExercises.map((exercise) => (
+                <ExerciseRow key={exercise.name} exercise={exercise} open={expandedExercise === exercise.name} onToggle={() => setExpandedExercise((current) => current === exercise.name ? null : exercise.name)} />
+              ))}
+            </div>
+            {exercises.length > 5 && (
+              <button type="button" onClick={() => setShowAllExercises((value) => !value)} className="mt-3 min-h-11 text-sm font-semibold text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                {showAllExercises ? "Mostra meno" : "Mostra tutti (" + exercises.length + ")"}
+              </button>
+            )}
+          </>
+        ) : (
+          <EmptyState className="mt-4" icon={Dumbbell} title={selectedDayId ? "Nessun esercizio registrato" : "Gli esercizi compariranno qui"} description={selectedDayId ? "Non ci sono ancora allenamenti per questo giorno." : "Dopo il primo allenamento vedrai gli esercizi eseguiti e i dati registrati."} />
+        )}
+      </section>
+      </>}
+
+      {mode === "misure" && <section className="-mx-6 border-y border-border bg-surface/40 px-6 py-5" aria-labelledby="metrics-title">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Ruler size={19} className="text-chart-4" aria-hidden="true" />
+            <h2 id="metrics-title" className="font-body text-base font-bold text-text">Misure</h2>
+          </div>
+          <button type="button" onClick={() => setCheckinOpen((value) => !value)} className="flex min-h-10 items-center gap-1.5 text-sm font-semibold text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent" aria-expanded={checkinOpen}>
+            {checkinOpen ? <X size={16} aria-hidden="true" /> : <Plus size={16} aria-hidden="true" />}
+            {checkinOpen ? "Chiudi" : "Aggiungi"}
+          </button>
+        </div>
+        {metricsQuery.isLoading ? (
+          <div className="mt-4 h-28 animate-pulse rounded-sm bg-surface-2" aria-label="Caricamento misure" />
+        ) : metricsQuery.isError ? (
+          <EmptyState className="mt-4" icon={Ruler} title="Misure non disponibili" action={<Button size="sm" onClick={() => metricsQuery.refetch()}>Riprova</Button>} />
+        ) : metrics.length ? (
+          <>
+            <p className="mt-1 text-xs text-text-muted">Ultimo check-in: {longDate(metrics[0].date)}</p>
+            <div className="mt-4 grid grid-cols-2 gap-x-5 gap-y-4">
+              {metricFields.map((field) => {
+                const last = metrics.find((metric) => Number.isFinite(metric[field.key]));
+                return (
+                  <div key={field.key} className="border-t border-border pt-2">
+                    <p className="text-xs text-text-muted">{field.label}</p>
+                    <p className="mt-0.5 text-lg font-semibold text-text">{last ? formatNumber(last[field.key]) + " " + field.unit : "—"}</p>
+                    {last && last.id !== metrics[0].id && <p className="text-xs text-text-muted">{shortDate(last.date)}</p>}
                   </div>
-                )}
-                <div className="grid grid-cols-2 gap-2">
-                  <Input inputMode="decimal" placeholder="Peso kg" value={metricForm.weightKg} onChange={(e) => setMetricForm({ ...metricForm, weightKg: e.target.value })} />
-                  <Input inputMode="decimal" placeholder="Vita cm"  value={metricForm.waistCm}  onChange={(e) => setMetricForm({ ...metricForm, waistCm:  e.target.value })} />
-                  <Input inputMode="decimal" placeholder="Torace cm" value={metricForm.chestCm}  onChange={(e) => setMetricForm({ ...metricForm, chestCm:  e.target.value })} />
-                  <Input inputMode="decimal" placeholder="Fianchi cm" value={metricForm.hipsCm}  onChange={(e) => setMetricForm({ ...metricForm, hipsCm:   e.target.value })} />
+                );
+              })}
+            </div>
+            {activeMetricField && (
+              <div className="mt-6 border-t border-border pt-4">
+                <label className="flex items-center justify-between gap-3 text-sm text-text-muted">
+                  Andamento
+                  <select value={activeMetricField.key} onChange={(event) => setMetricField(event.target.value)} className="h-10 rounded-sm border border-border bg-surface-2 px-3 text-sm text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                    {chartableMetrics.map((field) => <option key={field.key} value={field.key}>{field.label}</option>)}
+                  </select>
+                </label>
+                <div className="mt-3">
+                  <TrendChart points={metricPoints} unit={activeMetricField.unit} color="hsl(var(--chart-4))" label={activeMetricField.label + ": da " + formatNumber(metricPoints[0].value) + " a " + formatNumber(metricPoints.at(-1).value) + " " + activeMetricField.unit} />
                 </div>
-                <Textarea rows={2} placeholder="Note: energia, sonno, dolori..." value={metricForm.notes} onChange={(e) => setMetricForm({ ...metricForm, notes: e.target.value })} />
-                <Button onClick={() => saveMetric.mutate()} disabled={saveMetric.isPending}>
-                  <Save size={16} /> Salva check-in
-                </Button>
               </div>
-            </motion.div>
+            )}
+            {metrics[0].notes && <p className="mt-4 border-t border-border pt-3 text-sm text-text-muted">{metrics[0].notes}</p>}
+          </>
+        ) : (
+          <p className="mt-3 text-sm text-text-muted">Non hai ancora registrato misure.</p>
+        )}
+
+        {checkinOpen && (
+          <form onSubmit={handleMetricSubmit} className="mt-5 space-y-4 border-t border-border pt-5">
+            <div className="grid grid-cols-2 gap-3">
+              {metricFields.map((field) => (
+                <label key={field.key} className="block text-sm text-text-muted">
+                  {field.label} ({field.unit})
+                  <Input
+                    className="mt-1.5"
+                    inputMode="decimal"
+                    value={metricForm[field.key]}
+                    onChange={(event) => {
+                      setMetricForm((form) => ({ ...form, [field.key]: event.target.value }));
+                      setMetricError("");
+                    }}
+                    placeholder={field.unit === "kg" ? "es. 72,5" : "es. 80"}
+                  />
+                </label>
+              ))}
+            </div>
+            <label className="block text-sm text-text-muted">
+              Note (facoltative)
+              <Textarea className="mt-1.5" rows={2} value={metricForm.notes} onChange={(event) => setMetricForm((form) => ({ ...form, notes: event.target.value }))} placeholder="Come ti senti oggi?" />
+            </label>
+            {metricError && <p role="alert" className="text-sm text-danger">{metricError}</p>}
+            <Button type="submit" size="sm" disabled={saveMetric.isPending}>
+              <Save size={16} aria-hidden="true" /> {saveMetric.isPending ? "Salvataggio..." : "Salva misure"}
+            </Button>
+          </form>
+        )}
+      </section>}
+
+      {mode === "allenamento" && !workoutQuery.isError && sessions.length > 0 && (
+        <section aria-labelledby="sessions-title">
+          <h2 id="sessions-title" className="font-body text-base font-bold text-text">Allenamenti recenti</h2>
+          <div className="mt-3 border-t border-border">
+            {(showAllSessions ? sessions : sessions.slice(0, 5)).map((session) => (
+              <SessionRow key={session.id} session={session} dayLabel={workoutDays.find((day) => day.id === session.workoutDayId)?.label || "Allenamento"} />
+            ))}
+          </div>
+          {sessions.length > 5 && (
+            <button type="button" onClick={() => setShowAllSessions((value) => !value)} className="mt-3 min-h-11 text-sm font-semibold text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+              {showAllSessions ? "Mostra meno" : "Mostra tutti (" + sessions.length + ")"}
+            </button>
           )}
-        </AnimatePresence>
-      </div>
+        </section>
+      )}
     </div>
   );
 }

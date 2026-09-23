@@ -1,34 +1,22 @@
-import { cn } from "../../lib/utils";
-
-/**
- * Bottom tab bar per l'area cliente mobile. Fixed in basso, safe-area iOS.
- * tabs: [{label, icon, href}] · activeHref · onNavigate(href) · hidden.
- * Su desktop (lg) si nasconde a favore di un layout centrato/nav alternativa.
- */
 export function BottomTabBar({ tabs = [], activeHref, onNavigate, hidden = false }) {
   if (hidden) return null;
 
   return (
-    <nav
-      className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-bg/95 backdrop-blur-md lg:hidden"
-      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
-    >
-      <ul className="mx-auto flex max-w-md items-stretch justify-around">
+    <nav className="client-tab-bar" aria-label="Navigazione principale">
+      <ul>
         {tabs.map((t) => {
           const Icon = t.icon;
           const active = t.href === activeHref;
           return (
-            <li key={t.href} className="flex-1">
+            <li key={t.href}>
               <button
                 onClick={() => onNavigate?.(t.href)}
-                className={cn(
-                  "flex w-full flex-col items-center gap-1 py-2.5 text-xs font-medium transition-colors",
-                  active ? "text-accent" : "text-text-muted hover:text-text"
-                )}
+                className={(active ? "active " : "") + (t.central ? "central" : "")}
                 aria-current={active ? "page" : undefined}
+                aria-label={t.central ? "Apri allenamento" : t.label}
               >
-                {Icon && <Icon size={22} />}
-                {t.label}
+                <span className="client-tab-icon">{Icon && <Icon size={t.central ? 25 : 21} strokeWidth={t.central ? 2.4 : 2} />}</span>
+                <span>{t.label}</span>
               </button>
             </li>
           );

@@ -1,31 +1,45 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { Dumbbell, Home, User, Video } from "lucide-react";
+import { Home, Plus, TrendingUp, UserRound, Video } from "lucide-react";
 import { BottomTabBar } from "../../components/app/BottomTabBar";
 import { ClientLayoutContext } from "./ClientLayoutContext";
+import "./client-app.css";
 
 const TABS = [
   { label: "Home", icon: Home, href: "/area-cliente" },
-  { label: "Allenamento", icon: Dumbbell, href: "/area-cliente/allenamento" },
+  { label: "Progressi", icon: TrendingUp, href: "/area-cliente/storico" },
+  { label: "Allenamento", icon: Plus, href: "/area-cliente/allenamento", central: true },
   { label: "Live", icon: Video, href: "/area-cliente/live" },
-  { label: "Profilo", icon: User, href: "/area-cliente/profilo" },
+  { label: "Profilo", icon: UserRound, href: "/area-cliente/profilo" },
 ];
 
-/** Shell area cliente (mobile-first): contenuto + bottom tab bar. */
 export function ClientLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [tabBarHidden, setTabBarHidden] = useState(false);
+  const [theme, setTheme] = useState(() => {
+    try { return localStorage.getItem("gianluigi-pt:client-theme") === "dark" ? "dark" : "light"; }
+    catch { return "light"; }
+  });
+  const activeHref = location.pathname.startsWith("/area-cliente/profilo") ||
+    ["/supporto", "/privacy", "/contatta", "/installa-app", "/abbonamenti"].some((path) => location.pathname.startsWith(`/area-cliente${path}`))
+    ? "/area-cliente/profilo"
+    : location.pathname.startsWith("/area-cliente/scheda") ? "/area-cliente/allenamento" : location.pathname;
+
+  useEffect(() => {
+    try { localStorage.setItem("gianluigi-pt:client-theme", theme); }
+    catch { /* The app still works without local storage. */ }
+  }, [theme]);
 
   return (
-    <ClientLayoutContext.Provider value={{ setTabBarHidden }}>
-      <div className="min-h-screen bg-bg pb-20 text-text">
-        <main className="mx-auto max-w-md px-4 py-6">
+    <ClientLayoutContext.Provider value={{ setTabBarHidden, theme, setTheme }}>
+      <div className="client-app" data-theme={theme}>
+        <main className="client-main">
           <Outlet />
         </main>
         <BottomTabBar
           tabs={TABS}
-          activeHref={location.pathname}
+          activeHref={activeHref}
           onNavigate={(href) => navigate(href)}
           hidden={tabBarHidden}
         />

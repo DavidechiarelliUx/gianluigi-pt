@@ -2,17 +2,23 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "r
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  Check,
   CheckCircle2,
   ChevronLeft,
+  ChevronRight,
   Dumbbell,
+  Flame,
   Home,
   Lock,
   MessageSquare,
   Plus,
+  RotateCcw,
   Save,
   SkipForward,
   Sparkles,
+  Trophy,
   X,
+  Zap,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/Button";
@@ -27,7 +33,7 @@ import {
 } from "../../components/exercises/exercise-data";
 import { useToast } from "../../hooks/useToast";
 import { apiFetch } from "../../lib/api";
-import { isCountedSession, weekKey } from "../../lib/sessionStats";
+import { calcWeeklyStreak, isCountedSession, weekKey } from "../../lib/sessionStats";
 import { formatWorkoutTarget } from "../../lib/workoutTarget";
 import { useClientLayout } from "./ClientLayoutContext";
 
@@ -98,199 +104,36 @@ function parseExerciseDuration(repsStr) {
 // ─── GymBackground ────────────────────────────────────────────────────────────
 
 function GymBackground() {
-  return (
-    <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden" aria-hidden="true">
-      {/* Base dark */}
-      <div className="absolute inset-0" style={{ background: "hsl(var(--bg))" }} />
-      {/* Grid pattern */}
-      <div
-        className="absolute inset-0"
-        style={{
-          backgroundImage:
-            "linear-gradient(rgba(57,255,20,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(57,255,20,0.025) 1px, transparent 1px)",
-          backgroundSize: "36px 36px",
-        }}
-      />
-      {/* Top radial glow */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(ellipse at 50% -10%, rgba(57,255,20,0.07) 0%, transparent 60%)",
-        }}
-      />
-      {/* Bottom vignette */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(ellipse at 50% 120%, rgba(0,0,0,0.5) 0%, transparent 60%)",
-        }}
-      />
-    </div>
-  );
+  return null;
 }
 
 // ─── PathConnector — diagonal SVG line between nodes ─────────────────────────
 
-// LEFT_X / RIGHT_X: % from left where the circle center sits
-const LEFT_X  = 26; // even nodes
-const RIGHT_X = 74; // odd nodes
-
 function PathConnector({ toLeft, status }) {
-  const fromX = toLeft ? RIGHT_X : LEFT_X; // prev node
-  const currX = toLeft ? LEFT_X : RIGHT_X; // current node
-  const isDone   = status === "done";
-  const isActive = status === "active";
-  const color = isDone ? "#39FF14" : isActive ? "rgba(57,255,20,0.35)" : "#1c1c1c";
-
   return (
-    <svg
-      className="w-full"
-      height="52"
-      preserveAspectRatio="none"
-      style={{ display: "block", overflow: "visible" }}
-    >
-      {isDone && (
-        <defs>
-          <linearGradient id={`conn-grad-${toLeft}`} x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%"   stopColor="#39FF14" />
-            <stop offset="100%" stopColor="rgba(57,255,20,0.4)" />
-          </linearGradient>
-        </defs>
-      )}
-      <line
-        x1={`${fromX}%`} y1="0"
-        x2={`${currX}%`} y2="52"
-        stroke={isDone ? `url(#conn-grad-${toLeft})` : color}
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeDasharray={status === "locked" ? "5 7" : undefined}
-        style={isDone ? { filter: "drop-shadow(0 0 4px rgba(57,255,20,0.6))" } : undefined}
-      />
+    <svg className={"client-path-connector " + status} viewBox="0 0 360 92" preserveAspectRatio="none" aria-hidden="true">
+      <path d={toLeft ? "M 318 0 C 318 48, 42 42, 42 92" : "M 42 0 C 42 48, 318 42, 318 92"} />
     </svg>
   );
 }
 
 // ─── ExerciseNode ─────────────────────────────────────────────────────────────
 
-function ExerciseNode({ item, index, status, onClick, nodeRef }) {
-  const isLeft       = index % 2 === 0;
+function ExerciseNode({ item, index, status, onClick, nodeRef, previous }) {
+  const isLeft = index % 2 === 0;
   const illustrationId = resolveIllustrationId(item);
-  const muscleGroup  = resolveMuscleGroup(item);
+  const muscleGroup = resolveMuscleGroup(item);
   const target = formatWorkoutTarget(item);
-  const { bg, color } = muscleGroup ? getMuscleGroupColor(muscleGroup) : { bg: "rgba(255,255,255,0.05)", color: "#555" };
-
-  const textColor =
-    status === "done"    ? "#39FF14"
-    : status === "skipped" ? "#555"
-    : status === "active"  ? "#ffffff"
-    : "#2e2e2e";
-
-  const subColor = status === "locked" ? "#1e1e1e" : "#555";
 
   return (
-    <div ref={nodeRef} className="flex flex-col">
-      {/* Diagonal connector from previous node */}
+    <div ref={nodeRef} className="client-path-segment">
       {index > 0 && <PathConnector toLeft={isLeft} status={status} />}
-
-      {/* Node row: circle offset left or right */}
-      <div
-        className="flex items-center gap-3 py-2"
-        style={{
-          paddingLeft:  isLeft  ? `calc(${LEFT_X}% - 32px)` : undefined,
-          paddingRight: !isLeft ? `calc(${LEFT_X}% - 32px)` : undefined,
-          flexDirection: isLeft ? "row" : "row-reverse",
-        }}
-      >
-        {/* ── Circle / node button ── */}
-        <button
-          type="button"
-          onClick={() => status !== "locked" && onClick(item)}
-          disabled={status === "locked"}
-          className="relative shrink-0 outline-none"
-          aria-label={item.exercise.name}
-        >
-          {status === "done" && (
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ type: "spring", stiffness: 500, damping: 25 }}
-              className="flex h-16 w-16 items-center justify-center rounded-full"
-              style={{
-                background: "#39FF14",
-                boxShadow: "0 0 22px rgba(57,255,20,0.55)",
-              }}
-            >
-              <CheckCircle2 size={28} color="#0a0a0a" />
-            </motion.div>
-          )}
-
-          {status === "active" && (
-            <motion.div
-              animate={{
-                boxShadow: [
-                  "0 0 12px rgba(57,255,20,0.4)",
-                  "0 0 30px rgba(57,255,20,0.85)",
-                  "0 0 12px rgba(57,255,20,0.4)",
-                ],
-              }}
-              transition={{ duration: 1.8, repeat: Infinity }}
-              className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2"
-              style={{ background: illustrationId ? "#0d0d0d" : "rgba(57,255,20,0.12)", borderColor: "#39FF14" }}
-            >
-              {illustrationId ? (
-                <ExerciseIllustration
-                  exercise={illustrationId}
-                  className="h-full w-full"
-                  showBackground={false}
-                />
-              ) : (
-                <span className="text-2xl">🏋️</span>
-              )}
-            </motion.div>
-          )}
-
-          {status === "locked" && (
-            <div
-              className="flex h-16 w-16 items-center justify-center rounded-full border"
-              style={{ background: "#0d0d0d", borderColor: "#1e1e1e" }}
-            >
-              <Lock size={20} color="#252525" />
-            </div>
-          )}
-
-          {status === "skipped" && (
-            <div
-              className="flex h-16 w-16 items-center justify-center rounded-full border"
-              style={{ background: "#111", borderColor: "#2a2a2a", opacity: 0.6 }}
-            >
-              <SkipForward size={20} color="#444" />
-            </div>
-          )}
+      <div className={"client-path-node " + (isLeft ? "left " : "right ") + status}>
+        <button type="button" className="client-path-circle" onClick={() => onClick(item)} disabled={status === "locked"} aria-label={`${item.exercise.name}, ${status === "done" ? "completato" : status === "skipped" ? "da riprendere" : status === "locked" ? "bloccato" : "disponibile"}`}>
+          <ExerciseIllustration exercise={illustrationId} className="client-path-art" showBackground={false} />
+          <span className="client-path-symbol">{status === "done" ? <Check size={17} strokeWidth={3} /> : status === "skipped" ? <RotateCcw size={16} /> : status === "locked" ? <Lock size={16} /> : <Zap size={17} fill="currentColor" />}</span>
         </button>
-
-        {/* ── Text label ── */}
-        <div className={`min-w-0 flex-1 ${isLeft ? "text-left" : "text-right"}`}>
-          <p
-            className="truncate text-[12px] font-bold uppercase leading-tight tracking-wide"
-            style={{ color: textColor }}
-          >
-            {item.exercise.name}
-          </p>
-          <p className="mt-0.5 text-[10px] leading-snug" style={{ color: subColor }}>
-            {target.shortLabel}
-            {item.restSeconds ? ` · rec ${item.restSeconds}s` : ""}
-          </p>
-          {muscleGroup && status !== "locked" && (
-            <span
-              className="mt-1 inline-block rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide"
-              style={{ background: bg, color }}
-            >
-              {muscleGroup}
-            </span>
-          )}
-        </div>
+        <div className="client-path-copy"><span>TAPPA {String(index + 1).padStart(2, "0")}</span><strong>{item.exercise.name}</strong><small>{target.shortLabel}{item.restSeconds ? ` · rec ${item.restSeconds}s` : ""}</small>{muscleGroup && <small>{muscleGroup}</small>}{status !== "locked" && previous?.loadUsed && <em>Ultima volta: {previous.loadUsed}{previous.repsDone ? ` · ${previous.repsDone} rip.` : ""}</em>}<button type="button" onClick={() => onClick(item)} disabled={status === "locked"}>{status === "done" ? "Rivedi" : status === "skipped" ? "Riprendi" : status === "locked" ? "Bloccato" : "Inizia"}{status !== "locked" && <ChevronRight size={14} />}</button></div>
       </div>
     </div>
   );
@@ -579,7 +422,7 @@ function ExerciseSheet({ item, log, lastMaximal, onClose, onDraftChange, onSave,
     <motion.div
       initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
       transition={{ type: "spring", stiffness: 380, damping: 38 }}
-      className="fixed inset-x-0 bottom-0 z-50 mx-auto max-w-md overflow-y-auto rounded-t-3xl pb-10 pt-3 shadow-base"
+      className="client-workout-sheet fixed inset-x-0 bottom-0 z-50 mx-auto max-w-md overflow-y-auto rounded-t-3xl pb-10 pt-3 shadow-base"
       style={{ background: "#0e0e0e", maxHeight: "92vh" }}
     >
       <div className="mx-auto mb-4 h-1 w-10 rounded-full" style={{ background: "#2a2a2a" }} />
@@ -1112,20 +955,16 @@ function CelebrationScreen({ workout, activeDay, items, logs, feedbackNotes, onF
 
 function DayTabs({ days, activeId, onChange }) {
   return (
-    <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
+    <div className="client-mission-days" role="tablist" aria-label="Giorno di allenamento">
       {days.map((day) => {
         const active = day.id === activeId;
         return (
           <button
             key={day.id}
             onClick={() => onChange(day.id)}
-            className="shrink-0 rounded-full px-4 py-1.5 text-xs font-bold uppercase transition-all"
-            style={{
-              background: active ? "#39FF14" : "#1a1a1a",
-              color:      active ? "#0a0a0a" : "#666",
-              border:     active ? "none" : "1px solid #2a2a2a",
-              boxShadow:  active ? "0 0 10px rgba(57,255,20,0.35)" : "none",
-            }}
+            role="tab"
+            aria-selected={active}
+            className={active ? "active" : ""}
           >
             {day.label}
           </button>
@@ -1227,6 +1066,10 @@ export default function WorkoutPath() {
     [items, logs]
   );
   const pct = items.length ? Math.round((doneCount / items.length) * 100) : 0;
+  const allSessions = workoutQuery.data?.sessions ?? [];
+  const countedSessions = allSessions.filter(isCountedSession);
+  const streak = calcWeeklyStreak(countedSessions, workout?.days?.length || 1);
+  const skippedCount = items.filter((item) => logs[item.id]?.skipped).length;
 
   // Vale solo per QUESTO giorno di scheda: allenare il giorno A lunedì non deve
   // marcare come "già fatto" anche il giorno B. Si azzera il lunedì successivo.
@@ -1392,8 +1235,8 @@ export default function WorkoutPath() {
         </button>
         <motion.div
           initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col items-center space-y-5 rounded-2xl p-6 text-center"
-          style={{ background: "#111", border: "1px solid rgba(255,59,59,0.25)" }}
+          className="flex flex-col items-center space-y-5 rounded-lg p-6 text-center"
+          style={{ background: "var(--client-surface)", border: "1px solid var(--client-line)" }}
         >
           <div
             className="flex h-16 w-16 items-center justify-center rounded-full"
@@ -1402,7 +1245,7 @@ export default function WorkoutPath() {
             <Lock size={26} style={{ color: "#ff6b6b" }} />
           </div>
           <div>
-            <p className="font-display text-xl font-black uppercase text-white">
+            <p className="font-display text-xl font-black uppercase text-text">
               Abbonamento non attivo
             </p>
             <p className="mt-2 text-sm text-text-muted">
@@ -1431,15 +1274,14 @@ export default function WorkoutPath() {
 
   if (phase === "done") {
     return (
-      <>
-        <GymBackground />
+      <div className="client-workout-celebration">
         <CelebrationScreen
           workout={workout} activeDay={activeDay} items={items} logs={logs}
           feedbackNotes={feedbackNotes}
         onFeedbackChange={(v) => dispatchSession({ type: "SET_FEEDBACK", value: v })}
           onSave={() => saveSession.mutate()} isSaving={saveSession.isPending}
         />
-      </>
+      </div>
     );
   }
 
@@ -1447,28 +1289,10 @@ export default function WorkoutPath() {
     <>
       <GymBackground />
 
-      <div className="relative space-y-5 pb-10">
+      <div className="client-workout-path">
         {/* Header */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate("/area-cliente")}
-            className="rounded-full p-1.5 text-text-muted transition-colors hover:bg-surface-2 hover:text-text"
-          >
-            <ChevronLeft size={20} />
-          </button>
-          <div className="min-w-0 flex-1">
-            <h1 className="font-display text-xl font-black uppercase leading-none">
-              {workout.title}
-            </h1>
-            <p className="text-xs text-text-muted">{activeDay?.label}</p>
-          </div>
-          <span
-            className="shrink-0 rounded-full px-3 py-1 text-xs font-bold uppercase"
-            style={{ background: "rgba(57,255,20,0.12)", color: "#39FF14" }}
-          >
-            {doneCount}/{items.length}
-          </span>
-        </div>
+        <header className="client-mission-header"><div><p>La tua missione</p><h1>Allenamento<span>.</span></h1></div><button onClick={() => navigate("/area-cliente")} aria-label="Torna alla Home"><ChevronLeft size={20} /></button></header>
+        <div className="client-mission-stats"><div><Flame size={19} /><strong>{streak}</strong><span>settimane di fila</span></div><div><Zap size={19} /><strong>{countedSessions.length * 100}</strong><span>XP guadagnati</span></div></div>
 
         {/* Day tabs */}
         {workout.days.length > 1 && (
@@ -1485,34 +1309,15 @@ export default function WorkoutPath() {
           />
         )}
 
-        {/* Progress bar */}
-        <div>
-          <div className="h-2.5 overflow-hidden rounded-full" style={{ background: "#111" }}>
-            <motion.div
-              className="h-full rounded-full"
-              style={{
-                background: "linear-gradient(90deg,#39FF14,#00FF87)",
-                boxShadow: pct > 0 ? "0 0 10px rgba(57,255,20,0.4)" : "none",
-              }}
-              initial={{ width: 0 }}
-              animate={{ width: `${pct}%` }}
-              transition={{ duration: 0.6, ease: "easeOut" }}
-            />
-          </div>
-          <div className="mt-1 flex justify-between text-[9px] uppercase tracking-wide text-text-muted">
-            <span>Percorso</span>
-            <span style={{ color: pct > 0 ? "#39FF14" : undefined }}>{pct}%</span>
-          </div>
-        </div>
+        <section className="client-mission-summary"><div><span>IL PERCORSO DI OGGI</span><h2>{activeDay?.label || workout.title}</h2><p>{items.length} esercizi · {workout.title}</p></div><div className="client-mission-ring" style={{ "--progress": `${pct}%` }}><strong>{doneCount}<small>/{items.length}</small></strong></div></section>
 
         {/* "Già allenato oggi" banner */}
         {alreadyTrainedThisWeek && (
           <motion.div
             initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
-            className="rounded-xl px-4 py-3"
-            style={{ background: "rgba(57,255,20,0.07)", border: "1px solid rgba(57,255,20,0.25)" }}
+            className="client-mission-trained"
           >
-            <p className="flex items-center gap-2 text-sm font-semibold" style={{ color: "#39FF14" }}>
+            <p className="flex items-center gap-2 text-sm font-semibold">
               <CheckCircle2 size={15} /> Hai già completato questo allenamento questa settimana!
             </p>
             <p className="mt-0.5 text-xs text-text-muted">
@@ -1522,28 +1327,31 @@ export default function WorkoutPath() {
         )}
 
         {/* ── Percorso esercizi ── */}
-        <div className="py-2">
+        <div className="client-route-heading"><span><Zap size={15} /> {activeDay?.label || "PERCORSO"}</span><strong>{doneCount === items.length ? "Percorso completo" : skippedCount ? `${skippedCount} da riprendere` : "Prossima tappa"}</strong></div>
+        <div className="client-path-map">
           {items.map((item, idx) => (
             <ExerciseNode
               key={item.id}
               item={item}
               index={idx}
               status={nodeStatus(item, idx)}
+              previous={lastMaximalByItemId[item.id]}
               onClick={(it) => setSheetItem(it)}
               nodeRef={(el) => { nodeRefs.current[item.id] = el; }}
             />
           ))}
         </div>
+        <div className={"client-path-finish " + (doneCount === items.length && items.length > 0 ? "complete" : "")}><Trophy size={21} /><span><strong>{doneCount === items.length && items.length > 0 ? "Percorso completato!" : "Traguardo"}</strong><small>{skippedCount ? "Riprendi le tappe saltate quando vuoi." : doneCount === items.length && items.length > 0 ? "Tutte le tappe conquistate." : "Completa tutte le tappe per arrivare qui."}</small></span></div>
 
         {/* Safety CTA when all done */}
         {doneCount === items.length && items.length > 0 && !restConfig && (
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
             <div
-              className="rounded-xl p-4 text-center"
-              style={{ background: "rgba(57,255,20,0.08)", border: "1px solid rgba(57,255,20,0.3)" }}
+              className="rounded-lg p-4 text-center"
+              style={{ background: "var(--client-accent-soft)", border: "1px solid var(--client-line)" }}
             >
               <p className="text-2xl">🏆</p>
-              <p className="mt-1 font-display text-base font-black uppercase" style={{ color: "#39FF14" }}>
+              <p className="mt-1 font-display text-base font-black uppercase" style={{ color: "var(--client-accent-ink)" }}>
                 Tutti gli esercizi completati!
               </p>
             </div>

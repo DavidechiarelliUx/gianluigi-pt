@@ -57,34 +57,33 @@ function PackageCard({ product, active, onSelect }) {
       type="button"
       onClick={onSelect}
       layout
-      className="w-full rounded-2xl border p-4 text-left transition-all"
+      className="w-full rounded-lg border p-4 text-left transition-all"
       style={{
-        background:   active ? "rgba(57,255,20,0.07)" : "#0d0d0d",
-        borderColor:  active ? "#39FF14" : "#1e1e1e",
-        boxShadow:    active ? "0 0 20px rgba(57,255,20,0.12)" : "none",
+        background: active ? "var(--client-accent-soft)" : "var(--client-surface)",
+        borderColor: active ? "var(--client-accent)" : "var(--client-line)",
       }}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-display text-sm font-black uppercase text-white">
+            <span className="font-display text-sm font-black uppercase text-text">
               {product.name}
             </span>
             {isRecommended && (
               <span className="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase"
-                style={{ background: "#39FF14", color: "#0a0a0a" }}>
+                style={{ background: "var(--client-accent)", color: "var(--client-on-accent)" }}>
                 {product.badgeLabel || "consigliato"}
               </span>
             )}
             {discount > 0 && (
               <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase"
-                style={{ background: "#39FF14", color: "#0a0a0a" }}>
+                style={{ background: "var(--client-accent)", color: "var(--client-on-accent)" }}>
                 <Star size={10} fill="currentColor" /> -{discount}%
               </span>
             )}
           </div>
           <p className="mt-0.5 text-xs text-text-muted line-clamp-2">{product.description}</p>
-          <p className="mt-1 text-[10px] uppercase tracking-wide" style={{ color: "#555" }}>
+          <p className="mt-1 text-[10px] uppercase tracking-wide text-text-muted">
             {ACCESS_LABEL[product.accessLevel] || "App"}
           </p>
         </div>
@@ -95,7 +94,7 @@ function PackageCard({ product, active, onSelect }) {
               {money(product.priceCents, product.currency)}
             </div>
           )}
-          <div className="font-display text-lg font-black" style={{ color: active ? "#39FF14" : "#fff" }}>
+          <div className="font-display text-lg font-black" style={{ color: active ? "var(--client-accent-ink)" : "var(--client-ink)" }}>
             {money(effective, product.currency)}
           </div>
           {isMonthly && (
@@ -105,7 +104,7 @@ function PackageCard({ product, active, onSelect }) {
       </div>
 
       {active && (
-        <div className="mt-3 flex items-center gap-1.5 text-xs font-semibold" style={{ color: "#39FF14" }}>
+        <div className="mt-3 flex items-center gap-1.5 text-xs font-semibold" style={{ color: "var(--client-accent-ink)" }}>
           <CheckCircle2 size={13} /> Selezionato
         </div>
       )}
@@ -211,7 +210,7 @@ export default function ClientPackages() {
   const wasCancelled = searchParams.get("checkout") === "cancelled";
 
   return (
-    <div className="space-y-6 pb-8">
+    <div className="client-packages space-y-6 pb-8">
       {/* Header */}
       <div className="flex items-center gap-3">
         <button
@@ -264,16 +263,16 @@ export default function ClientPackages() {
             exit={{ opacity: 0, y: 8 }}
             transition={{ duration: 0.3 }}
           >
-            <div className="rounded-2xl overflow-hidden" style={{ background: "#111", border: "1px solid rgba(57,255,20,0.2)" }}>
+            <div className="rounded-lg overflow-hidden" style={{ background: "var(--client-surface)", border: "1px solid var(--client-line)" }}>
               {/* Selected recap */}
-              <div className="border-b px-4 py-3" style={{ borderColor: "#1e1e1e" }}>
+              <div className="border-b px-4 py-3" style={{ borderColor: "var(--client-line)" }}>
                 <div className="flex items-center justify-between gap-2">
                   <div>
                     <p className="text-[10px] uppercase tracking-widest text-text-muted">Stai acquistando</p>
-                    <p className="font-display text-base font-bold uppercase text-white">{selected.name}</p>
+                    <p className="font-display text-base font-bold uppercase text-text">{selected.name}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-display text-xl font-black" style={{ color: "#39FF14" }}>
+                    <p className="font-display text-xl font-black" style={{ color: "var(--client-accent-ink)" }}>
                       {money(packageTotal + liveTotal, selected.currency)}
                     </p>
                     {selected.billingInterval === "month" && (
@@ -286,13 +285,13 @@ export default function ClientPackages() {
               <form onSubmit={handleCheckout} className="space-y-4 p-4">
                 {/* Pre-filled user info */}
                 <div
-                  className="rounded-xl p-3 space-y-1"
-                  style={{ background: "rgba(57,255,20,0.06)", border: "1px solid rgba(57,255,20,0.15)" }}
+                  className="rounded-lg p-3 space-y-1"
+                  style={{ background: "var(--client-accent-soft)" }}
                 >
                   <p className="text-[10px] font-semibold uppercase tracking-widest text-text-muted">
                     Dati account
                   </p>
-                  <p className="text-sm font-semibold text-white">{fullName}</p>
+                  <p className="text-sm font-semibold text-text">{fullName}</p>
                   <p className="text-xs text-text-muted">{email}</p>
                   <div className="flex items-center gap-1.5 pt-0.5">
                     <Sparkles size={11} className="text-accent" />
@@ -305,12 +304,12 @@ export default function ClientPackages() {
                 {/* Phone (optional) */}
                 {liveProduct && (
                   <div
-                    className="rounded-xl p-3"
-                    style={{ background: "#0d0d0d", border: "1px solid #1e1e1e" }}
+                    className="rounded-lg p-3"
+                    style={{ background: "var(--client-bg)", border: "1px solid var(--client-line)" }}
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <p className="text-sm font-semibold text-white">Aggiungi live extra</p>
+                        <p className="text-sm font-semibold text-text">Aggiungi live extra</p>
                         <p className="text-xs text-text-muted">Diventano crediti nel tuo account.</p>
                       </div>
                       <QuantityControl value={liveQty} onChange={setLiveQty} />
@@ -344,7 +343,7 @@ export default function ClientPackages() {
                   </div>
                 )}
 
-                <p className="rounded-xl p-3 text-[11px] leading-5 text-text-muted" style={{ background: "#0d0d0d", border: "1px solid #1e1e1e" }}>
+                <p className="rounded-lg p-3 text-[11px] leading-5 text-text-muted" style={{ background: "var(--client-bg)", border: "1px solid var(--client-line)" }}>
                   Il checkout usa i dati del tuo account per creare l'ordine e completare il pagamento con Stripe.
                   Proseguendo confermi di aver letto la{" "}
                   <a className="text-accent hover:underline" href="/privacy-policy" target="_blank" rel="noopener noreferrer">
