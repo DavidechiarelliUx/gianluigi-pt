@@ -48,9 +48,9 @@ function clearProgress(wid, did) {
   catch { /* non bloccante */ }
 }
 
-// ─── Session reducer — logs + feedbackNotes + phase in un unico stato ─────────
+// ─── Session reducer — stato del percorso per il giorno corrente ──────────────
 
-const SESSION_INIT = { logs: {}, feedbackNotes: "", phase: "path" };
+const SESSION_INIT = { logs: {}, feedbackNotes: "", phase: "path", unlockedThrough: 0 };
 
 function sessionReducer(state, action) {
   switch (action.type) {
@@ -58,6 +58,8 @@ function sessionReducer(state, action) {
       return { ...SESSION_INIT, ...action.payload };
     case "PATCH_LOG":
       return { ...state, logs: { ...state.logs, [action.id]: { ...state.logs[action.id], ...action.patch } } };
+    case "REACH":
+      return { ...state, unlockedThrough: Math.max(state.unlockedThrough, action.index) };
     case "SET_FEEDBACK":
       return { ...state, feedbackNotes: action.value };
     case "SET_PHASE":
@@ -1143,7 +1145,7 @@ export default function WorkoutPath() {
 
   const [activeDayId, setActiveDayId] = useState(null);
   const [session, dispatchSession]    = useReducer(sessionReducer, SESSION_INIT);
-  const { logs, feedbackNotes, phase } = session;
+  const { logs, feedbackNotes, phase, unlockedThrough } = session;
 
   const [sheetItem, setSheetItem]   = useState(null);
   const [restConfig, setRestConfig] = useState(null);
@@ -1190,12 +1192,23 @@ export default function WorkoutPath() {
     if (!workout?.id || !activeDay?.id || syncReady) return;
     const saved = readProgress(workout.id, activeDay.id);
     if (saved) {
+      const reachedFromLogs = activeDay.items.reduce((max, item, index) => {
+        const log = saved.logs?.[item.id];
+        return Math.max(max, log?.completed || log?.skipped ? index + 1 : log ? index : 0);
+      }, 0);
       const allCompleted =
         activeDay.items?.length > 0 &&
         activeDay.items.every((item) => saved.logs?.[item.id]?.completed);
       dispatchSession({
         type: "RESTORE",
-        payload: saved.phase === "done" && !allCompleted ? { ...saved, phase: "path" } : saved,
+        payload: {
+          ...saved,
+          unlockedThrough: Math.max(
+            0,
+            Math.min(activeDay.items.length - 1, Math.max(saved.unlockedThrough ?? 0, reachedFromLogs))
+          ),
+          phase: saved.phase === "done" && !allCompleted ? "path" : saved.phase,
+        },
       });
     }
     setSyncReady(true);
@@ -1205,8 +1218,8 @@ export default function WorkoutPath() {
   // ── Persist su ogni cambio di stato rilevante (solo dopo il restore) ─────────
   useEffect(() => {
     if (!syncReady || !workout?.id || !activeDay?.id) return;
-    writeProgress(workout.id, activeDay.id, { logs, feedbackNotes, phase });
-  }, [syncReady, logs, feedbackNotes, phase, workout?.id, activeDay?.id]);
+    writeProgress(workout.id, activeDay.id, { logs, feedbackNotes, phase, unlockedThrough });
+  }, [syncReady, logs, feedbackNotes, phase, unlockedThrough, workout?.id, activeDay?.id]);
 
   const items     = useMemo(() => activeDay?.items ?? [], [activeDay]);
   const doneCount = useMemo(
@@ -1238,9 +1251,9 @@ export default function WorkoutPath() {
       if (logs[item.id]?.completed) return "done";
       const prevLog = logs[items[idx - 1]?.id];
       const prevPassed = idx === 0 || prevLog?.completed || prevLog?.skipped;
-      return prevPassed ? "active" : "locked";
+      return idx <= unlockedThrough || prevPassed ? "active" : "locked";
     },
-    [logs, items]
+    [logs, items, unlockedThrough]
   );
 
   const updateLog = useCallback((itemId, patch) => {
@@ -1255,9 +1268,16 @@ export default function WorkoutPath() {
 
       const idx    = items.findIndex((i) => i.id === item.id);
       const isLast = idx === items.length - 1;
+      dispatchSession({ type: "REACH", index: Math.min(idx + 1, items.length - 1) });
+      const allCompleted = items.every((i) => i.id === item.id || logs[i.id]?.completed);
 
-      if (isLast) {
+      if (allCompleted) {
         setTimeout(() => dispatchSession({ type: "SET_PHASE", value: "done" }), 500);
+      } else if (isLast) {
+        const firstPending = items.find((i) => i.id !== item.id && !logs[i.id]?.completed);
+        setTimeout(() => {
+          nodeRefs.current[firstPending?.id]?.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 300);
       } else if (item.restSeconds) {
         const nextItem = items[idx + 1] ?? null;
         setRestConfig({ initialSeconds: item.restSeconds, nextItemId: nextItem?.id ?? null });
@@ -1270,7 +1290,7 @@ export default function WorkoutPath() {
         }
       }
     },
-    [items, updateLog, toast]
+    [items, logs, updateLog, toast]
   );
 
   const handleSkip = useCallback(
@@ -1279,6 +1299,7 @@ export default function WorkoutPath() {
       setSheetItem(null);
       toast({ type: "info", title: "Esercizio saltato" });
       const idx = items.findIndex((i) => i.id === item.id);
+      dispatchSession({ type: "REACH", index: Math.min(idx + 1, items.length - 1) });
       const nextItem = items[idx + 1];
       if (nextItem) {
         setTimeout(() => {
