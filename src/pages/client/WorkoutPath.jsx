@@ -488,16 +488,21 @@ function ExerciseSetTimer({ totalSeconds, onComplete }) {
 
 // ─── ExerciseSheet — set-by-set tracking ──────────────────────────────────────
 
-function ExerciseSheet({ item, log, lastMaximal, onClose, onSave, onSkip }) {
+function ExerciseSheet({ item, log, lastMaximal, onClose, onDraftChange, onSave, onSkip }) {
   const totalSets    = Math.min(10, Math.max(1, parseInt(String(item.sets ?? 1), 10) || 1));
   const isAlreadyDone = !!log?.completed;
   const illustrationId = resolveIllustrationId(item);
   const muscleGroup    = resolveMuscleGroup(item);
   const target = formatWorkoutTarget(item);
+  const savedLoads = Array.isArray(log?.draftSetLoads) ? log.draftSetLoads : [];
 
-  const [activeSetIdx, setActiveSetIdx] = useState(0);
-  const [setLoads, setSetLoads]         = useState(Array(totalSets).fill(""));
-  const [phase, setPhase]               = useState(isAlreadyDone ? "edit" : "sets");
+  const [activeSetIdx, setActiveSetIdx] = useState(
+    Math.min(totalSets - 1, Math.max(0, Number(log?.draftActiveSetIdx) || 0))
+  );
+  const [setLoads, setSetLoads]         = useState(() =>
+    Array.from({ length: totalSets }, (_, i) => savedLoads[i] ?? "")
+  );
+  const [phase, setPhase]               = useState(isAlreadyDone ? "edit" : log?.draftPhase ?? "sets");
   const [intraRest, setIntraRest]       = useState(null);
 
   const [editLoad, setEditLoad] = useState(log?.loadUsed ?? "");
@@ -516,6 +521,19 @@ function ExerciseSheet({ item, log, lastMaximal, onClose, onSave, onSkip }) {
     const t = setTimeout(() => setIntraRest((r) => Math.max(0, r - 1)), 1000);
     return () => clearTimeout(t);
   }, [intraRest]);
+
+  useEffect(() => {
+    onDraftChange?.(item, {
+      completed: isAlreadyDone,
+      skipped: false,
+      loadUsed: editLoad,
+      rpe,
+      notes,
+      draftSetLoads: setLoads,
+      draftActiveSetIdx: activeSetIdx,
+      draftPhase: phase === "edit" ? "sets" : phase,
+    });
+  }, [activeSetIdx, editLoad, isAlreadyDone, item, notes, onDraftChange, phase, rpe, setLoads]);
 
   const handleSetDone = () => {
     if (activeSetIdx < totalSets - 1) {
@@ -540,7 +558,14 @@ function ExerciseSheet({ item, log, lastMaximal, onClose, onSave, onSkip }) {
     }
   };
 
-  const handleSave = () => onSave(item, { loadUsed: editLoad, rpe, notes });
+  const handleSave = () => onSave(item, {
+    loadUsed: editLoad,
+    rpe,
+    notes,
+    draftSetLoads: setLoads,
+    draftActiveSetIdx: activeSetIdx,
+    draftPhase: phase,
+  });
   const isLastSet  = activeSetIdx === totalSets - 1;
   const restPct    = intraRest ? Math.max(0, (intraRest / restTotal) * 100) : 0;
 
@@ -1164,9 +1189,17 @@ export default function WorkoutPath() {
   useEffect(() => {
     if (!workout?.id || !activeDay?.id || syncReady) return;
     const saved = readProgress(workout.id, activeDay.id);
-    if (saved) dispatchSession({ type: "RESTORE", payload: saved });
+    if (saved) {
+      const allCompleted =
+        activeDay.items?.length > 0 &&
+        activeDay.items.every((item) => saved.logs?.[item.id]?.completed);
+      dispatchSession({
+        type: "RESTORE",
+        payload: saved.phase === "done" && !allCompleted ? { ...saved, phase: "path" } : saved,
+      });
+    }
     setSyncReady(true);
-  }, [workout?.id, activeDay?.id, syncReady]);
+  }, [workout?.id, activeDay?.id, activeDay?.items, syncReady]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   // ── Persist su ogni cambio di stato rilevante (solo dopo il restore) ─────────
@@ -1203,8 +1236,9 @@ export default function WorkoutPath() {
     (item, idx) => {
       if (logs[item.id]?.skipped) return "skipped";
       if (logs[item.id]?.completed) return "done";
-      const prevDone = idx === 0 || logs[items[idx - 1]?.id]?.completed;
-      return prevDone ? "active" : "locked";
+      const prevLog = logs[items[idx - 1]?.id];
+      const prevPassed = idx === 0 || prevLog?.completed || prevLog?.skipped;
+      return prevPassed ? "active" : "locked";
     },
     [logs, items]
   );
@@ -1215,7 +1249,7 @@ export default function WorkoutPath() {
 
   const handleSave = useCallback(
     (item, data) => {
-      updateLog(item.id, { ...data, completed: true });
+      updateLog(item.id, { ...data, completed: true, skipped: false });
       setSheetItem(null);
       toast({ type: "success", title: "Esercizio completato! 💪" });
 
@@ -1241,16 +1275,25 @@ export default function WorkoutPath() {
 
   const handleSkip = useCallback(
     (item) => {
-      updateLog(item.id, { completed: true, skipped: true, loadUsed: null, rpe: null });
+      updateLog(item.id, { completed: false, skipped: true });
       setSheetItem(null);
       toast({ type: "info", title: "Esercizio saltato" });
-      const idx    = items.findIndex((i) => i.id === item.id);
-      const isLast = idx === items.length - 1;
-      if (isLast) {
-        setTimeout(() => dispatchSession({ type: "SET_PHASE", value: "done" }), 400);
+      const idx = items.findIndex((i) => i.id === item.id);
+      const nextItem = items[idx + 1];
+      if (nextItem) {
+        setTimeout(() => {
+          nodeRefs.current[nextItem.id]?.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 300);
       }
     },
     [items, updateLog, toast]
+  );
+
+  const handleDraftChange = useCallback(
+    (item, patch) => {
+      updateLog(item.id, patch);
+    },
+    [updateLog]
   );
 
   const handleRestDone = useCallback(() => {
@@ -1290,7 +1333,15 @@ export default function WorkoutPath() {
             // loadValue: primo numero del carico registrato. L'unità la decide il
             // server dalla riga di scheda, il client non la dichiara.
             const first = String(log.loadUsed ?? "").replace(",", ".").match(/(\d+(?:\.\d+)?)/);
-            return { workoutItemId: item.id, ...log, skipped: false, loadValue: first ? first[1] : null };
+            return {
+              workoutItemId: item.id,
+              completed: !!log.completed,
+              skipped: false,
+              loadUsed: log.loadUsed ?? null,
+              rpe: log.rpe ?? null,
+              notes: log.notes ?? null,
+              loadValue: first ? first[1] : null,
+            };
           }),
         },
       }),
@@ -1495,6 +1546,7 @@ export default function WorkoutPath() {
                 log={logs[sheetItem.id]}
                 lastMaximal={lastMaximalByItemId[sheetItem.id] ?? null}
                 onClose={() => setSheetItem(null)}
+                onDraftChange={handleDraftChange}
                 onSave={handleSave}
                 onSkip={handleSkip}
               />
