@@ -12,14 +12,15 @@ const TABS = [
   { label: "Live", icon: Video, href: "/area-cliente/live" },
   { label: "Profilo", icon: UserRound, href: "/area-cliente/profilo" },
 ];
+const THEME_KEY = "gianluigi-pt:client-theme-v2";
 
 export function ClientLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [tabBarHidden, setTabBarHidden] = useState(false);
   const [theme, setTheme] = useState(() => {
-    try { return localStorage.getItem("gianluigi-pt:client-theme") === "dark" ? "dark" : "light"; }
-    catch { return "light"; }
+    try { return localStorage.getItem(THEME_KEY) === "light" ? "light" : "dark"; }
+    catch { return "dark"; }
   });
   const activeHref = location.pathname.startsWith("/area-cliente/profilo") ||
     ["/supporto", "/privacy", "/contatta", "/installa-app", "/abbonamenti"].some((path) => location.pathname.startsWith(`/area-cliente${path}`))
@@ -27,7 +28,7 @@ export function ClientLayout() {
     : location.pathname.startsWith("/area-cliente/scheda") ? "/area-cliente/allenamento" : location.pathname;
 
   useEffect(() => {
-    try { localStorage.setItem("gianluigi-pt:client-theme", theme); }
+    try { localStorage.setItem(THEME_KEY, theme); }
     catch { /* The app still works without local storage. */ }
   }, [theme]);
 

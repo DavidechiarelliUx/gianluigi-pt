@@ -6,7 +6,7 @@ import { createContext, useContext } from "react";
  */
 export const ClientLayoutContext = createContext({
   setTabBarHidden: () => {},
-  theme: "light",
+  theme: "dark",
   setTheme: () => {},
 });
 

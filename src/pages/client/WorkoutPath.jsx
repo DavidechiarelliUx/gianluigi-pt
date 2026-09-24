@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   Check,
   CheckCircle2,
@@ -8,9 +8,12 @@ import {
   ChevronRight,
   Dumbbell,
   Flame,
+  History,
   Home,
   Lock,
   MessageSquare,
+  Pause,
+  Play,
   Plus,
   RotateCcw,
   Save,
@@ -293,39 +296,37 @@ function ExerciseSetTimer({ totalSeconds, onComplete }) {
     return () => clearInterval(intRef.current);
   }, [running, totalSeconds, onComplete]);
 
-  const pct = (remaining / totalSeconds) * 100;
+  const pct = ((totalSeconds - remaining) / totalSeconds) * 100;
+  const status = remaining === 0 ? "Completato" : running ? "In corso" : remaining < totalSeconds ? "In pausa" : "Pronto";
 
   return (
-    <div
-      className="rounded-xl p-4 text-center space-y-3"
-      style={{ background: "#0d0d0d", border: "1px solid #1a1a1a" }}
-    >
-      <div className="font-display text-4xl font-black tabular-nums" style={{ color: "#39FF14" }}>
+    <div className="client-sheet-timer">
+      <div className="client-sheet-timer-heading"><strong>Timer</strong><span>{status}</span></div>
+      <div className="client-sheet-time" role="timer" aria-label={`Tempo rimanente ${formatSeconds(remaining)}`}>
         {formatSeconds(remaining)}
       </div>
-      <div className="h-1.5 overflow-hidden rounded-full" style={{ background: "#1a1a1a" }}>
-        <div
-          className="h-full rounded-full"
-          style={{ background: "#39FF14", width: `${pct}%`, transition: "width 1s linear" }}
-        />
+      <div className="client-sheet-timer-track" role="progressbar" aria-label="Tempo trascorso" aria-valuemin={0} aria-valuemax={totalSeconds} aria-valuenow={totalSeconds - remaining}>
+        <span style={{ width: `${pct}%` }} />
       </div>
-      <div className="flex justify-center gap-2">
+      <div className="client-sheet-timer-actions">
         <button
           type="button"
+          className="client-sheet-timer-toggle"
+          onClick={() => {
+            if (remaining === 0) setRemaining(totalSeconds);
+            setRunning((value) => remaining === 0 ? true : !value);
+          }}
+        >
+          {running ? <Pause size={17} /> : <Play size={17} />}
+          {remaining === 0 ? "Ricomincia" : running ? "Pausa" : remaining < totalSeconds ? "Riprendi" : "Avvia timer"}
+        </button>
+        {remaining < totalSeconds && <button
+          type="button"
+          className="client-sheet-timer-reset"
           onClick={() => { clearInterval(intRef.current); setRemaining(totalSeconds); setRunning(false); }}
-          className="rounded-lg px-3 py-1.5 text-xs font-bold"
-          style={{ background: "#1a1a1a", color: "#555" }}
-        >
-          Reset
-        </button>
-        <button
-          type="button"
-          onClick={() => setRunning((r) => !r)}
-          className="rounded-lg px-6 py-1.5 text-sm font-bold"
-          style={{ background: running ? "#333" : "#39FF14", color: running ? "#aaa" : "#000" }}
-        >
-          {running ? "Pausa" : remaining < totalSeconds ? "Riprendi" : "Avvia"}
-        </button>
+          aria-label="Azzera timer"
+          title="Azzera timer"
+        ><RotateCcw size={18} /></button>}
       </div>
     </div>
   );
@@ -333,7 +334,18 @@ function ExerciseSetTimer({ totalSeconds, onComplete }) {
 
 // ─── ExerciseSheet — set-by-set tracking ──────────────────────────────────────
 
-function ExerciseSheet({ item, log, lastMaximal, onClose, onDraftChange, onSave, onSkip }) {
+function RpeSelector({ value, onChange }) {
+  return <div className="client-sheet-rpe" role="group" aria-label="Sforzo percepito da 1 a 10">
+    {Array.from({ length: 10 }, (_, index) => index + 1).map((rating) => (
+      <button key={rating} type="button" className={value === String(rating) ? "selected" : ""} aria-pressed={value === String(rating)} onClick={() => onChange(String(rating))}>{rating}</button>
+    ))}
+  </div>;
+}
+
+export function ExerciseSheet({ item, log, lastMaximal, stepNumber, totalItems, onClose, onDraftChange, onSave, onSkip }) {
+  const reduceMotion = useReducedMotion();
+  const sheetRef = useRef(null);
+  const closeRef = useRef(null);
   const totalSets    = Math.min(10, Math.max(1, parseInt(String(item.sets ?? 1), 10) || 1));
   const isAlreadyDone = !!log?.completed;
   const illustrationId = resolveIllustrationId(item);
@@ -360,6 +372,27 @@ function ExerciseSheet({ item, log, lastMaximal, onClose, onDraftChange, onSave,
   const exerciseDuration = parseExerciseDuration(item.reps); // secondi, null se non a tempo
 
   const restTotal = item.restSeconds || 60;
+
+  useEffect(() => {
+    const previousFocus = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    closeRef.current?.focus();
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") { onClose(); return; }
+      if (event.key !== "Tab") return;
+      const controls = [...sheetRef.current.querySelectorAll("button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), a[href]")];
+      if (!controls.length) return;
+      if (event.shiftKey && document.activeElement === controls[0]) { event.preventDefault(); controls.at(-1).focus(); }
+      else if (!event.shiftKey && document.activeElement === controls.at(-1)) { event.preventDefault(); controls[0].focus(); }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      previousFocus?.focus?.();
+    };
+  }, [onClose]);
 
   useEffect(() => {
     if (!intraRest) return;
@@ -416,82 +449,63 @@ function ExerciseSheet({ item, log, lastMaximal, onClose, onDraftChange, onSave,
 
   const { bg: mgBg, color: mgColor } = muscleGroup
     ? getMuscleGroupColor(muscleGroup)
-    : { bg: "rgba(255,255,255,0.05)", color: "#555" };
+    : { bg: "#273129", color: "#d2dfd0" };
+  const previousResult = [
+    lastMaximal?.loadUsed,
+    lastMaximal?.repsDone ? `${lastMaximal.repsDone} rip.` : null,
+  ].filter(Boolean).join(" · ");
+  const sessionMeta = [
+    totalSets > 1 ? `${totalSets} ${target.setWordPlural}` : null,
+    item.restSeconds ? `Recupero ${item.restSeconds}s` : null,
+  ].filter(Boolean).join(" · ");
 
   return (
     <motion.div
-      initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
-      transition={{ type: "spring", stiffness: 380, damping: 38 }}
-      className="client-workout-sheet fixed inset-x-0 bottom-0 z-50 mx-auto max-w-md overflow-y-auto rounded-t-3xl pb-10 pt-3 shadow-base"
-      style={{ background: "#0e0e0e", maxHeight: "92vh" }}
+      ref={sheetRef}
+      initial={reduceMotion ? false : { y: "100%" }} animate={{ y: 0 }} exit={reduceMotion ? { opacity: 0 } : { y: "100%" }}
+      transition={reduceMotion ? { duration: 0.1 } : { type: "spring", stiffness: 380, damping: 38 }}
+      className="client-workout-sheet fixed inset-x-0 bottom-0 z-50 mx-auto"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Esercizio ${item.exercise.name}`}
     >
-      <div className="mx-auto mb-4 h-1 w-10 rounded-full" style={{ background: "#2a2a2a" }} />
       <button
+        ref={closeRef}
         onClick={onClose}
-        className="absolute right-4 top-4 rounded-full p-1 text-text-muted hover:text-text"
+        className="client-sheet-close"
+        aria-label="Chiudi esercizio"
       >
         <X size={20} />
       </button>
 
-      <div className="space-y-4 px-5">
+      <div className="client-sheet-scroll">
         {/* Header */}
-        <div>
-          <div className="flex items-center gap-2">
-            <span
-              className="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase"
-              style={{ background: mgBg, color: mgColor }}
-            >
-              {muscleGroup || "Esercizio"}
-            </span>
-          </div>
-          <h2 className="mt-1 font-display text-2xl font-black uppercase leading-tight text-white">
-            {item.exercise.name}
-          </h2>
-          <p className="mt-1 text-sm" style={{ color: "#888" }}>
-            {target.fullLabel}
-            {item.restSeconds ? ` · rec ${item.restSeconds}s` : ""}
-          </p>
+        <header className="client-sheet-header">
+          <span className="client-sheet-step">Tappa {stepNumber} di {totalItems}</span>
+          <span className="client-sheet-muscle" style={{ background: mgBg, color: mgColor }}>{muscleGroup || "Esercizio"}</span>
+          <h2>{item.exercise.name}</h2>
+          {sessionMeta && <p>{sessionMeta}</p>}
+        </header>
+
+        <div className="client-sheet-previous">
+          <History size={18} aria-hidden="true" />
+          <div><span>Ultima volta</span><strong>{previousResult || "Dato non disponibile"}</strong></div>
+          {lastMaximal?.perceivedDifficulty && <small>RPE {lastMaximal.perceivedDifficulty}</small>}
         </div>
+        {lastMaximal?.notes && <p className="client-sheet-note"><strong>Nota precedente</strong>{lastMaximal.notes}</p>}
 
         {/* Illustration — sets phase only */}
         {phase === "sets" && illustrationId && (
-          <div
-            className="overflow-hidden rounded-2xl"
-            style={{ background: "#0d0d0d", border: "1px solid #1a1a1a" }}
-          >
-            <ExerciseIllustration
-              exercise={illustrationId}
-              className="mx-auto h-40 w-full max-w-[240px] object-contain"
-            />
-          </div>
+          <ExerciseIllustration exercise={illustrationId} className="client-sheet-art" showBackground={false} />
         )}
 
         {/* ── PHASE: sets ── */}
         {phase === "sets" && (
-          <div className="space-y-4">
-            {/* Set pills */}
-            <div className="flex flex-wrap gap-2">
-              {Array.from({ length: totalSets }, (_, i) => (
-                <div
-                  key={i}
-                  className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold"
-                  style={{
-                    background: i < activeSetIdx ? "#39FF14" : i === activeSetIdx ? "rgba(57,255,20,0.15)" : "#1a1a1a",
-                    border: i === activeSetIdx ? "1.5px solid #39FF14" : "1px solid #2a2a2a",
-                    color: i < activeSetIdx ? "#0a0a0a" : i === activeSetIdx ? "#39FF14" : "#2a2a2a",
-                  }}
-                >
-                  {i < activeSetIdx ? <CheckCircle2 size={13} /> : i + 1}
-                </div>
-              ))}
-            </div>
-
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "#39FF14" }}>
-                {target.setWord[0].toUpperCase() + target.setWord.slice(1)} {activeSetIdx + 1} di {totalSets}
-              </p>
-              <p className="font-display text-xl font-black text-white">{target.actionLabel}</p>
-            </div>
+          <div className="client-sheet-work">
+            {totalSets > 1 && <div className="client-sheet-set-progress" aria-label={`${activeSetIdx + 1} di ${totalSets} ${target.setWordPlural}`}>
+              {Array.from({ length: totalSets }, (_, index) => <span key={index} className={index < activeSetIdx ? "done" : index === activeSetIdx ? "active" : ""} />)}
+            </div>}
+            <div className="client-sheet-target"><span>{totalSets === 1 ? "Obiettivo" : `${target.setWord[0].toUpperCase() + target.setWord.slice(1)} ${activeSetIdx + 1} di ${totalSets}`}</span><strong>{target.actionLabel}</strong></div>
 
             {/* Intra-set rest */}
             {intraRest > 0 && (
@@ -522,19 +536,11 @@ function ExerciseSheet({ item, log, lastMaximal, onClose, onDraftChange, onSave,
               </div>
             )}
 
-            <div className="space-y-3">
-              {/* ── Serie in corso ── */}
-              <span className="block text-xs font-semibold uppercase tracking-wide" style={{ color: "#888" }}>
-                {target.setWord[0].toUpperCase() + target.setWord.slice(1)} {activeSetIdx + 1}
-                <span style={{ color: "#555" }}>
-                  {" · "}
-                  {loadType === "time" ? "a tempo" : loadType === "body" ? "corpo libero" : "carico in kg"}
-                </span>
-              </span>
-
+            <div className="client-sheet-entry">
               {/* ── Timer inline per esercizi a tempo ── */}
               {loadType === "time" && exerciseDuration && (
                 <ExerciseSetTimer
+                  key={`${item.id}-${activeSetIdx}`}
                   totalSeconds={exerciseDuration}
                   onComplete={(secs) => {
                     const mins = Math.round(secs / 60 * 10) / 10;
@@ -547,8 +553,9 @@ function ExerciseSheet({ item, log, lastMaximal, onClose, onDraftChange, onSave,
 
               {/* ── Input numerico (nascosto per corpo libero) ── */}
               {loadType !== "body" && (
-                <label className="block">
-                  <div className="flex gap-2 items-center">
+                <label className="client-sheet-field">
+                  <span>{loadType === "time" ? "Minuti eseguiti" : "Peso utilizzato"}</span>
+                  <div className="client-sheet-input-wrap">
                     <Input
                       inputMode="decimal"
                       placeholder={loadType === "time" ? "es. 3" : "es. 60"}
@@ -558,99 +565,26 @@ function ExerciseSheet({ item, log, lastMaximal, onClose, onDraftChange, onSave,
                         next[activeSetIdx] = e.target.value;
                         setSetLoads(next);
                       }}
-                      className="flex-1"
+                      className="client-sheet-input"
                     />
-                    <span className="shrink-0 text-sm font-bold" style={{ color: "#555" }}>
-                      {loadType === "time" ? "min" : "kg"}
-                    </span>
+                    <strong>{loadType === "time" ? "min" : "kg"}</strong>
                   </div>
                 </label>
               )}
               {loadType === "body" && (
-                <div className="rounded-lg px-3 py-2.5 text-sm font-semibold text-center" style={{ background: "#111", color: "#555" }}>
-                  Corpo libero / nessun carico
-                </div>
-              )}
-              {lastMaximal && (
-                <div className="mt-2 space-y-1.5">
-                  {/* Ultima rip badge */}
-                  {(lastMaximal.loadUsed || lastMaximal.repsDone) && (
-                    <span
-                      className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide"
-                      style={{
-                        background: "rgba(57,255,20,0.15)",
-                        border: "1px solid rgba(57,255,20,0.5)",
-                        color: "#39FF14",
-                        boxShadow: "0 0 8px rgba(57,255,20,0.2)",
-                      }}
-                    >
-                      ⚡ Ultima rip:{" "}
-                      {[lastMaximal.loadUsed, lastMaximal.repsDone ? `${lastMaximal.repsDone} reps` : null]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </span>
-                  )}
-                  {/* RPE percepito */}
-                  {lastMaximal.perceivedDifficulty && (
-                    <span
-                      className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide"
-                      style={{
-                        background: "rgba(255,165,0,0.12)",
-                        border: "1px solid rgba(255,165,0,0.35)",
-                        color: "#FFA500",
-                      }}
-                    >
-                      🔥 Sforzo percepito: {lastMaximal.perceivedDifficulty}/10
-                    </span>
-                  )}
-                  {/* Note cliente */}
-                  {lastMaximal.notes && (
-                    <div
-                      className="rounded-lg px-3 py-2 text-[11px] leading-relaxed"
-                      style={{ background: "#111", border: "1px solid #222", color: "#aaa" }}
-                    >
-                      <span className="font-semibold" style={{ color: "#666" }}>📝 Tua nota: </span>
-                      {lastMaximal.notes}
-                    </div>
-                  )}
-                </div>
+                <p className="client-sheet-body-note">Corpo libero: nessun peso da inserire.</p>
               )}
               {/* Note trainer */}
               {item.notes && (
-                <div
-                  className="rounded-lg px-3 py-2 text-[11px] leading-relaxed"
-                  style={{ background: "rgba(57,255,20,0.05)", border: "1px solid rgba(57,255,20,0.2)", color: "#aaa" }}
-                >
-                  <span className="font-semibold" style={{ color: "#39FF14" }}>💬 Trainer: </span>
-                  {item.notes}
-                </div>
+                <p className="client-sheet-note trainer"><strong>Nota del trainer</strong>{item.notes}</p>
               )}
             </div>
-
-            {!intraRest && (
-              <Button className="w-full" onClick={handleSetDone}>
-                <CheckCircle2 size={18} />
-                {isLastSet ? `Ultimo ${target.setWord} — Completa` : `${target.setWord[0].toUpperCase() + target.setWord.slice(1)} ${activeSetIdx + 1} completato`}
-              </Button>
-            )}
-
-            {/* Salta esercizio */}
-            {onSkip && !intraRest && (
-              <button
-                type="button"
-                onClick={() => onSkip(item)}
-                className="w-full text-center text-xs font-semibold py-1"
-                style={{ color: "#444" }}
-              >
-                ↩ Salta esercizio
-              </button>
-            )}
           </div>
         )}
 
         {/* ── PHASE: summary ── */}
         {phase === "summary" && (
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="client-sheet-summary space-y-4">
             <div
               className="rounded-xl p-3 text-center"
               style={{ background: "rgba(57,255,20,0.08)", border: "1px solid rgba(57,255,20,0.25)" }}
@@ -679,33 +613,19 @@ function ExerciseSheet({ item, log, lastMaximal, onClose, onDraftChange, onSave,
             )}
 
             <label className="block">
-              <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide" style={{ color: "#888" }}>
-                Carico riepilogo
+              <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-text-muted">
+                {loadType === "time" ? "Tempo riepilogo" : loadType === "body" ? "Esecuzione" : "Carico riepilogo"}
               </span>
-              <Input inputMode="text" placeholder="es. 60kg / 62.5kg"
+              <Input inputMode="text" placeholder={loadType === "time" ? "es. 5 min" : loadType === "body" ? "corpo libero" : "es. 60 kg / 62,5 kg"}
                 value={editLoad} onChange={(e) => setEditLoad(e.target.value)} />
             </label>
 
-            <label className="block">
-              <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide" style={{ color: "#888" }}>
+            <div>
+              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-text-muted">
                 Sforzo percepito (1–10)
-              </span>
-              <div className="flex flex-wrap gap-1.5">
-                {Array.from({ length: 10 }, (_, i) => i + 1).map((v) => (
-                  <button
-                    key={v} type="button" onClick={() => setRpe(String(v))}
-                    className="h-9 w-9 rounded-lg text-sm font-bold transition-all"
-                    style={{
-                      background: rpe === String(v) ? "#39FF14" : "#1e1e1e",
-                      color:      rpe === String(v) ? "#0a0a0a" : "#555",
-                      border:     rpe === String(v) ? "none" : "1px solid #2a2a2a",
-                    }}
-                  >
-                    {v}
-                  </button>
-                ))}
-              </div>
-            </label>
+              </p>
+              <RpeSelector value={rpe} onChange={setRpe} />
+            </div>
 
             <label className="block">
               <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide" style={{ color: "#888" }}>
@@ -715,18 +635,12 @@ function ExerciseSheet({ item, log, lastMaximal, onClose, onDraftChange, onSave,
                 value={notes} onChange={(e) => setNotes(e.target.value)} />
             </label>
 
-            <Button className="w-full" onClick={handleSave}>
-              <Save size={18} /> Salva esercizio
-            </Button>
-            <button onClick={() => setPhase("sets")} className="w-full text-center text-xs text-text-muted hover:text-text">
-              ← Torna alle serie
-            </button>
           </motion.div>
         )}
 
         {/* ── PHASE: edit ── */}
         {phase === "edit" && (
-          <div className="space-y-4">
+          <div className="client-sheet-summary space-y-4">
             <div
               className="rounded-xl p-3 text-center"
               style={{ background: "rgba(57,255,20,0.05)", border: "1px solid rgba(57,255,20,0.2)" }}
@@ -734,62 +648,20 @@ function ExerciseSheet({ item, log, lastMaximal, onClose, onDraftChange, onSave,
               <p className="text-xs text-text-muted">Esercizio già completato — modifica se necessario</p>
             </div>
 
-            {/* Badge sessione precedente (stessa logica della fase sets) */}
-            {lastMaximal && (
-              <div className="space-y-1.5">
-                {(lastMaximal.loadUsed || lastMaximal.repsDone) && (
-                  <span
-                    className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide"
-                    style={{ background: "rgba(57,255,20,0.15)", border: "1px solid rgba(57,255,20,0.5)", color: "#39FF14", boxShadow: "0 0 8px rgba(57,255,20,0.2)" }}
-                  >
-                    ⚡ Ultima rip:{" "}
-                    {[lastMaximal.loadUsed, lastMaximal.repsDone ? `${lastMaximal.repsDone} reps` : null].filter(Boolean).join(" · ")}
-                  </span>
-                )}
-                {lastMaximal.perceivedDifficulty && (
-                  <span
-                    className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide"
-                    style={{ background: "rgba(255,165,0,0.12)", border: "1px solid rgba(255,165,0,0.35)", color: "#FFA500" }}
-                  >
-                    🔥 Sforzo: {lastMaximal.perceivedDifficulty}/10
-                  </span>
-                )}
-                {lastMaximal.notes && (
-                  <div className="rounded-lg px-3 py-2 text-[11px] leading-relaxed" style={{ background: "#111", border: "1px solid #222", color: "#aaa" }}>
-                    <span className="font-semibold" style={{ color: "#666" }}>📝 Nota prec.: </span>{lastMaximal.notes}
-                  </div>
-                )}
-              </div>
-            )}
-
             <label className="block">
-              <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide" style={{ color: "#888" }}>
-                Carico usato
+              <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-text-muted">
+                {loadType === "time" ? "Tempo registrato" : loadType === "body" ? "Esecuzione" : "Carico usato"}
               </span>
-              <Input inputMode="text" placeholder="es. 60kg · corpo libero"
+              <Input inputMode="text" placeholder={loadType === "time" ? "es. 5 min" : loadType === "body" ? "corpo libero" : "es. 60 kg"}
                 value={editLoad} onChange={(e) => setEditLoad(e.target.value)} />
             </label>
 
-            <label className="block">
-              <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide" style={{ color: "#888" }}>
+            <div>
+              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-text-muted">
                 RPE (1–10)
-              </span>
-              <div className="flex flex-wrap gap-1.5">
-                {Array.from({ length: 10 }, (_, i) => i + 1).map((v) => (
-                  <button
-                    key={v} type="button" onClick={() => setRpe(String(v))}
-                    className="h-9 w-9 rounded-lg text-sm font-bold transition-all"
-                    style={{
-                      background: rpe === String(v) ? "#39FF14" : "#1e1e1e",
-                      color:      rpe === String(v) ? "#0a0a0a" : "#555",
-                      border:     rpe === String(v) ? "none" : "1px solid #2a2a2a",
-                    }}
-                  >
-                    {v}
-                  </button>
-                ))}
-              </div>
-            </label>
+              </p>
+              <RpeSelector value={rpe} onChange={setRpe} />
+            </div>
 
             <label className="block">
               <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide" style={{ color: "#888" }}>
@@ -799,12 +671,23 @@ function ExerciseSheet({ item, log, lastMaximal, onClose, onDraftChange, onSave,
                 value={notes} onChange={(e) => setNotes(e.target.value)} />
             </label>
 
-            <Button className="w-full" onClick={handleSave}>
-              <Save size={18} /> Aggiorna esercizio
-            </Button>
           </div>
         )}
       </div>
+      <footer className="client-sheet-footer">
+        {phase === "sets" && <>
+          <Button className="client-sheet-primary" onClick={handleSetDone} disabled={intraRest > 0}>
+            <CheckCircle2 size={19} />
+            {intraRest > 0 ? `Recupero ${intraRest}s` : isLastSet ? "Completa blocco" : `Completa ${target.setWord} ${activeSetIdx + 1}`}
+          </Button>
+          {onSkip && <button type="button" className="client-sheet-secondary" onClick={() => onSkip(item)}><SkipForward size={16} /> Salta per ora</button>}
+        </>}
+        {phase === "summary" && <>
+          <Button className="client-sheet-primary" onClick={handleSave}><Save size={18} /> Salva esercizio</Button>
+          <button type="button" className="client-sheet-secondary" onClick={() => setPhase("sets")}>Torna alle serie</button>
+        </>}
+        {phase === "edit" && <Button className="client-sheet-primary" onClick={handleSave}><Save size={18} /> Aggiorna esercizio</Button>}
+      </footer>
     </motion.div>
   );
 }
@@ -993,6 +876,7 @@ export default function WorkoutPath() {
   const [syncReady, setSyncReady] = useState(false);
 
   const nodeRefs = useRef({});
+  const closeSheet = useCallback(() => setSheetItem(null), []);
 
   // Sblocca AudioContext su primo tap (requisito iOS per Web Audio API)
   useEffect(() => {
@@ -1368,13 +1252,15 @@ export default function WorkoutPath() {
               <motion.div
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 className="fixed inset-0 z-40 bg-black/70"
-                onClick={() => setSheetItem(null)}
+                onClick={closeSheet}
               />
               <ExerciseSheet
                 item={sheetItem}
                 log={logs[sheetItem.id]}
                 lastMaximal={lastMaximalByItemId[sheetItem.id] ?? null}
-                onClose={() => setSheetItem(null)}
+                stepNumber={items.findIndex((item) => item.id === sheetItem.id) + 1}
+                totalItems={items.length}
+                onClose={closeSheet}
                 onDraftChange={handleDraftChange}
                 onSave={handleSave}
                 onSkip={handleSkip}
