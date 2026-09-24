@@ -77,7 +77,7 @@ export default function ClientProfileScreen() {
   const messagesQuery = useQuery({ queryKey: ["client", "messages"], queryFn: () => apiFetch("/api/client/messages") });
   const sessions = useMemo(() => workoutQuery.data?.sessions ?? [], [workoutQuery.data?.sessions]);
   const messages = useMemo(() => messagesQuery.data?.messages ?? [], [messagesQuery.data?.messages]);
-  const totalSessions = sessions.length;
+  const totalSessions = overview.data?.totalSessions ?? sessions.length;
   const xp = totalSessions * 100;
   const levelIndex = Math.max(0, LEVELS.findLastIndex((level) => xp >= level.min));
   const level = LEVELS[levelIndex];

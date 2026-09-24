@@ -12,6 +12,7 @@ import {
   Mail,
   MessageCircle,
   Plus,
+  Save,
   Send,
   Trash2,
   Unlock,
@@ -255,6 +256,21 @@ function MessageBubble({ message, onResolve, onHide, busy }) {
   );
 }
 
+function CheckInReview({ checkIn, onReply, busy }) {
+  const [reply, setReply] = useState(checkIn.coachReply || "");
+  const [planNote, setPlanNote] = useState(checkIn.planNote || "");
+  return <article className="border-b border-border py-4 last:border-0">
+    <div className="flex flex-wrap items-center justify-between gap-2"><strong className="text-sm">Settimana del {shortDate(checkIn.weekStart)}</strong><StatusBadge status={checkIn.reviewedAt ? "success" : "warning"}>{checkIn.reviewedAt ? "Risposto" : "Da leggere"}</StatusBadge></div>
+    <p className="mt-2 text-sm text-text-muted">Energia {checkIn.energy}/5 · Difficoltà {checkIn.difficulty}/5</p>
+    {checkIn.obstacle && <p className="mt-1 whitespace-pre-wrap text-sm text-text">Ostacolo: {checkIn.obstacle}</p>}
+    <form className="mt-3 space-y-2" onSubmit={(event) => { event.preventDefault(); onReply({ checkInId: checkIn.id, coachReply: reply, planNote }); }}>
+      <label className="block text-xs text-text-muted">Risposta al cliente<Textarea rows={2} maxLength={1000} className="mt-1" value={reply} onChange={(event) => setReply(event.target.value)} placeholder="Cosa hai osservato e cosa fare ora" /></label>
+      <label className="block text-xs text-text-muted">Nota sul piano (facoltativa)<Textarea rows={2} maxLength={1000} className="mt-1" value={planNote} onChange={(event) => setPlanNote(event.target.value)} placeholder="Eventuali modifiche alla scheda e perché" /></label>
+      <Button type="submit" size="sm" disabled={busy || (!reply.trim() && !planNote.trim())}><Send size={15} /> {checkIn.reviewedAt ? "Aggiorna risposta" : "Invia risposta"}</Button>
+    </form>
+  </article>;
+}
+
 export default function Clients() {
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -263,6 +279,8 @@ export default function Clients() {
   const [selectedIdState, setSelectedIdState] = useState(searchParams.get("client"));
   const [form, setForm] = useState(EMPTY_FORM);
   const [messageDraft, setMessageDraft] = useState("");
+  const [editingGoal, setEditingGoal] = useState(false);
+  const [goalDraft, setGoalDraft] = useState("");
 
   const clientsQuery = useQuery({
     queryKey: ["clients"],
@@ -275,6 +293,7 @@ export default function Clients() {
   const selectClient = (id) => {
     setSelectedIdState(id);
     setMessageDraft("");
+    setEditingGoal(false);
     if (id) setSearchParams({ client: id }, { replace: true });
   };
 
@@ -382,6 +401,25 @@ export default function Clients() {
     onError: (err) => toast({ type: "error", title: "Invio fallito", description: err.message }),
   });
 
+  const replyCheckIn = useMutation({
+    mutationFn: (payload) => apiFetch(`/api/clients/${selected.id}`, { method: "PATCH", body: payload }),
+    onSuccess: async () => {
+      await Promise.all([qc.invalidateQueries({ queryKey: ["clients", selectedId] }), qc.invalidateQueries({ queryKey: ["clients"] })]);
+      toast({ type: "success", title: "Risposta al check-in inviata" });
+    },
+    onError: (error) => toast({ type: "error", title: "Risposta non inviata", description: error.message }),
+  });
+
+  const updateGoal = useMutation({
+    mutationFn: () => apiFetch(`/api/clients/${selected.id}`, { method: "PUT", body: { goal: goalDraft } }),
+    onSuccess: async () => {
+      setEditingGoal(false);
+      await Promise.all([qc.invalidateQueries({ queryKey: ["clients", selectedId] }), qc.invalidateQueries({ queryKey: ["clients"] })]);
+      toast({ type: "success", title: "Obiettivo aggiornato" });
+    },
+    onError: (error) => toast({ type: "error", title: "Obiettivo non salvato", description: error.message }),
+  });
+
   const sendInvoice = useMutation({
     mutationFn: (id) => apiFetch("/api/admin-billing", { method: "POST", body: { type: "invoice", id } }),
     onSuccess: (data) =>
@@ -452,7 +490,8 @@ export default function Clients() {
       label: "Richieste",
       render: (client) => {
         const count = client.dashboard?.openRequests || 0;
-        return <StatusBadge status={count > 0 ? "warning" : "success"}>{count}</StatusBadge>;
+        const checkIns = client.dashboard?.pendingCheckIns || 0;
+        return <div className="flex flex-wrap gap-1"><StatusBadge status={count > 0 ? "warning" : "success"}>{count} messaggi</StatusBadge>{checkIns > 0 && <StatusBadge status="warning">{checkIns} check-in</StatusBadge>}</div>;
       },
     },
     { key: "live", label: "Live", render: (client) => client.dashboard?.liveCredits || 0 },
@@ -507,6 +546,7 @@ export default function Clients() {
                       <StatusBadge status={(client.dashboard?.openRequests || 0) > 0 ? "warning" : "success"}>
                         {client.dashboard?.openRequests || 0} richieste
                       </StatusBadge>
+                      {(client.dashboard?.pendingCheckIns || 0) > 0 && <StatusBadge status="warning">{client.dashboard.pendingCheckIns} check-in</StatusBadge>}
                       {accessDeadline(client.dashboard) && (
                         <StatusBadge status="warning">
                           Scade {shortDate(accessDeadline(client.dashboard).date)}
@@ -585,14 +625,19 @@ export default function Clients() {
                     <div>{selected.phone || "—"}</div>
                   </div>
                   <div>
-                    <div className="text-xs uppercase text-text-muted">Obiettivo</div>
-                    <div>{selected.goal || "—"}</div>
+                    <div className="flex items-center gap-2 text-xs uppercase text-text-muted">Obiettivo <button type="button" className="text-accent normal-case" onClick={() => { setGoalDraft(selected.goal || ""); setEditingGoal((value) => !value); }}>{editingGoal ? "Annulla" : "Modifica"}</button></div>
+                    {editingGoal ? <form className="mt-2 flex gap-2" onSubmit={(event) => { event.preventDefault(); updateGoal.mutate(); }}><Input maxLength={200} value={goalDraft} onChange={(event) => setGoalDraft(event.target.value)} aria-label="Obiettivo del cliente" /><Button type="submit" size="sm" disabled={updateGoal.isPending}><Save size={15} /> Salva</Button></form> : <div>{selected.goal || "—"}</div>}
                   </div>
                   <div className="sm:col-span-2">
                     <div className="text-xs uppercase text-text-muted">Note operative</div>
                     <div>{selected.notes || "—"}</div>
                   </div>
                 </div>
+              </Card>
+
+              <Card className="space-y-3">
+                <div className="flex items-center gap-2"><Activity className="text-accent" size={18} /><h3 className="font-display text-base font-bold uppercase">Check-in settimanali</h3></div>
+                {(selected.checkIns || []).length ? selected.checkIns.slice(0, 4).map((checkIn) => <CheckInReview key={checkIn.id} checkIn={checkIn} onReply={replyCheckIn.mutate} busy={replyCheckIn.isPending} />) : <p className="text-sm text-text-muted">Nessun check-in ancora inviato.</p>}
               </Card>
 
               <Card className="space-y-4">

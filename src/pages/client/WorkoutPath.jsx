@@ -35,31 +35,45 @@ import {
   getMuscleGroupColor,
 } from "../../components/exercises/exercise-data";
 import { useToast } from "../../hooks/useToast";
+import { useAuth } from "../../hooks/useAuth";
 import { apiFetch } from "../../lib/api";
 import { calcWeeklyStreak, isCountedSession, weekKey } from "../../lib/sessionStats";
 import { formatWorkoutTarget } from "../../lib/workoutTarget";
 import { useClientLayout } from "./ClientLayoutContext";
 
-// ─── sessionStorage helpers — sopravvivono alla navigazione ──────────────────
+// La copia locale copre una perdita di rete; la bozza sul server resta canonica.
+const WP_KEY = (userId, wid, did) => `wp-v2-${userId}-${wid}-${did}`;
+const LEGACY_WP_KEY = (wid, did) => `wp-${wid}-${did}`;
 
-const WP_KEY = (wid, did) => `wp-${wid}-${did}`;
-
-function readProgress(wid, did) {
-  try { return JSON.parse(sessionStorage.getItem(WP_KEY(wid, did)) ?? "null"); }
-  catch { return null; }
+function readProgress(userId, wid, did) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(WP_KEY(userId, wid, did)) ?? "null");
+    if (saved?.state) return saved;
+  } catch { /* Browser senza storage persistente. */ }
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(WP_KEY(userId, wid, did)) ?? "null");
+    if (saved?.state) return saved;
+  } catch { /* Il server rimane disponibile. */ }
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(LEGACY_WP_KEY(wid, did)) ?? "null");
+    return saved ? { state: saved, revision: 0, savedAt: "legacy" } : null;
+  } catch { return null; }
 }
-function writeProgress(wid, did, data) {
-  try { sessionStorage.setItem(WP_KEY(wid, did), JSON.stringify(data)); }
-  catch { /* quota exceeded o private browsing — non bloccante */ }
+function writeProgress(userId, wid, did, state, revision) {
+  const snapshot = { state, revision, savedAt: crypto.randomUUID() };
+  try { localStorage.setItem(WP_KEY(userId, wid, did), JSON.stringify(snapshot)); }
+  catch { try { sessionStorage.setItem(WP_KEY(userId, wid, did), JSON.stringify(snapshot)); } catch { /* Il server rimane disponibile. */ } }
+  return snapshot;
 }
-function clearProgress(wid, did) {
-  try { sessionStorage.removeItem(WP_KEY(wid, did)); }
-  catch { /* non bloccante */ }
+function clearProgress(userId, wid, did) {
+  try { localStorage.removeItem(WP_KEY(userId, wid, did)); } catch { /* non bloccante */ }
+  try { sessionStorage.removeItem(WP_KEY(userId, wid, did)); } catch { /* non bloccante */ }
+  try { sessionStorage.removeItem(LEGACY_WP_KEY(wid, did)); } catch { /* non bloccante */ }
 }
 
 // ─── Session reducer — stato del percorso per il giorno corrente ──────────────
 
-const SESSION_INIT = { logs: {}, feedbackNotes: "", phase: "path", unlockedThrough: 0 };
+const SESSION_INIT = { logs: {}, feedbackNotes: "", phase: "path", unlockedThrough: 0, submissionId: null };
 
 function sessionReducer(state, action) {
   switch (action.type) {
@@ -359,8 +373,12 @@ export function ExerciseSheet({ item, log, lastMaximal, stepNumber, totalItems, 
   const [setLoads, setSetLoads]         = useState(() =>
     Array.from({ length: totalSets }, (_, i) => savedLoads[i] ?? "")
   );
+  const [setReps, setSetReps] = useState(() =>
+    Array.from({ length: totalSets }, (_, i) => log?.draftSetReps?.[i] ?? "")
+  );
   const [phase, setPhase]               = useState(isAlreadyDone ? "edit" : log?.draftPhase ?? "sets");
   const [intraRest, setIntraRest]       = useState(null);
+  const [fieldError, setFieldError] = useState("");
 
   const [editLoad, setEditLoad] = useState(log?.loadUsed ?? "");
   const [rpe, setRpe]           = useState(log?.rpe ?? "");
@@ -402,18 +420,29 @@ export function ExerciseSheet({ item, log, lastMaximal, stepNumber, totalItems, 
 
   useEffect(() => {
     onDraftChange?.(item, {
-      completed: isAlreadyDone,
-      skipped: false,
       loadUsed: editLoad,
       rpe,
       notes,
       draftSetLoads: setLoads,
+      draftSetReps: setReps,
       draftActiveSetIdx: activeSetIdx,
       draftPhase: phase === "edit" ? "sets" : phase,
     });
-  }, [activeSetIdx, editLoad, isAlreadyDone, item, notes, onDraftChange, phase, rpe, setLoads]);
+  }, [activeSetIdx, editLoad, item, notes, onDraftChange, phase, rpe, setLoads, setReps]);
 
   const handleSetDone = () => {
+    const load = String(setLoads[activeSetIdx] || "").trim();
+    const reps = String(setReps[activeSetIdx] || "").trim();
+    const loadNumber = Number(load.replace(",", "."));
+    if (loadType !== "body" && load && (!Number.isFinite(loadNumber) || loadNumber < 0 || loadNumber > (loadType === "time" ? 1440 : 2000))) {
+      setFieldError(loadType === "time" ? "Inserisci minuti validi." : "Inserisci un peso valido.");
+      return;
+    }
+    if (loadType !== "time" && reps && (!Number.isInteger(Number(reps)) || Number(reps) < 0 || Number(reps) > 1000)) {
+      setFieldError("Inserisci un numero di ripetizioni valido.");
+      return;
+    }
+    setFieldError("");
     if (activeSetIdx < totalSets - 1) {
       const nextIdx = activeSetIdx + 1;
       setSetLoads((prev) => {
@@ -436,13 +465,23 @@ export function ExerciseSheet({ item, log, lastMaximal, stepNumber, totalItems, 
     }
   };
 
+  const formattedSetLoads = setLoads.map((value) => value ? `${value}${loadType === "weight" ? " kg" : loadType === "time" ? " min" : ""}` : loadType === "body" ? "corpo libero" : "");
+  const hasStructuredSets = setLoads.some(Boolean) || setReps.some(Boolean);
   const handleSave = () => onSave(item, {
-    loadUsed: editLoad,
+    loadUsed: hasStructuredSets ? loadType === "body" ? "corpo libero" : formattedSetLoads.filter(Boolean).join(" / ") : editLoad,
+    repsDone: setReps.some(Boolean) ? setReps.filter(Boolean).join(" / ") : log?.repsDone || null,
     rpe,
     notes,
     draftSetLoads: setLoads,
+    draftSetReps: setReps,
     draftActiveSetIdx: activeSetIdx,
     draftPhase: phase,
+    sets: Array.from({ length: totalSets }, (_, index) => ({
+      setIndex: index,
+      loadValue: loadType === "weight" ? setLoads[index] : null,
+      repsDone: loadType === "time" ? null : setReps[index],
+      durationSeconds: loadType === "time" && setLoads[index] ? Math.round(Number(String(setLoads[index]).replace(",", ".")) * 60) : null,
+    })),
   });
   const isLastSet  = activeSetIdx === totalSets - 1;
   const restPct    = intraRest ? Math.max(0, (intraRest / restTotal) * 100) : 0;
@@ -454,6 +493,7 @@ export function ExerciseSheet({ item, log, lastMaximal, stepNumber, totalItems, 
     lastMaximal?.loadUsed,
     lastMaximal?.repsDone ? `${lastMaximal.repsDone} rip.` : null,
   ].filter(Boolean).join(" · ");
+  const previousDate = lastMaximal?.date ? new Date(lastMaximal.date).toLocaleDateString("it-IT", { day: "numeric", month: "short" }) : null;
   const sessionMeta = [
     totalSets > 1 ? `${totalSets} ${target.setWordPlural}` : null,
     item.restSeconds ? `Recupero ${item.restSeconds}s` : null,
@@ -489,9 +529,10 @@ export function ExerciseSheet({ item, log, lastMaximal, stepNumber, totalItems, 
 
         <div className="client-sheet-previous">
           <History size={18} aria-hidden="true" />
-          <div><span>Ultima volta</span><strong>{previousResult || "Dato non disponibile"}</strong></div>
+          <div><span>Ultima volta{previousDate ? ` · ${previousDate}` : ""}</span><strong>{previousResult || (lastMaximal ? "Esercizio completato" : "Dato non disponibile")}</strong></div>
           {lastMaximal?.perceivedDifficulty && <small>RPE {lastMaximal.perceivedDifficulty}</small>}
         </div>
+        {lastMaximal?.sets?.length > 0 && <div className="client-sheet-previous-sets" aria-label="Serie dell'ultima volta">{lastMaximal.sets.map((set) => <span key={set.setIndex}><b>{set.setIndex + 1}</b>{[set.loadValue != null ? `${set.loadValue} kg` : null, set.repsDone != null ? `${set.repsDone} rip.` : null, set.durationSeconds != null ? `${Math.round(set.durationSeconds / 60 * 10) / 10} min` : null].filter(Boolean).join(" · ") || "Eseguita"}</span>)}</div>}
         {lastMaximal?.notes && <p className="client-sheet-note"><strong>Nota precedente</strong>{lastMaximal.notes}</p>}
 
         {/* Illustration — sets phase only */}
@@ -564,6 +605,7 @@ export function ExerciseSheet({ item, log, lastMaximal, stepNumber, totalItems, 
                         const next = [...setLoads];
                         next[activeSetIdx] = e.target.value;
                         setSetLoads(next);
+                        setFieldError("");
                       }}
                       className="client-sheet-input"
                     />
@@ -574,6 +616,8 @@ export function ExerciseSheet({ item, log, lastMaximal, stepNumber, totalItems, 
               {loadType === "body" && (
                 <p className="client-sheet-body-note">Corpo libero: nessun peso da inserire.</p>
               )}
+              {loadType !== "time" && <label className="client-sheet-field"><span>Ripetizioni eseguite</span><div className="client-sheet-input-wrap"><Input inputMode="numeric" type="number" min="0" max="1000" placeholder="es. 8" value={setReps[activeSetIdx]} onChange={(event) => { const next = [...setReps]; next[activeSetIdx] = event.target.value; setSetReps(next); setFieldError(""); }} className="client-sheet-input" /><strong>rip.</strong></div></label>}
+              {fieldError && <p className="client-sheet-error" role="alert">{fieldError}</p>}
               {/* Note trainer */}
               {item.notes && (
                 <p className="client-sheet-note trainer"><strong>Nota del trainer</strong>{item.notes}</p>
@@ -594,31 +638,14 @@ export function ExerciseSheet({ item, log, lastMaximal, stepNumber, totalItems, 
               </p>
             </div>
 
-            {totalSets > 1 && setLoads.some(Boolean) && (
-              <div className="space-y-1">
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-text-muted">
-                  {target.type === "time" ? "Note per blocco" : "Carichi per serie"}
-                </p>
-                {setLoads.map((load, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between rounded-lg px-3 py-2"
-                    style={{ background: "#0d0d0d", border: "1px solid #1a1a1a" }}
-                  >
-                    <span className="text-xs text-text-muted">{target.setWord[0].toUpperCase() + target.setWord.slice(1)} {i + 1}</span>
-                    <span className="text-xs font-semibold text-white">{load || "—"}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <label className="block">
+            {!hasStructuredSets && <label className="block">
               <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-text-muted">
                 {loadType === "time" ? "Tempo riepilogo" : loadType === "body" ? "Esecuzione" : "Carico riepilogo"}
               </span>
               <Input inputMode="text" placeholder={loadType === "time" ? "es. 5 min" : loadType === "body" ? "corpo libero" : "es. 60 kg / 62,5 kg"}
                 value={editLoad} onChange={(e) => setEditLoad(e.target.value)} />
-            </label>
+            </label>}
+            {hasStructuredSets && <div className="client-sheet-saved-sets"><strong>Serie registrate</strong>{Array.from({ length: totalSets }, (_, index) => <span key={index}>Serie {index + 1}<b>{[formattedSetLoads[index], setReps[index] ? `${setReps[index]} rip.` : null].filter(Boolean).join(" · ") || "Eseguita"}</b></span>)}</div>}
 
             <div>
               <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-text-muted">
@@ -648,13 +675,14 @@ export function ExerciseSheet({ item, log, lastMaximal, stepNumber, totalItems, 
               <p className="text-xs text-text-muted">Esercizio già completato — modifica se necessario</p>
             </div>
 
-            <label className="block">
+            {!hasStructuredSets && <label className="block">
               <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-text-muted">
                 {loadType === "time" ? "Tempo registrato" : loadType === "body" ? "Esecuzione" : "Carico usato"}
               </span>
               <Input inputMode="text" placeholder={loadType === "time" ? "es. 5 min" : loadType === "body" ? "corpo libero" : "es. 60 kg"}
                 value={editLoad} onChange={(e) => setEditLoad(e.target.value)} />
-            </label>
+            </label>}
+            {hasStructuredSets && <div className="client-sheet-saved-sets"><strong>Serie registrate</strong>{Array.from({ length: totalSets }, (_, index) => <span key={index}>Serie {index + 1}<b>{[formattedSetLoads[index], setReps[index] ? `${setReps[index]} rip.` : null].filter(Boolean).join(" · ") || "Eseguita"}</b></span>)}</div>}
 
             <div>
               <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-text-muted">
@@ -686,7 +714,7 @@ export function ExerciseSheet({ item, log, lastMaximal, stepNumber, totalItems, 
           <Button className="client-sheet-primary" onClick={handleSave}><Save size={18} /> Salva esercizio</Button>
           <button type="button" className="client-sheet-secondary" onClick={() => setPhase("sets")}>Torna alle serie</button>
         </>}
-        {phase === "edit" && <Button className="client-sheet-primary" onClick={handleSave}><Save size={18} /> Aggiorna esercizio</Button>}
+        {phase === "edit" && <><Button className="client-sheet-primary" onClick={handleSave}><Save size={18} /> Aggiorna esercizio</Button><button type="button" className="client-sheet-secondary" onClick={() => setPhase("sets")}>Modifica le serie</button></>}
       </footer>
     </motion.div>
   );
@@ -696,7 +724,7 @@ export function ExerciseSheet({ item, log, lastMaximal, stepNumber, totalItems, 
 
 const CIRCUMFERENCE = 2 * Math.PI * 54;
 
-function CelebrationScreen({ workout, activeDay, items, logs, feedbackNotes, onFeedbackChange, onSave, isSaving }) {
+function CelebrationScreen({ workout, activeDay, items, logs, feedbackNotes, draftStatus, onFeedbackChange, onSave, isSaving }) {
   const navigate = useNavigate();
 
   const completedItems = items.filter((i) => logs[i.id]?.completed);
@@ -715,6 +743,7 @@ function CelebrationScreen({ workout, activeDay, items, logs, feedbackNotes, onF
       initial={{ opacity: 0 }} animate={{ opacity: 1 }}
       className="flex min-h-[80vh] flex-col items-center justify-start space-y-6 pb-10 pt-4 text-center"
     >
+      {draftStatus}
       <div className="relative flex items-center justify-center">
         <svg viewBox="0 0 120 120" className="h-36 w-36 -rotate-90">
           <circle cx="60" cy="60" r="54" fill="none" stroke="#1a1a1a" strokeWidth="6" />
@@ -859,10 +888,20 @@ function DayTabs({ days, activeId, onChange }) {
 
 // ─── Main ──────────────────────────────────────────────────────────────────────
 
+function DraftStatus({ status, onRetry, onUseRemote, onKeepLocal }) {
+  if (status === "ready" || status === "loading") return null;
+  return <div className={`client-draft-status ${status}`} role="status">
+    <span>{status === "saved" ? <CheckCircle2 size={15} /> : <RotateCcw size={15} />}{status === "saved" ? "Bozza salvata" : status === "pending" ? "Salvataggio in corso..." : status === "conflict" ? "Modifiche anche su un altro dispositivo" : "Non sincronizzata: riprova prima di chiudere"}</span>
+    {status === "offline" && <button type="button" onClick={onRetry}>Riprova</button>}
+    {status === "conflict" && <div><button type="button" onClick={onUseRemote}>Usa versione online</button><button type="button" onClick={onKeepLocal}>Mantieni questa</button></div>}
+  </div>;
+}
+
 export default function WorkoutPath() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const qc       = useQueryClient();
+  const { user } = useAuth();
   const { setTabBarHidden } = useClientLayout();
 
   const [activeDayId, setActiveDayId] = useState(null);
@@ -872,10 +911,17 @@ export default function WorkoutPath() {
   const [sheetItem, setSheetItem]   = useState(null);
   const [restConfig, setRestConfig] = useState(null);
 
-  // syncReady: true dopo aver eseguito il restore da sessionStorage per il giorno corrente
   const [syncReady, setSyncReady] = useState(false);
+  const [syncStatus, setSyncStatus] = useState("loading");
 
   const nodeRefs = useRef({});
+  const draftTimerRef = useRef(null);
+  const saveChainRef = useRef(Promise.resolve());
+  const revisionsRef = useRef(new Map());
+  const currentDraftKeyRef = useRef(null);
+  const conflictDraftRef = useRef(null);
+  const completingRef = useRef(false);
+  const skipNextPersistRef = useRef(false);
   const closeSheet = useCallback(() => setSheetItem(null), []);
 
   // Sblocca AudioContext su primo tap (requisito iOS per Web Audio API)
@@ -906,26 +952,72 @@ export default function WorkoutPath() {
     if (!workout?.days?.length) return null;
     return workout.days.find((d) => d.id === activeDayId) || workout.days[0];
   }, [workout, activeDayId]);
+  const draftKey = user?.id && workout?.id && activeDay?.id ? `${user.id}:${workout.id}:${activeDay.id}` : null;
+  const draftQuery = useQuery({
+    queryKey: ["client", "workout-draft", workout?.id, activeDay?.id],
+    queryFn: () => apiFetch(`/api/client/workout-draft?workoutId=${encodeURIComponent(workout.id)}&workoutDayId=${encodeURIComponent(activeDay.id)}`),
+    enabled: !!draftKey,
+    retry: 1,
+    refetchOnMount: "always",
+  });
 
-  // ── Restore da sessionStorage quando il giorno attivo è disponibile ──────────
-  // Caso legittimo: sincronizzazione one-shot con storage esterno sincrono.
-  // React 18 batcha le chiamate setState in un effect → nessun cascade render.
+  useEffect(() => {
+    currentDraftKeyRef.current = draftKey;
+    conflictDraftRef.current = null;
+  }, [draftKey]);
+
+  const enqueueDraftSave = useCallback((target, snapshot) => {
+    const next = saveChainRef.current.catch(() => {}).then(async () => {
+      if (completingRef.current || (currentDraftKeyRef.current === target.key && conflictDraftRef.current)) return;
+      const revision = revisionsRef.current.get(target.key) ?? 0;
+      const result = await apiFetch("/api/client/workout-draft", {
+        method: "PUT",
+        body: { workoutId: target.workoutId, workoutDayId: target.dayId, revision, state: snapshot.state },
+      });
+      revisionsRef.current.set(target.key, result.draft.revision);
+      const local = readProgress(target.userId, target.workoutId, target.dayId);
+      if (local?.savedAt === snapshot.savedAt) clearProgress(target.userId, target.workoutId, target.dayId);
+      if (currentDraftKeyRef.current === target.key) setSyncStatus(local?.savedAt === snapshot.savedAt ? "saved" : "pending");
+    }).catch((error) => {
+      if (currentDraftKeyRef.current !== target.key) return;
+      if (error.status === 409) {
+        conflictDraftRef.current = error.data?.draft || null;
+        setSyncStatus("conflict");
+      } else setSyncStatus("offline");
+    });
+    saveChainRef.current = next;
+    return next;
+  }, []);
+
+  // Il recupero usa la copia locale solo se contiene modifiche non ancora confermate.
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    if (!workout?.id || !activeDay?.id || syncReady) return;
-    const saved = readProgress(workout.id, activeDay.id);
+    if (!draftKey || !workout?.id || !activeDay?.id || syncReady || draftQuery.isFetching) return;
+    const local = readProgress(user.id, workout.id, activeDay.id);
+    const remote = draftQuery.data?.draft;
+    const sameState = local && remote && JSON.stringify(local.state) === JSON.stringify(remote.state);
+    const conflict = local && remote && !sameState && local.revision !== remote.revision;
+    if (sameState) clearProgress(user.id, workout.id, activeDay.id);
+    const saved = (conflict || (local && !sameState)) ? local?.state : remote?.state;
+    revisionsRef.current.set(draftKey, remote?.revision ?? local?.revision ?? 0);
+    if (conflict) conflictDraftRef.current = remote;
+    skipNextPersistRef.current = !local || !!sameState;
     if (saved) {
+      const validIds = new Set(activeDay.items.map((item) => item.id));
+      const restoredLogs = Object.fromEntries(Object.entries(saved.logs || {}).filter(([id]) => validIds.has(id)));
       const reachedFromLogs = activeDay.items.reduce((max, item, index) => {
-        const log = saved.logs?.[item.id];
+        const log = restoredLogs[item.id];
         return Math.max(max, log?.completed || log?.skipped ? index + 1 : log ? index : 0);
       }, 0);
       const allCompleted =
         activeDay.items?.length > 0 &&
-        activeDay.items.every((item) => saved.logs?.[item.id]?.completed);
+        activeDay.items.every((item) => restoredLogs[item.id]?.completed);
       dispatchSession({
         type: "RESTORE",
         payload: {
           ...saved,
+          logs: restoredLogs,
+          submissionId: saved.submissionId || crypto.randomUUID(),
           unlockedThrough: Math.max(
             0,
             Math.min(activeDay.items.length - 1, Math.max(saved.unlockedThrough ?? 0, reachedFromLogs))
@@ -933,16 +1025,61 @@ export default function WorkoutPath() {
           phase: saved.phase === "done" && !allCompleted ? "path" : saved.phase,
         },
       });
-    }
+    } else dispatchSession({ type: "RESTORE", payload: { submissionId: crypto.randomUUID() } });
+    setSyncStatus(conflict ? "conflict" : draftQuery.isError ? "offline" : remote ? "saved" : "ready");
     setSyncReady(true);
-  }, [workout?.id, activeDay?.id, activeDay?.items, syncReady]);
+  }, [draftKey, workout?.id, activeDay?.id, activeDay?.items, syncReady, draftQuery.isFetching, draftQuery.isError, draftQuery.data?.draft, user?.id]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  // ── Persist su ogni cambio di stato rilevante (solo dopo il restore) ─────────
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    if (!syncReady || !workout?.id || !activeDay?.id) return;
-    writeProgress(workout.id, activeDay.id, { logs, feedbackNotes, phase, unlockedThrough });
-  }, [syncReady, logs, feedbackNotes, phase, unlockedThrough, workout?.id, activeDay?.id]);
+    if (!syncReady || !draftKey || !user?.id || !workout?.id || !activeDay?.id || conflictDraftRef.current || completingRef.current) return;
+    if (skipNextPersistRef.current) { skipNextPersistRef.current = false; return; }
+    if (!Object.keys(logs).length && !feedbackNotes && phase !== "done") return;
+    const target = { key: draftKey, userId: user.id, workoutId: workout.id, dayId: activeDay.id };
+    const snapshot = writeProgress(user.id, workout.id, activeDay.id, session, revisionsRef.current.get(draftKey) ?? 0);
+    setSyncStatus("pending");
+    draftTimerRef.current = window.setTimeout(() => enqueueDraftSave(target, snapshot), 650);
+    return () => window.clearTimeout(draftTimerRef.current);
+  }, [syncReady, draftKey, user?.id, workout?.id, activeDay?.id, session, logs, feedbackNotes, phase, enqueueDraftSave]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  const retryDraft = useCallback(() => {
+    if (!draftKey || !user?.id || !workout?.id || !activeDay?.id || conflictDraftRef.current) return;
+    const snapshot = readProgress(user.id, workout.id, activeDay.id);
+    if (!snapshot) return;
+    setSyncStatus("pending");
+    enqueueDraftSave({ key: draftKey, userId: user.id, workoutId: workout.id, dayId: activeDay.id }, snapshot);
+  }, [draftKey, user, workout, activeDay, enqueueDraftSave]);
+
+  useEffect(() => {
+    window.addEventListener("online", retryDraft);
+    return () => window.removeEventListener("online", retryDraft);
+  }, [retryDraft]);
+
+  const useRemoteDraft = () => {
+    const remote = conflictDraftRef.current;
+    if (!draftKey || !user?.id || !workout?.id || !activeDay?.id) return;
+    window.clearTimeout(draftTimerRef.current);
+    clearProgress(user.id, workout.id, activeDay.id);
+    revisionsRef.current.set(draftKey, remote?.revision ?? 0);
+    conflictDraftRef.current = null;
+    skipNextPersistRef.current = true;
+    setSheetItem(null);
+    dispatchSession({ type: "RESTORE", payload: remote?.state || { submissionId: crypto.randomUUID() } });
+    setSyncStatus(remote ? "saved" : "ready");
+  };
+
+  const keepLocalDraft = () => {
+    if (!draftKey || !user?.id || !workout?.id || !activeDay?.id) return;
+    window.clearTimeout(draftTimerRef.current);
+    revisionsRef.current.set(draftKey, conflictDraftRef.current?.revision ?? 0);
+    conflictDraftRef.current = null;
+    const snapshot = readProgress(user.id, workout.id, activeDay.id)
+      || writeProgress(user.id, workout.id, activeDay.id, session, revisionsRef.current.get(draftKey));
+    setSyncStatus("pending");
+    enqueueDraftSave({ key: draftKey, userId: user.id, workoutId: workout.id, dayId: activeDay.id }, snapshot);
+  };
 
   const items     = useMemo(() => activeDay?.items ?? [], [activeDay]);
   const doneCount = useMemo(
@@ -1066,12 +1203,16 @@ export default function WorkoutPath() {
   }, [restConfig]);
 
   const saveSession = useMutation({
-    mutationFn: () =>
-      apiFetch("/api/client/sessions", {
+    mutationFn: async () => {
+      completingRef.current = true;
+      window.clearTimeout(draftTimerRef.current);
+      await saveChainRef.current;
+      return apiFetch("/api/client/sessions", {
         method: "POST",
         body: {
           workoutId:    workout.id,
           workoutDayId: activeDay.id,
+          submissionId: session.submissionId,
           feedbackNotes,
           logs: items.map((item) => {
             const log = logs[item.id] || {};
@@ -1088,21 +1229,29 @@ export default function WorkoutPath() {
               loadUsed: log.loadUsed ?? null,
               rpe: log.rpe ?? null,
               notes: log.notes ?? null,
+              repsDone: log.repsDone ?? null,
+              sets: log.sets ?? null,
               loadValue: first ? first[1] : null,
             };
           }),
         },
-      }),
+      });
+    },
     onSuccess: async () => {
-      // Cancella il progresso salvato: sessione completata, non serve più
-      clearProgress(workout.id, activeDay.id);
+      clearProgress(user.id, workout.id, activeDay.id);
+      qc.removeQueries({ queryKey: ["client", "workout-draft", workout.id, activeDay.id] });
       await qc.invalidateQueries({ queryKey: ["client", "active-workout"] });
       await qc.invalidateQueries({ queryKey: ["client", "overview"] });
       toast({ type: "success", title: "Sessione salvata! 🏆" });
       navigate("/area-cliente");
     },
-    onError: (err) =>
-      toast({ type: "error", title: "Salvataggio fallito", description: err.message }),
+    onError: (err) => {
+      completingRef.current = false;
+      setSyncStatus("offline");
+      writeProgress(user.id, workout.id, activeDay.id, session, revisionsRef.current.get(draftKey) ?? 0);
+      retryDraft();
+      toast({ type: "error", title: "Salvataggio fallito", description: err.message });
+    },
   });
 
   // ── Loading / error states ─────────────────────────────────────────────────
@@ -1156,12 +1305,15 @@ export default function WorkoutPath() {
     );
   }
 
+  if (!syncReady) return <EmptyState icon={Dumbbell} title="Riprendo il tuo allenamento..." />;
+
   if (phase === "done") {
     return (
       <div className="client-workout-celebration">
         <CelebrationScreen
           workout={workout} activeDay={activeDay} items={items} logs={logs}
           feedbackNotes={feedbackNotes}
+          draftStatus={<DraftStatus status={syncStatus} onRetry={retryDraft} onUseRemote={useRemoteDraft} onKeepLocal={keepLocalDraft} />}
         onFeedbackChange={(v) => dispatchSession({ type: "SET_FEEDBACK", value: v })}
           onSave={() => saveSession.mutate()} isSaving={saveSession.isPending}
         />
@@ -1176,7 +1328,8 @@ export default function WorkoutPath() {
       <div className="client-workout-path">
         {/* Header */}
         <header className="client-mission-header"><div><p>La tua missione</p><h1>Allenamento<span>.</span></h1></div><button onClick={() => navigate("/area-cliente")} aria-label="Torna alla Home"><ChevronLeft size={20} /></button></header>
-        <div className="client-mission-stats"><div><Flame size={19} /><strong>{streak}</strong><span>settimane di fila</span></div><div><Zap size={19} /><strong>{countedSessions.length * 100}</strong><span>XP guadagnati</span></div></div>
+        <div className="client-mission-stats"><div><Flame size={19} /><strong>{streak}</strong><span>settimane di fila</span></div><div><Zap size={19} /><strong>{(workoutQuery.data?.totalSessions ?? countedSessions.length) * 100}</strong><span>XP guadagnati</span></div></div>
+        <DraftStatus status={syncStatus} onRetry={retryDraft} onUseRemote={useRemoteDraft} onKeepLocal={keepLocalDraft} />
 
         {/* Day tabs */}
         {workout.days.length > 1 && (
@@ -1186,6 +1339,7 @@ export default function WorkoutPath() {
             onChange={(id) => {
               // Resetta syncReady → il restore effect caricherà il progresso del nuovo giorno
               setSyncReady(false);
+              setSyncStatus("loading");
               setActiveDayId(id);
               dispatchSession({ type: "RESET_DAY" });
               setRestConfig(null);

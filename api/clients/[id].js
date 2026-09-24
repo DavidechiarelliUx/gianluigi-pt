@@ -69,6 +69,7 @@ export default async function handler(req, res) {
         subscriptions,
         sessions,
         metrics,
+        checkIns,
         messages,
         bookings,
         liveMovements,
@@ -122,6 +123,11 @@ export default async function handler(req, res) {
           orderBy: { date: "desc" },
           take: 12,
         }),
+        prisma.clientCheckIn.findMany({
+          where: { clientId: client.id },
+          orderBy: { weekStart: "desc" },
+          take: 8,
+        }),
         prisma.coachMessage.findMany({
           where: { clientId: client.id, hiddenAt: null },
           orderBy: { createdAt: "asc" },
@@ -160,6 +166,7 @@ export default async function handler(req, res) {
           subscriptions,
           sessions,
           metrics,
+          checkIns,
           messages,
           bookings,
           liveMovements,
@@ -175,6 +182,29 @@ export default async function handler(req, res) {
       });
     } catch (err) {
       console.error("GET /api/clients/[id]:", err);
+      return res.status(500).json({ ok: false, error: "Errore interno" });
+    }
+  }
+
+  /* ---- PATCH: risposta a un check-in settimanale ---- */
+  if (req.method === "PATCH") {
+    const body = parseJsonBody(req);
+    const checkInId = String(body?.checkInId || "");
+    const coachReply = String(body?.coachReply || "").trim();
+    const planNote = String(body?.planNote || "").trim();
+    if (!checkInId || (!coachReply && !planNote) || coachReply.length > 1000 || planNote.length > 1000) {
+      return res.status(400).json({ ok: false, error: "Risposta al check-in non valida" });
+    }
+    try {
+      const checkIn = await prisma.clientCheckIn.findFirst({ where: { id: checkInId, clientId: id, client: { is: { deletedAt: null } } } });
+      if (!checkIn) return res.status(404).json({ ok: false, error: "Check-in non trovato" });
+      const updated = await prisma.clientCheckIn.update({
+        where: { id: checkInId },
+        data: { coachReply: coachReply || null, planNote: planNote || null, reviewedAt: new Date() },
+      });
+      return res.status(200).json({ ok: true, checkIn: updated });
+    } catch (error) {
+      console.error("PATCH /api/clients/[id]:", error);
       return res.status(500).json({ ok: false, error: "Errore interno" });
     }
   }
@@ -230,5 +260,5 @@ export default async function handler(req, res) {
     }
   }
 
-  return methodNotAllowed(res, ["GET", "PUT", "DELETE"]);
+  return methodNotAllowed(res, ["GET", "PUT", "PATCH", "DELETE"]);
 }

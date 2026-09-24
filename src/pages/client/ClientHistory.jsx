@@ -264,6 +264,7 @@ export default function ClientHistory() {
   const workoutQuery = useQuery({ queryKey: ["client", "active-workout"], queryFn: () => apiFetch("/api/client/active-workout") });
   const progressQuery = useQuery({ queryKey: ["client", "progress"], queryFn: () => apiFetch("/api/client/progress") });
   const metricsQuery = useQuery({ queryKey: ["client", "metrics"], queryFn: () => apiFetch("/api/client/metrics") });
+  const overviewQuery = useQuery({ queryKey: ["client", "overview"], queryFn: () => apiFetch("/api/client/overview") });
 
   const sessions = useMemo(() => (workoutQuery.data?.sessions || []).filter(isCountedSession), [workoutQuery.data?.sessions]);
   const workoutDays = useMemo(() => workoutQuery.data?.workout?.days || [], [workoutQuery.data?.workout?.days]);
@@ -290,6 +291,8 @@ export default function ClientHistory() {
   const metricPoints = activeMetricField
     ? metrics.filter((metric) => Number.isFinite(metric[activeMetricField.key])).slice().reverse().map((metric) => ({ date: metric.date, value: metric[activeMetricField.key] }))
     : [];
+  const currentWeek = weeklyActivity(sessions, workoutDays.length)[3];
+  const improvingExercise = allExercises.filter((exercise) => Number.isFinite(exercise.improvement) && exercise.improvement > 0).sort((a, b) => b.improvement - a.improvement)[0];
 
   const saveMetric = useMutation({
     mutationFn: (payload) => apiFetch("/api/client/metrics", { method: "POST", body: payload }),
@@ -332,6 +335,11 @@ export default function ClientHistory() {
         <div><p>Il tuo percorso</p><h1>Progressi</h1></div>
       </header>
       <div className="client-progress-tabs" role="tablist" aria-label="Tipo di progresso"><button role="tab" aria-selected={mode === "allenamento"} className={mode === "allenamento" ? "active" : ""} onClick={() => setMode("allenamento")}>Allenamento</button><button role="tab" aria-selected={mode === "misure"} className={mode === "misure" ? "active" : ""} onClick={() => setMode("misure")}>Misure</button></div>
+      {(overviewQuery.data?.goal || mode === "allenamento") && <section className="client-progress-insights" aria-label="Il tuo punto della situazione">
+        {overviewQuery.data?.goal && <p><strong>Il tuo obiettivo</strong>{overviewQuery.data.goal}</p>}
+        {mode === "allenamento" && !workoutQuery.isLoading && !workoutQuery.isError && <p><strong>Questa settimana</strong>{currentWeek.target ? currentWeek.count >= currentWeek.target ? `Hai completato ${currentWeek.count} sedute: obiettivo settimanale raggiunto.` : `Hai completato ${currentWeek.count} sedute su ${currentWeek.target}. ${currentWeek.target - currentWeek.count === 1 ? "Ne manca una" : `Ne mancano ${currentWeek.target - currentWeek.count}`} per il tuo ritmo previsto.` : `${currentWeek.count} sedute registrate.`}</p>}
+        {mode === "allenamento" && improvingExercise && <p><strong>Un progresso concreto</strong>{improvingExercise.name}: +{formatNumber(improvingExercise.improvement)} kg rispetto al primo carico registrato.</p>}
+      </section>}
 
       {mode === "allenamento" && <>
       {workoutQuery.isLoading ? (

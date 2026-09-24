@@ -67,6 +67,7 @@ export default async function handler(req, res) {
         liveBalances,
         openMessages,
         activeWorkouts,
+        pendingCheckIns,
       ] = clientIds.length ? await Promise.all([
         prisma.order.findMany({
           where: { userId: { in: userIds } },
@@ -93,7 +94,12 @@ export default async function handler(req, res) {
           where: { clientId: { in: clientIds }, status: "active" },
           _count: { _all: true },
         }),
-      ]) : [[], [], [], [], []];
+        prisma.clientCheckIn.groupBy({
+          by: ["clientId"],
+          where: { clientId: { in: clientIds }, reviewedAt: null },
+          _count: { _all: true },
+        }),
+      ]) : [[], [], [], [], [], []];
 
       const ordersByUser = new Map();
       const subscriptionsByUser = new Map();
@@ -102,6 +108,7 @@ export default async function handler(req, res) {
       const liveBalanceMap = new Map(liveBalances.map((row) => [row.clientId, row._sum.amount || 0]));
       const openMessageMap = new Map(openMessages.map((row) => [row.clientId, row._count._all || 0]));
       const activeWorkoutMap = new Map(activeWorkouts.map((row) => [row.clientId, row._count._all || 0]));
+      const pendingCheckInMap = new Map(pendingCheckIns.map((row) => [row.clientId, row._count._all || 0]));
 
       return res.status(200).json({
         ok: true,
@@ -121,6 +128,7 @@ export default async function handler(req, res) {
             ...paymentSummary(ordersByUser.get(client.userId) || [], subscriptionsByUser.get(client.userId) || []),
             liveCredits: liveBalanceMap.get(client.id) || 0,
             openRequests: openMessageMap.get(client.id) || 0,
+            pendingCheckIns: pendingCheckInMap.get(client.id) || 0,
             activeWorkouts: activeWorkoutMap.get(client.id) || 0,
             totalWorkouts: client._count?.workouts || 0,
             totalSessions: client._count?.workoutSessions || 0,

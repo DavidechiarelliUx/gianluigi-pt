@@ -3,7 +3,7 @@ import { MainLayout } from "../components/layout";
 import { Container } from "../components/ui/Container";
 import { Button } from "../components/ui/Button";
 
-const UPDATED_AT = "luglio 2026";
+const UPDATED_AT = "settembre 2026";
 const CONTROLLER = {
   name: "Gianluigi Chiarelli",
   vat: "[P.IVA da inserire]",
@@ -14,7 +14,7 @@ const CONTROLLER = {
 const sections = [
   {
     title: "Dati raccolti",
-    body: "Il sito e l'app possono trattare nome, cognome, email, telefono, messaggi inviati, obiettivi di allenamento, dati account, ordini, stato pagamenti, abbonamenti, prenotazioni live, dati di allenamento, carichi, ripetizioni, RPE, feedback, misure corporee, eventuali foto e note inserite dal cliente.",
+    body: "Il sito e l'app possono trattare nome, cognome, email, telefono, messaggi inviati, obiettivi di allenamento, dati account, ordini, stato pagamenti, abbonamenti, prenotazioni live, dati di allenamento, carichi e ripetizioni per serie, RPE, feedback, check-in settimanali facoltativi su energia e difficoltà, misure corporee, eventuali foto e note inserite dal cliente. Una bozza dell'allenamento può restare temporaneamente nel browser fino alla sincronizzazione.",
   },
   {
     title: "Finalita e basi giuridiche",

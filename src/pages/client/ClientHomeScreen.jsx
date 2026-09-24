@@ -13,6 +13,7 @@ import { apiFetch } from "../../lib/api";
 import { calcWeeklyStreak, isCountedSession } from "../../lib/sessionStats";
 import { useClientLayout } from "./ClientLayoutContext";
 import coachPhoto from "../../assets/gianluigi-chiarelli.webp";
+import ClientWeeklyCheckIn from "./ClientWeeklyCheckIn";
 
 function weekDays(sessions) {
   const today = new Date();
@@ -132,7 +133,8 @@ export default function ClientHomeScreen() {
       <div className="client-section-heading"><h2>Il tuo allenamento</h2><button onClick={() => navigate("/area-cliente/allenamento")}>Vedi scheda <ArrowRight size={16} /></button></div>
       {workout ? <button className="client-featured-workout" onClick={() => navigate("/area-cliente/allenamento")}><ExerciseIllustration exercise={artId} className="client-feature-art" /><span className="client-feature-copy"><span><Dumbbell size={14} /> {trainedToday ? "ALLENATO OGGI" : "LA TUA SCHEDA"}</span><strong>{firstDay?.label || workout.title}</strong><small>{workout.title} · {firstDay?.items?.length || 0} esercizi</small><b>{trainedToday ? "Apri percorso" : "Inizia"} <ArrowRight size={17} /></b></span></button> : <EmptyState icon={Dumbbell} title="Nessuna scheda attiva" description="Gianluigi ti assegnerà presto la tua scheda." />}
 
-      <div className="client-home-stats"><div><span><Dumbbell size={17} /></span><strong>{planSessions.length}</strong><small>sessioni con la scheda</small></div><div><span><Flame size={17} /></span><strong>{streak}</strong><small>settimane di fila</small></div></div>
+      <div className="client-home-stats"><div><span><Dumbbell size={17} /></span><strong>{workout ? workoutQuery.data?.totalWorkoutSessions ?? planSessions.length : workoutQuery.data?.totalSessions ?? planSessions.length}</strong><small>sessioni con la scheda</small></div><div><span><Flame size={17} /></span><strong>{streak}</strong><small>settimane di fila</small></div></div>
+      <ClientWeeklyCheckIn goal={overview.data?.goal} />
 
       {nextLive && <><div className="client-section-heading"><h2>In programma</h2></div><button className="client-event-row" onClick={() => navigate("/area-cliente/live")}><span className="client-event-date"><strong>{new Date(nextLive.scheduledAt).getDate()}</strong><small>{new Date(nextLive.scheduledAt).toLocaleDateString("it-IT", { month: "short" }).toUpperCase()}</small></span><span><strong>{nextLive.title}</strong><small>{new Date(nextLive.scheduledAt).toLocaleString("it-IT", { weekday: "long", hour: "2-digit", minute: "2-digit" })} · {nextLive.durationMin} min</small></span><Video size={18} /></button></>}
       {lastSession && <button className="client-last-row" onClick={() => navigate("/area-cliente/storico")}><span><CalendarCheck size={19} /></span><span><strong>Ultima sessione</strong><small>{new Date(lastSession.date).toLocaleDateString("it-IT", { day: "numeric", month: "long" })} · {lastDone}/{lastTotal} esercizi{lastSession.feedbackNotes ? ` · ${lastSession.feedbackNotes.slice(0, 30)}` : ""}</small></span><ChevronRight size={18} /></button>}

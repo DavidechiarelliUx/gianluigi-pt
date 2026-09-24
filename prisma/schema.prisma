@@ -123,6 +123,8 @@ model Client {
   notes                String?
   workouts             Workout[]
   workoutSessions      WorkoutSession[]
+  workoutDrafts        WorkoutDraft[]
+  checkIns             ClientCheckIn[]
   bookings             Booking[] // Fase 3
   targetedLiveSessions LiveSession[]      @relation("TargetedLiveSessions")
   liveCredits          LiveCreditLedger[]
@@ -144,6 +146,7 @@ model Workout {
   status      WorkoutStatus    @default(active)
   days        WorkoutDay[]
   sessions    WorkoutSession[]
+  drafts      WorkoutDraft[]
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
   archivedAt  DateTime?
@@ -158,6 +161,7 @@ model WorkoutDay {
   label     String // "Giorno A · Push"
   order     Int           @default(0)
   items     WorkoutItem[]
+  drafts    WorkoutDraft[]
 }
 
 model Exercise {
@@ -197,6 +201,7 @@ model WorkoutTemplate {
 
 model WorkoutSession {
   id                 String           @id @default(uuid())
+  submissionId       String?          @unique
   client             Client           @relation(fields: [clientId], references: [id])
   clientId           String
   workout            Workout          @relation(fields: [workoutId], references: [id])
@@ -232,8 +237,54 @@ model WorkoutItemLog {
   repsDone            String?
   perceivedDifficulty Int? // RPE per esercizio 1-10
   notes               String?
+  sets                WorkoutSetLog[]
 
   @@index([exerciseId])
+}
+
+model WorkoutSetLog {
+  id              String         @id @default(uuid())
+  itemLog         WorkoutItemLog @relation(fields: [itemLogId], references: [id], onDelete: Cascade)
+  itemLogId       String
+  setIndex        Int
+  loadValue       Float?
+  repsDone        Int?
+  durationSeconds Int?
+
+  @@unique([itemLogId, setIndex])
+}
+
+model WorkoutDraft {
+  id           String     @id @default(uuid())
+  client       Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId     String
+  workout      Workout    @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  workoutId    String
+  workoutDay   WorkoutDay @relation(fields: [workoutDayId], references: [id], onDelete: Cascade)
+  workoutDayId String
+  state        Json
+  revision     Int        @default(0)
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([clientId, workoutId, workoutDayId])
+}
+
+model ClientCheckIn {
+  id         String    @id @default(uuid())
+  client     Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId   String
+  weekStart  DateTime  @db.Date
+  energy     Int
+  difficulty Int
+  obstacle   String?
+  coachReply String?
+  planNote   String?
+  reviewedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@unique([clientId, weekStart])
+  @@index([clientId, createdAt])
 }
 
 // ─────────────────────────────────────────
